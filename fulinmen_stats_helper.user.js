@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.3
+// @version      1.0.4
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -862,15 +862,11 @@
         const activeInfo = calculateActiveTime(records, todayStr);
         
         if (isCoreHour) {
-            // 核心工时段：显示本小时（初审+复审）综合时速
-            const curHourActiveHours = activeInfo.hourlyActiveHours[targetHour] || 0;
+            // 核心工时段：显示本小时（初审+复审）综合时速（采用当前小时已过时间的估算时速，防止分母过小造成时速抖动，与 Card 2 保持同步）
+            const nowMin = now.getMinutes();
+            const elapsedFrac = Math.max(5, nowMin) / 60;
             const curHourTotal = (hourlyStats[targetHour] || 0) + (hourlyReworkStats[targetHour] || 0);
-            if (curHourTotal > 0) {
-                // 限制最少计入 2 分钟，防止分母过小造成时速抖动
-                const minActiveHours = 2 / 60;
-                const effectiveActiveHours = Math.max(minActiveHours, curHourActiveHours);
-                curHourSpeed = (curHourTotal / effectiveActiveHours).toFixed(1);
-            }
+            curHourSpeed = (curHourTotal / elapsedFrac).toFixed(1);
         } else {
             // 非核心时段：显示今日累计综合均速（初审+复审）
             let activeHoursSum = 0;
