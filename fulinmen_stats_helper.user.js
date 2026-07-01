@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -1371,6 +1371,27 @@
         }
 
         try {
+            // ★ 先确保 Q22 第一个选项已选（若未选则点击一次）
+            (() => {
+                const reviews = document.querySelectorAll('.answer--review');
+                for (const review of reviews) {
+                    const cardInfo = findQuestionCard(review);
+                    if (!cardInfo || cardInfo.qNum !== 'Q22') continue;
+                    const opt1 = review.querySelector('.question-option');
+                    if (!opt1) break;
+                    // 检查是否已选中（radio 变蓝 / class 变化）
+                    const radio = opt1.querySelector('input[type="radio"]');
+                    if (radio && radio.checked) break;  // 已选中，跳过
+                    // 模拟点击
+                    const evOpts = { bubbles: true, cancelable: true };
+                    opt1.dispatchEvent(new MouseEvent('mousedown', evOpts));
+                    opt1.dispatchEvent(new MouseEvent('mouseup', evOpts));
+                    opt1.dispatchEvent(new MouseEvent('click', evOpts));
+                    if (radio) radio.click(); // 额外触发原生 click 以激活 Vue
+                    break;
+                }
+            })();
+
             // ④ 检测是否所有题目已有判断，若已全判断则跳过通过步骤直接提交
             if (autoReviewAllJudged()) {
                 autoReviewToast('所有题目已有判断，直接提交审核...');
@@ -2097,7 +2118,6 @@
             if (!document.getElementById('sj-auto-review-btn')) {
                 autoReviewCreatePanel();
             }
-            selectQ22Opt1();
             autoReviewCollapseUnneeded();
             cloneQ5EvidenceToQ6();
             ensureQ6QuickFailButton();
