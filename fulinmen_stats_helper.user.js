@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.7
+// @version      1.0.8
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -1051,6 +1051,27 @@
         return true;
     }
 
+    // 触发精准中心坐标模拟点击（mousedown+mouseup+click）
+    function autoReviewClickCenter(el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const opts = {
+            bubbles: true,
+            cancelable: true,
+            clientX: x,
+            clientY: y,
+            view: window
+        };
+        el.dispatchEvent(new MouseEvent('mouseover', opts));
+        el.dispatchEvent(new MouseEvent('mousemove', opts));
+        el.dispatchEvent(new MouseEvent('mousedown', opts));
+        el.dispatchEvent(new MouseEvent('mouseup', opts));
+        el.dispatchEvent(new MouseEvent('click', opts));
+        return true;
+    }
+
     function photoEditGetVisible(selector, root = document) {
         return Array.from(root.querySelectorAll(selector)).find((el) => {
             const rect = el.getBoundingClientRect();
@@ -1373,21 +1394,30 @@
 
                 if (cardInfo && cardInfo.qNum === 'Q22') {
                     const options = Array.from(
-                        review.querySelectorAll('.question--option, .question-option')
+                        cardInfo.card.querySelectorAll('.question--option, .question-option')
                     );
 
+                    console.log('[Q22] card:', cardInfo.card);
                     console.log('[Q22] 找到选项数量:', options.length, options);
 
                     if (options.length > 0) {
                         const opt1 = options[0];
-                        opt1.scrollIntoView({ block: 'center', inline: 'nearest' });
 
-                        autoReviewClickEl(opt1);
+                        opt1.scrollIntoView({ block: 'center', inline: 'nearest' });
+                        await autoReviewSleep(100);
+
+                        // 优先点标题文字，再点整行 (使用中心坐标点击法)
+                        const title = opt1.querySelector('.option-title');
+                        if (title) {
+                            autoReviewClickCenter(title);
+                        }
+
+                        autoReviewClickCenter(opt1);
 
                         selectedQ22 = true;
                         console.log('[Q22] 已点击第一个选项');
                     } else {
-                        console.warn('[Q22] 没找到选项，请检查 class 名');
+                        console.warn('[Q22] 没找到选项，cardInfo.card 可能不是整张题卡');
                     }
 
                     break;
@@ -1395,7 +1425,7 @@
             }
 
             if (selectedQ22) {
-                await autoReviewSleep(300);
+                await autoReviewSleep(500);
             }
 
             // ④ 检测是否所有题目已有判断，若已全判断则跳过通过步骤直接提交
