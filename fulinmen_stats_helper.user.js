@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -32,6 +32,7 @@
     let currentTab = 'daily';      // 当前标签页: 'daily' | 'weekly'
     let manuallyExpandedQuestions = new Set();
     let reviewLastLocationHref = null;
+    let q22SelectedForCurrentOrder = false;
     let resizeHandler = null;      // 全局共享的 resize 处理器，防内存泄漏
     const queryCache = {};         // 内存缓存 API 请求，防接口高频被限流
     let autoRefreshInterval = null; // 自动刷新定时器
@@ -1983,6 +1984,43 @@
         }
     }
 
+    // Q22 自动选第一个选项（每个新订单只执行一次）
+    function selectQ22Opt1() {
+        if (q22SelectedForCurrentOrder) return;
+
+        const reviews = document.querySelectorAll('.answer--review');
+        for (const review of reviews) {
+            const cardInfo = findQuestionCard(review);
+            if (!cardInfo || cardInfo.qNum !== 'Q22') continue;
+
+            const optionsContainer = review.querySelector('.question-options');
+            if (!optionsContainer) return;
+
+            const options = optionsContainer.querySelectorAll('.question-option');
+            if (options.length === 0) return;
+
+            const opt1 = options[0];
+
+            // 检查是否已经选中，避免重复点击
+            const alreadySelected = opt1.classList.contains('checked') ||
+                opt1.classList.contains('is-checked') ||
+                opt1.classList.contains('active') ||
+                !!opt1.querySelector('[class*="checked"], [class*="active"], [class*="selected"]');
+            if (alreadySelected) {
+                q22SelectedForCurrentOrder = true;
+                return;
+            }
+
+            // 触发点击，兼容 Vue 双向绑定
+            const opts = { bubbles: true, cancelable: true };
+            opt1.dispatchEvent(new MouseEvent('mousedown', opts));
+            opt1.dispatchEvent(new MouseEvent('mouseup', opts));
+            opt1.dispatchEvent(new MouseEvent('click', opts));
+            q22SelectedForCurrentOrder = true;
+            return;
+        }
+    }
+
     // 初始化入口（每次由 init 定时检查，无额外并发定时器）
     function autoReviewCollapseUnneeded() {
         const collapseNums = new Set(['Q1', 'Q2', 'Q3', 'Q11', 'Q19', 'Q20', 'Q21']);
@@ -2053,11 +2091,13 @@
             if (reviewLastLocationHref !== location.href) {
                 reviewLastLocationHref = location.href;
                 manuallyExpandedQuestions.clear();
+                q22SelectedForCurrentOrder = false;
             }
         if (document.querySelector('.answer--review')) {
             if (!document.getElementById('sj-auto-review-btn')) {
                 autoReviewCreatePanel();
             }
+            selectQ22Opt1();
             autoReviewCollapseUnneeded();
             cloneQ5EvidenceToQ6();
             ensureQ6QuickFailButton();
