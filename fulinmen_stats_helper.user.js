@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.6
+// @version      1.0.7
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -1364,44 +1364,38 @@
         }
 
         try {
-            // ★ 先确保 Q22 第一个选项已选（若未选则点击一次，模拟点击子元素以触发 Vue 双向绑定）
+            // ★ 先确保 Q22 第一个选项已选
             let selectedQ22 = false;
             const flowReviews = document.querySelectorAll('.answer--review');
+
             for (const review of flowReviews) {
                 const cardInfo = findQuestionCard(review);
+
                 if (cardInfo && cardInfo.qNum === 'Q22') {
-                    const options = Array.from(review.querySelectorAll('.question-option'));
+                    const options = Array.from(
+                        review.querySelectorAll('.question--option, .question-option')
+                    );
+
+                    console.log('[Q22] 找到选项数量:', options.length, options);
+
                     if (options.length > 0) {
-                        const hasSelected = options.some(o => {
-                            const icon = o.querySelector('i, [class*="icon"]');
-                            if (icon && icon.classList.contains('sj-icon-round')) {
-                                return false; // 仍为空心圆圈，说明未选中
-                            }
-                            return o.classList.contains('checked') || 
-                                   o.classList.contains('is-checked') || 
-                                   o.classList.contains('active') || 
-                                   o.classList.contains('selected') || 
-                                   o.querySelector('[class*="checked"], [class*="active"], [class*="selected"], [class*="success"]');
-                        });
-                        
-                        if (!hasSelected) {
-                            const opt1 = options[0];
-                            const innerSpan = opt1.querySelector('span');
-                            const titleSpan = opt1.querySelector('.option-title');
-                            const iconEl = opt1.querySelector('.sj-icon-round, i, [class*="icon"]');
-                            
-                            if (innerSpan) autoReviewClickEl(innerSpan);
-                            if (titleSpan) autoReviewClickEl(titleSpan);
-                            if (iconEl) autoReviewClickEl(iconEl);
-                            autoReviewClickEl(opt1);
-                            selectedQ22 = true;
-                        }
+                        const opt1 = options[0];
+                        opt1.scrollIntoView({ block: 'center', inline: 'nearest' });
+
+                        autoReviewClickEl(opt1);
+
+                        selectedQ22 = true;
+                        console.log('[Q22] 已点击第一个选项');
+                    } else {
+                        console.warn('[Q22] 没找到选项，请检查 class 名');
                     }
+
                     break;
                 }
             }
+
             if (selectedQ22) {
-                await autoReviewSleep(200); // 留出 200ms 让 Vue 完成数据状态绑定
+                await autoReviewSleep(300);
             }
 
             // ④ 检测是否所有题目已有判断，若已全判断则跳过通过步骤直接提交
