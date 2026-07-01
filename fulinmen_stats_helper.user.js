@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.0.5
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -862,19 +862,16 @@
         const activeInfo = calculateActiveTime(records, todayStr);
         
         if (isCoreHour) {
-            // 核心工时段：显示本小时（初审+复审）综合时速（采用当前小时已过时间的估算时速，防止分母过小造成时速抖动，与 Card 2 保持同步）
-            const nowMin = now.getMinutes();
-            const elapsedFrac = Math.max(5, nowMin) / 60;
+            // 核心工时段：显示本小时（初审+复审）综合时速
+            const curHourActiveHours = activeInfo.hourlyActiveHours[targetHour] || 0;
             const curHourTotal = (hourlyStats[targetHour] || 0) + (hourlyReworkStats[targetHour] || 0);
-            curHourSpeed = (curHourTotal / elapsedFrac).toFixed(1);
+            curHourSpeed = curHourActiveHours > 0 ? (curHourTotal / curHourActiveHours).toFixed(1) : '0.0';
         } else {
             // 非核心时段：显示今日累计综合均速（初审+复审）
             let activeHoursSum = 0;
             displayHours.forEach(h => {
                 if (hourlyStats[h] > 0 || hourlyReworkStats[h] > 0) {
-                    const hActive = activeInfo.hourlyActiveHours[h] || 0;
-                    const minActive = 2 / 60;
-                    activeHoursSum += Math.max(minActive, hActive);
+                    activeHoursSum += activeInfo.hourlyActiveHours[h] || 0;
                 }
             });
             curHourSpeed = activeHoursSum > 0 ? (todayTotal / activeHoursSum).toFixed(1) : '0.0';
@@ -2595,53 +2592,52 @@
             };
         }
 
-        const timestamps = dayRecords
-            .map(item => {
-                const t = Date.parse(item.reviewedtime.replace(/-/g, '/'));
+        const hourlyActiveHours = Array.from({ length: 24 }, () => 0);
+        const hourlyGroups = Array.from({ length: 24 }, () => []);
+
+        dayRecords.forEach(item => {
+            if (item.reviewedtime) {
                 let hour = parseInt(item.reviewedtime.substring(11, 13), 10);
-                if (hour === 8) hour = 9;
-                else if (hour === 12) hour = 11;
-                else if (hour === 18) hour = 17;
-                return {
-                    time: t,
-                    hour: hour
-                };
-            })
-            .filter(item => !isNaN(item.time))
-            .sort((a, b) => a.time - b.time);
-
-        if (timestamps.length === 0) {
-            return {
-                totalActiveHours: 0,
-                hourlyActiveHours: Array.from({ length: 24 }, () => 0)
-            };
-        }
-
-        const hourlyActiveSeconds = Array.from({ length: 24 }, () => 0);
-        const maxGapMs = 5 * 60 * 1000;
-        const defaultWarmupMs = 45 * 1000;
-
-        let firstHour = timestamps[0].hour;
-        if (firstHour >= 0 && firstHour < 24) {
-            hourlyActiveSeconds[firstHour] += defaultWarmupMs / 1000;
-        }
-
-        for (let i = 1; i < timestamps.length; i++) {
-            const current = timestamps[i];
-            const prev = timestamps[i - 1];
-            const gap = current.time - prev.time;
-            const hour = current.hour;
-
-            if (hour >= 0 && hour < 24) {
-                if (gap <= maxGapMs) {
-                    hourlyActiveSeconds[hour] += gap / 1000;
-                } else {
-                    hourlyActiveSeconds[hour] += defaultWarmupMs / 1000;
+                if (!isNaN(hour)) {
+                    if (hour === 8) hour = 9;
+                    else if (hour === 12) hour = 11;
+                    else if (hour === 18) hour = 17;
+                    if (hour >= 0 && hour < 24) {
+                        hourlyGroups[hour].push(item);
+                    }
                 }
             }
+        });
+
+        for (let h = 0; h < 24; h++) {
+            const group = hourlyGroups[h];
+            if (group.length === 0) {
+                hourlyActiveHours[h] = 0;
+                continue;
+            }
+
+            const times = group
+                .map(item => Date.parse(item.reviewedtime.replace(/-/g, '/')))
+                .filter(t => !isNaN(t));
+
+            if (times.length === 0) {
+                hourlyActiveHours[h] = 0;
+                continue;
+            }
+
+            const minTime = Math.min(...times);
+            const maxTime = Math.max(...times);
+            let diffMs = maxTime - minTime;
+
+            // 限制最少计入 2 分钟，防止分母过小造成时速极高
+            const minDurationMs = 2 * 60 * 1000;
+            if (diffMs < minDurationMs) {
+                diffMs = minDurationMs;
+            }
+
+            hourlyActiveHours[h] = diffMs / (1000 * 3600);
         }
 
-        const hourlyActiveHours = hourlyActiveSeconds.map(secs => secs / 3600);
         const totalActiveHours = hourlyActiveHours.reduce((sum, h) => sum + h, 0);
 
         return {
@@ -2910,9 +2906,7 @@
         const activeInfo = calculateActiveTime(records, selectedDateStr);
         displayHours.forEach(h => {
             if (hourlyStats[h] > 0 || hourlyReworkStats[h] > 0) {
-                const hActive = activeInfo.hourlyActiveHours[h] || 0;
-                const minActive = 2 / 60; // 最少计 2 分钟，防止数据抖动
-                activeHours += Math.max(minActive, hActive);
+                activeHours += activeInfo.hourlyActiveHours[h] || 0;
             }
         });
 
@@ -3032,12 +3026,12 @@
 
             const isCoreHour = displayHours.includes(targetHour);
             if (isCoreHour) {
-                card2Title = '当前小时估算时速 (全部)';
-                const elapsedFrac = Math.max(5, nowMin) / 60;
+                card2Title = '当前小时时速 (全部)';
                 const curHourFirst = hourlyStats[targetHour];
                 const curHourRework = hourlyReworkStats[targetHour];
                 const curHourTotal = curHourFirst + curHourRework;
-                const curHourSpeed = (curHourTotal / elapsedFrac).toFixed(1);  // 全部订单（初审+复审）的时速
+                const curHourActiveHours = activeInfo.hourlyActiveHours[targetHour] || 0;
+                const curHourSpeed = curHourActiveHours > 0 ? (curHourTotal / curHourActiveHours).toFixed(1) : '0.0';
 
                 // 计算当前时速与所需时速的差异（基于初审目标，用总速度对比判断是否跟得上）
                 const remainingHours = 8 - activeHours;
