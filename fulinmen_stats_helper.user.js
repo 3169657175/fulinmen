@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.2
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4138,7 +4138,7 @@
     };
 
     // ==========================================
-    // 审核辅助增强模块 - 大图联动审核工作台 (v1.1.1)
+    // 审核辅助增强模块 - 大图联动审核工作台 (v1.1.2)
     // ==========================================
 
     // 从放大对话框的标题或属性中提取题号，如 'Q7' 或 'Q10'
@@ -4218,12 +4218,11 @@
         if (!opt) return false;
         const scrollState = auditHelperCaptureScrollState([opt, activeDialog]);
         const activeEl = document.activeElement;
-        const title = opt.querySelector('.option-title');
+        const clickTarget = opt.querySelector('.sj-icon-square-check, .sj-icon-square, i[class*="square"]') ||
+            opt.querySelector('.option-title') ||
+            opt;
 
-        if (title) {
-            autoReviewClickCenter(title);
-        }
-        autoReviewClickCenter(opt);
+        autoReviewClickCenter(clickTarget);
 
         auditHelperRestoreScrollState(scrollState);
         requestAnimationFrame(() => auditHelperRestoreScrollState(scrollState));
@@ -4279,7 +4278,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = '<span>🔍 Q13 联动审核工作台 (v1.1.1)</span>';
+        title.innerHTML = '<span>🔍 Q13 联动审核工作台 (v1.1.2)</span>';
         ws.appendChild(title);
 
         // 2. 选项列表容器
