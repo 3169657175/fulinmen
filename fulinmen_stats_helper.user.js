@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.1.4
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4211,7 +4211,7 @@
             !!opt.querySelector('.is-checked, .checked, .selected, .active, [class*="square-check"]');
     }
 
-    function auditHelperClickQ13Option(opt, activeDialog) {
+    function auditHelperClickOption(opt, activeDialog) {
         if (!opt) return false;
         const scrollState = auditHelperCaptureScrollState([opt, activeDialog]);
         const activeEl = document.activeElement;
@@ -4234,39 +4234,69 @@
         return true;
     }
 
+    let activeWSDialogQNum = null; // 缓存当前放大图片所在的题号，如 'Q7' 或 'Q10'
+    let activeWSTab = ''; // 缓存当前选中的工作台 Tab，如 'Q13'
+
     function auditHelperUpdateWorkspace() {
         const activeDialog = findTargetZoomDialog();
         if (!activeDialog) {
             const ws = document.getElementById('sj-zoom-workspace');
             if (ws) ws.remove();
+            activeWSDialogQNum = null;
+            activeWSTab = '';
             return;
         }
 
-        // 仅定位第 13 题卡片
-        let q13Card = null;
-        const reviews = document.querySelectorAll('.answer--review');
-        for (const review of reviews) {
-            const cardInfo = findQuestionCard(review);
-            if (cardInfo && cardInfo.qNum === 'Q13') {
-                q13Card = cardInfo.card;
-                break;
-            }
-        }
-
-        if (!q13Card) {
+        const qNum = getActiveDialogQuestionNumber(activeDialog);
+        if (!qNum) {
             const ws = document.getElementById('sj-zoom-workspace');
             if (ws) ws.remove();
             return;
         }
 
-        // 为了防止 Element UI 等模态窗层级拦截和点击屏蔽，将工作台直接插入到活动对话框节点内
+        // 如果切换了放大图的题目卡片，重置 Tab
+        if (activeWSDialogQNum !== qNum) {
+            activeWSDialogQNum = qNum;
+            // Q7 大图默认切到 Q13，Q10 大图也默认切到 Q13
+            activeWSTab = 'Q13';
+        }
+
+        // 根据放大图片的题号，确定要显示的选项卡列表
+        let allowedTabs = [];
+        if (qNum === 'Q7') {
+            allowedTabs = ['Q8', 'Q9', 'Q13'];
+        } else if (qNum === 'Q10') {
+            allowedTabs = ['Q12', 'Q13'];
+        }
+
+        if (!allowedTabs.includes(activeWSTab)) {
+            activeWSTab = allowedTabs.includes('Q13') ? 'Q13' : allowedTabs[0];
+        }
+
+        // 查找网页上对应的题目卡片
+        let targetCard = null;
+        const reviews = document.querySelectorAll('.answer--review');
+        for (const review of reviews) {
+            const cardInfo = findQuestionCard(review);
+            if (cardInfo && cardInfo.qNum === activeWSTab) {
+                targetCard = cardInfo.card;
+                break;
+            }
+        }
+
+        if (!targetCard) {
+            const ws = document.getElementById('sj-zoom-workspace');
+            if (ws) ws.remove();
+            return;
+        }
+
+        // 插入工作台到放大框内以防止点击拦截
         let ws = document.getElementById('sj-zoom-workspace');
         if (!ws) {
             ws = document.createElement('div');
             ws.id = 'sj-zoom-workspace';
             activeDialog.appendChild(ws);
         } else if (ws.parentElement !== activeDialog) {
-            // 如果对话框变化，重新 append 以确保在当前活动对话框内
             activeDialog.appendChild(ws);
         }
 
@@ -4275,31 +4305,55 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = '<span>🔍 Q13 联动审核工作台 (v1.1.2)</span>';
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.4)</span>`;
         ws.appendChild(title);
 
-        // 2. 选项列表容器
+        // 2. 动态选项卡 Tab 头部
+        const tabsContainer = document.createElement('div');
+        tabsContainer.className = 'sj-ws-tabs';
+        allowedTabs.forEach(tabNum => {
+            // 只有当页面上真实存在该题时才渲染该 Tab
+            let exists = false;
+            for (const review of reviews) {
+                const cardInfo = findQuestionCard(review);
+                if (cardInfo && cardInfo.qNum === tabNum) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) return;
+
+            const tab = document.createElement('div');
+            tab.className = `sj-ws-tab ${tabNum === activeWSTab ? 'active' : ''}`;
+            tab.textContent = tabNum;
+            tab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activeWSTab = tabNum;
+                auditHelperUpdateWorkspace();
+            });
+            tabsContainer.appendChild(tab);
+        });
+        ws.appendChild(tabsContainer);
+
+        // 3. 选项列表容器
         const listContainer = document.createElement('div');
         listContainer.className = 'sj-ws-list';
 
-        const options = q13Card.querySelectorAll('.question--option, .question-option, .question.option, .option');
+        const options = targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option');
         const originalOptions = Array.from(options).filter(el => 
             el.classList.contains('option') || el.classList.contains('question-option') || el.classList.contains('question--option')
         );
 
         originalOptions.forEach((opt, index) => {
-            // 修正选中状态检测，排除宽泛的 contains 模糊匹配，聚焦精确的 class 标志
             const isChecked = auditHelperIsOptionChecked(opt);
-
             const textEl = opt.querySelector('.option-title, span') || opt;
-            
-            // 缓存原始文本，防止高亮标签重复嵌套
+        
             if (!opt.dataset.sjOriginalText) {
                 opt.dataset.sjOriginalText = textEl.innerHTML;
             }
             const originalText = opt.dataset.sjOriginalText;
 
-            // 核心判断词高亮
+            // 核心高亮
             const keywordsToHighlight = [
                 { word: '有物料', color: '#10b981' },
                 { word: '无物料', color: '#f56c6c' },
@@ -4322,12 +4376,10 @@
             const row = document.createElement('div');
             row.className = `sj-ws-row ${isChecked ? 'checked' : ''}`;
 
-            // 选项图标
             const icon = document.createElement('div');
             icon.className = `sj-ws-icon ${isChecked ? 'checked' : ''}`;
-            
-            // 区分单选与多选图标外观
-            const titleEl = q13Card.querySelector('.question-title, header, h4, h3');
+        
+            const titleEl = targetCard.querySelector('.question-title, header, h4, h3');
             const isMultiple = titleEl && titleEl.textContent.includes('多选');
             if (isMultiple) {
                 icon.innerHTML = isChecked ? '✓' : '';
@@ -4350,11 +4402,10 @@
                 row.classList.toggle('checked');
                 icon.classList.toggle('checked');
                 icon.innerHTML = icon.classList.contains('checked') ? (isMultiple ? '&check;' : '&#9679;') : '';
-                // 滚动原选项卡到可视范围以确保点击响应
-                // Keep the image dialog in place while toggling Q13 in the background.
-                // 模拟精准点击原卡片选项
-                auditHelperClickQ13Option(opt, activeDialog);
-                // 延迟 80ms 同步工作台显示状态，留给 Vue 响应和渲染
+            
+                // 使用通用模拟背景点击函数
+                auditHelperClickOption(opt, activeDialog);
+            
                 setTimeout(auditHelperUpdateWorkspace, 80);
                 setTimeout(auditHelperUpdateWorkspace, 220);
             });
