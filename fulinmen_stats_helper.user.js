@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.8
+// @version      1.1.9
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4444,7 +4444,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.8)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.9)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4566,6 +4566,45 @@
         init();
         startBackgroundRefresh();
         setInterval(init, 2000);
+
+        let sjDragFromWorkspace = false;
+        let sjBlockNextClick = false;
+
+        // 监听 mousedown，如果是在工作台内部开始的，标记为正在拖拽
+        document.addEventListener('mousedown', (e) => {
+            const ws = document.getElementById('sj-zoom-workspace');
+            if (ws && ws.contains(e.target)) {
+                sjDragFromWorkspace = true;
+            } else {
+                sjDragFromWorkspace = false;
+            }
+        }, true);
+
+        // 监听 mouseup，如果拖拽是从工作台开始的，且释放在工作台外部，则阻止冒泡和默认行为，防止触发模态框关闭
+        document.addEventListener('mouseup', (e) => {
+            if (sjDragFromWorkspace) {
+                sjDragFromWorkspace = false;
+                const ws = document.getElementById('sj-zoom-workspace');
+                if (ws && !ws.contains(e.target)) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    sjBlockNextClick = true;
+                    setTimeout(() => { sjBlockNextClick = false; }, 50);
+                }
+            }
+        }, true);
+
+        // 监听全局点击事件，以在打开/关闭大图时瞬间响应工作台更新（消除 2 秒轮询的延迟）
+        document.addEventListener('click', (e) => {
+            if (sjBlockNextClick) {
+                e.stopPropagation();
+                e.preventDefault();
+                sjBlockNextClick = false;
+                return;
+            }
+            setTimeout(auditHelperUpdateWorkspace, 100);
+            setTimeout(auditHelperUpdateWorkspace, 300);
+        }, true);
 
         // 监听DOM变化，使图片编辑快捷按钮秒开秒关以及复制Q5照片证据到Q6
         const observer = new MutationObserver(() => {
