@@ -4141,27 +4141,45 @@
     // 审核辅助增强模块 - 大图联动审核工作台 (v1.1.0)
     // ==========================================
 
-    let activeWorkspaceTab = ''; // 记录工作台当前选中的题目Tab，如 'Q13'
+    // 从放大对话框的标题或属性中提取题号，如 'Q7' 或 'Q10'
+    function getActiveDialogQuestionNumber(dialog) {
+        const label = dialog.getAttribute('aria-label') || '';
+        let match = label.match(/^[qQ](\d+)/);
+        if (match) return 'Q' + match[1];
 
-    // 检测网页当前是否打开了带有图片的放大对话框
-    function isDialogVisible() {
+        const titleEl = dialog.querySelector('.el-dialog__title, .el-dialog__header, .dialog-header, h3, h4, span');
+        if (titleEl) {
+            match = titleEl.textContent.trim().match(/^[qQ](\d+)/);
+            if (match) return 'Q' + match[1];
+        }
+        return null;
+    }
+
+    // 检测网页当前是否打开了带有 Q7 或 Q10 图片的放大对话框
+    function findTargetZoomDialog() {
         const dialogs = document.querySelectorAll('.el-dialog__wrapper, .el-dialog, .task-review-evidence-dialog');
         for (const d of dialogs) {
-            const style = window.getComputedStyle(d);
-            if (style && style.display !== 'none' && style.visibility !== 'hidden') {
-                if (d.querySelector('img')) {
-                    return true;
+            const rect = d.getBoundingClientRect();
+            // 通过 rect.width / rect.height 判定 dialog 及其所有祖先是否真实渲染（排除 display: none）
+            if (rect.width > 0 && rect.height > 0) {
+                const style = window.getComputedStyle(d);
+                if (style && style.display !== 'none' && style.visibility !== 'hidden') {
+                    if (d.querySelector('img')) {
+                        const qNum = getActiveDialogQuestionNumber(d);
+                        if (qNum === 'Q7' || qNum === 'Q10') {
+                            return d; // 返回符合条件的当前活动对话框
+                        }
+                    }
                 }
             }
         }
-        return false;
+        return null;
     }
 
     // 智能审核工作台主渲染与同步控制
-    // 智能审核工作台主渲染与同步控制
     function auditHelperUpdateWorkspace() {
-        const isZoomOpen = isDialogVisible();
-        if (!isZoomOpen) {
+        const activeDialog = findTargetZoomDialog();
+        if (!activeDialog) {
             const ws = document.getElementById('sj-zoom-workspace');
             if (ws) ws.remove();
             return;
@@ -4184,11 +4202,15 @@
             return;
         }
 
+        // 为了防止 Element UI 等模态窗层级拦截和点击屏蔽，将工作台直接插入到活动对话框节点内
         let ws = document.getElementById('sj-zoom-workspace');
         if (!ws) {
             ws = document.createElement('div');
             ws.id = 'sj-zoom-workspace';
-            document.body.appendChild(ws);
+            activeDialog.appendChild(ws);
+        } else if (ws.parentElement !== activeDialog) {
+            // 如果对话框变化，重新 append 以确保在当前活动对话框内
+            activeDialog.appendChild(ws);
         }
 
         ws.innerHTML = '';
@@ -4209,12 +4231,13 @@
         );
 
         originalOptions.forEach((opt, index) => {
+            // 修正选中状态检测，排除宽泛的 contains 模糊匹配，聚焦精确的 class 标志
             const isChecked = opt.classList.contains('selected') || 
                              opt.classList.contains('checked') || 
                              opt.classList.contains('is-checked') || 
                              opt.classList.contains('active') || 
                              opt.classList.contains('is-active') || 
-                             !!opt.querySelector('[class*="checked"], [class*="active"], [class*="selected"]');
+                             !!opt.querySelector('.is-checked, .checked, .selected, .active');
 
             const textEl = opt.querySelector('.option-title, span') || opt;
             
