@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.11
+// @version      1.1.12
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -909,32 +909,42 @@
             line-height: 1.4;
         }
         .sj-ws-row.verified {
-            background: rgba(16, 185, 129, 0.08) !important;
-            border-color: rgba(16, 185, 129, 0.25) !important;
+            background: rgba(16, 185, 129, 0.04) !important;
+            border-color: rgba(16, 185, 129, 0.18) !important;
         }
         .sj-ws-row.verified .sj-ws-label {
-            color: #10b981 !important;
+            color: #34d399 !important;
         }
         .sj-ws-verify-btn {
+            flex-shrink: 0;
+            white-space: nowrap;
             margin-left: auto;
-            padding: 2px 6px;
+            padding: 3px 8px;
             font-size: 11px;
-            font-weight: bold;
-            border-radius: 4px;
+            line-height: 1.1;
+            font-weight: 600;
+            border-radius: 20px;
             cursor: pointer;
             user-select: none;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #94a3b8;
-            transition: all 0.15s ease;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .sj-ws-verify-btn:hover {
-            background: rgba(16, 185, 129, 0.15);
-            border-color: rgba(16, 185, 129, 0.4);
-            color: #10b981;
+        .sj-ws-verify-btn.pending {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
         }
-        .sj-ws-row.verified .sj-ws-verify-btn {
-            background: rgba(16, 185, 129, 0.2);
+        .sj-ws-verify-btn.pending:hover {
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(245, 158, 11, 0.4);
+            color: #f59e0b;
+        }
+        .sj-ws-verify-btn.verified {
+            background: rgba(16, 185, 129, 0.16);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+        }
+        .sj-ws-verify-btn.verified:hover {
+            background: rgba(16, 185, 129, 0.24);
             border-color: rgba(16, 185, 129, 0.5);
             color: #10b981;
         }
@@ -4476,7 +4486,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.11)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.12)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4577,10 +4587,11 @@
             row.appendChild(icon);
             row.appendChild(label);
 
-            if (activeWSTab === 'Q13') {
+            // 只有当网页上勾选了此选项时，才显示核对进度按钮，极大地净化界面
+            if (activeWSTab === 'Q13' && isChecked) {
                 const verifyBtn = document.createElement('div');
-                verifyBtn.className = 'sj-ws-verify-btn';
-                verifyBtn.textContent = isVerified ? '已核' : '未核';
+                verifyBtn.className = `sj-ws-verify-btn ${isVerified ? 'verified' : 'pending'}`;
+                verifyBtn.textContent = isVerified ? '已核' : '待核';
                 verifyBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
