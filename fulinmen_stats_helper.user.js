@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.0.9
+// @version      1.1.0
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -789,6 +789,124 @@
             margin: 0 !important;
             padding: 0 !important;
         }
+
+        /* 智能大图联动审核工作台样式 */
+        #sj-zoom-workspace {
+            position: fixed;
+            left: 20px;
+            top: 80px;
+            width: 330px;
+            bottom: 80px;
+            z-index: 200000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            box-sizing: border-box;
+        }
+        .sj-ws-title {
+            background: rgba(30, 41, 59, 0.5);
+            padding: 14px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #e2e8f0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .sj-ws-tabs {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            overflow-x: auto;
+            background: rgba(30, 41, 59, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            scrollbar-width: none;
+        }
+        .sj-ws-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        .sj-ws-tab {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+        .sj-ws-tab:hover {
+            color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .sj-ws-tab.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+        .sj-ws-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .sj-ws-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+        .sj-ws-row:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        .sj-ws-row.checked {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.05);
+        }
+        .sj-ws-icon {
+            width: 16px;
+            height: 16px;
+            border: 1px solid #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: transparent;
+            background: rgba(255, 255, 255, 0.02);
+            flex-shrink: 0;
+            margin-top: 1px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .sj-ws-icon.checked {
+            border-color: #10b981;
+            background: #10b981;
+            color: #ffffff;
+        }
+        .sj-ws-icon.checked:not([style*="border-radius: 4px"]) {
+            color: #10b981;
+            background: transparent;
+            font-size: 12px;
+        }
+        .sj-ws-label {
+            font-size: 12px;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
     `);
     // 全局今日数据缓存 (v2.8)
     let globalTodayRecords = [];
@@ -1066,6 +1184,9 @@
         ['mouseover', 'mousemove', 'mousedown', 'mouseup', 'click'].forEach(type => {
             el.dispatchEvent(new MouseEvent(type, opts));
         });
+        if (typeof el.click === 'function') {
+            el.click();
+        }
         return true;
     }
 
@@ -2161,6 +2282,9 @@
     const init = () => {
         if (typeof autoReviewInit === 'function') {
             autoReviewInit();
+        }
+        if (typeof auditHelperUpdateWorkspace === 'function') {
+            auditHelperUpdateWorkspace();
         }
 
         if (document.getElementById('sj-stats-float-btn')) return;
@@ -4012,6 +4136,196 @@
         };
         window.addEventListener('resize', resizeHandler);
     };
+
+    // ==========================================
+    // 审核辅助增强模块 - 大图联动审核工作台 (v1.1.0)
+    // ==========================================
+
+    let activeWorkspaceTab = ''; // 记录工作台当前选中的题目Tab，如 'Q13'
+
+    // 检测网页当前是否打开了带有图片的放大对话框
+    function isDialogVisible() {
+        const dialogs = document.querySelectorAll('.el-dialog__wrapper, .el-dialog, .task-review-evidence-dialog');
+        for (const d of dialogs) {
+            const style = window.getComputedStyle(d);
+            if (style && style.display !== 'none' && style.visibility !== 'hidden') {
+                if (d.querySelector('img')) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 智能审核工作台主渲染与同步控制
+    function auditHelperUpdateWorkspace() {
+        const isZoomOpen = isDialogVisible();
+        if (!isZoomOpen) {
+            const ws = document.getElementById('sj-zoom-workspace');
+            if (ws) ws.remove();
+            return;
+        }
+
+        // 查找页面上所有存在且包含选择选项的题目卡片
+        const reviews = document.querySelectorAll('.answer--review');
+        const presentQuestions = [];
+        const cardsMap = {};
+
+        reviews.forEach(review => {
+            const cardInfo = findQuestionCard(review);
+            if (cardInfo) {
+                const options = cardInfo.card.querySelectorAll('.question--option, .question-option, .question.option, .option');
+                const validOptions = Array.from(options).filter(el => 
+                    el.classList.contains('option') || el.classList.contains('question-option') || el.classList.contains('question--option')
+                );
+                if (validOptions.length > 0) {
+                    presentQuestions.push(cardInfo.qNum);
+                    cardsMap[cardInfo.qNum] = cardInfo.card;
+                }
+            }
+        });
+
+        // 题目数字正序排列
+        presentQuestions.sort((a, b) => {
+            const numA = parseInt(a.substring(1), 10);
+            const numB = parseInt(b.substring(1), 10);
+            return numA - numB;
+        });
+
+        if (presentQuestions.length === 0) {
+            const ws = document.getElementById('sj-zoom-workspace');
+            if (ws) ws.remove();
+            return;
+        }
+
+        // 设置默认选中的选项卡
+        if (!activeWorkspaceTab || !presentQuestions.includes(activeWorkspaceTab)) {
+            if (presentQuestions.includes('Q13')) {
+                activeWorkspaceTab = 'Q13';
+            } else {
+                activeWorkspaceTab = presentQuestions[0];
+            }
+        }
+
+        let ws = document.getElementById('sj-zoom-workspace');
+        if (!ws) {
+            ws = document.createElement('div');
+            ws.id = 'sj-zoom-workspace';
+            document.body.appendChild(ws);
+        }
+
+        ws.innerHTML = '';
+
+        // 1. 标题
+        const title = document.createElement('div');
+        title.className = 'sj-ws-title';
+        title.innerHTML = '<span>🔍 智能审核工作台 (v1.1.0)</span>';
+        ws.appendChild(title);
+
+        // 2. 选项卡容器
+        const tabsContainer = document.createElement('div');
+        tabsContainer.className = 'sj-ws-tabs';
+        presentQuestions.forEach(qNum => {
+            const tab = document.createElement('div');
+            tab.className = `sj-ws-tab ${qNum === activeWorkspaceTab ? 'active' : ''}`;
+            tab.textContent = qNum;
+            tab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activeWorkspaceTab = qNum;
+                auditHelperUpdateWorkspace();
+            });
+            tabsContainer.appendChild(tab);
+        });
+        ws.appendChild(tabsContainer);
+
+        // 3. 选项列表容器
+        const listContainer = document.createElement('div');
+        listContainer.className = 'sj-ws-list';
+
+        const activeCard = cardsMap[activeWorkspaceTab];
+        if (activeCard) {
+            const options = activeCard.querySelectorAll('.question--option, .question-option, .question.option, .option');
+            const originalOptions = Array.from(options).filter(el => 
+                el.classList.contains('option') || el.classList.contains('question-option') || el.classList.contains('question--option')
+            );
+
+            originalOptions.forEach((opt, index) => {
+                const isChecked = opt.classList.contains('selected') || 
+                                 opt.classList.contains('checked') || 
+                                 opt.classList.contains('is-checked') || 
+                                 opt.classList.contains('active') || 
+                                 opt.classList.contains('is-active') || 
+                                 !!opt.querySelector('[class*="checked"], [class*="active"], [class*="selected"]');
+
+                const textEl = opt.querySelector('.option-title, span') || opt;
+                
+                // 缓存原始文本，防止高亮标签重复嵌套
+                if (!opt.dataset.sjOriginalText) {
+                    opt.dataset.sjOriginalText = textEl.innerHTML;
+                }
+                const originalText = opt.dataset.sjOriginalText;
+
+                // 核心判断词高亮
+                const keywordsToHighlight = [
+                    { word: '有物料', color: '#10b981' },
+                    { word: '无物料', color: '#f56c6c' },
+                    { word: '有二级货架', color: '#10b981' },
+                    { word: '没有二级货架', color: '#f56c6c' },
+                    { word: '福临门', color: '#f59e0b' },
+                    { word: '有端架', color: '#3b82f6' },
+                    { word: '有地堆', color: '#8b5cf6' },
+                    { word: '有促销', color: '#ec4899' }
+                ];
+
+                let highlightedText = originalText;
+                keywordsToHighlight.forEach(k => {
+                    const regex = new RegExp(k.word, 'g');
+                    if (regex.test(highlightedText)) {
+                        highlightedText = highlightedText.replace(regex, `<span style="color: ${k.color}; font-weight: bold; border-bottom: 2px solid ${k.color}; padding-bottom: 1px;">$&</span>`);
+                    }
+                });
+
+                const row = document.createElement('div');
+                row.className = `sj-ws-row ${isChecked ? 'checked' : ''}`;
+
+                // 选项图标
+                const icon = document.createElement('div');
+                icon.className = `sj-ws-icon ${isChecked ? 'checked' : ''}`;
+                
+                // 区分单选与多选图标外观
+                const titleEl = activeCard.querySelector('.question-title, header, h4, h3');
+                const isMultiple = titleEl && titleEl.textContent.includes('多选');
+                if (isMultiple) {
+                    icon.innerHTML = isChecked ? '✓' : '';
+                    icon.style.borderRadius = '4px';
+                } else {
+                    icon.innerHTML = isChecked ? '●' : '';
+                    icon.style.borderRadius = '50%';
+                }
+
+                const label = document.createElement('div');
+                label.className = 'sj-ws-label';
+                label.innerHTML = highlightedText;
+
+                row.appendChild(icon);
+                row.appendChild(label);
+
+                row.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // 滚动原选项卡到可视范围以确保点击响应
+                    opt.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                    // 模拟精准点击原卡片选项
+                    autoReviewClickCenter(opt);
+                    // 延迟 80ms 同步工作台显示状态，留给 Vue 响应和渲染
+                    setTimeout(auditHelperUpdateWorkspace, 80);
+                });
+
+                listContainer.appendChild(row);
+            });
+        }
+
+        ws.appendChild(listContainer);
+    }
 
     const startHelper = () => {
         init();
