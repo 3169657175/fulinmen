@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.7
+// @version      1.1.8
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -2235,7 +2235,7 @@
 
     // 初始化入口（每次由 init 定时检查，无额外并发定时器）
     function autoReviewCollapseUnneeded() {
-        const collapseNums = new Set(['Q1', 'Q2', 'Q3', 'Q11', 'Q19', 'Q20', 'Q21']);
+        const collapseNums = new Set(['Q1', 'Q2', 'Q3', 'Q8', 'Q9', 'Q11', 'Q12', 'Q13', 'Q19', 'Q20', 'Q21']);
         const reviews = document.querySelectorAll('.answer--review');
         if (reviews.length === 0) return;
 
@@ -4444,7 +4444,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.7)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.8)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
