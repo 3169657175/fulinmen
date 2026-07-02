@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.9
+// @version      1.1.10
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4444,7 +4444,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.9)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.10)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4479,7 +4479,7 @@
         listContainer.className = 'sj-ws-list';
 
         const fillInputs = auditHelperGetFillInputs(targetCard);
-        if (fillInputs.length > 0 && (activeWSTab === 'Q8' || activeWSTab === 'Q12' || targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option').length === 0)) {
+        if (fillInputs.length > 0 && (activeWSTab === 'Q8' || targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option').length === 0)) {
             auditHelperRenderFillInputs(targetCard, listContainer, activeDialog);
             ws.appendChild(listContainer);
             return;
