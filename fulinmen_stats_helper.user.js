@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.12
+// @version      1.2.0
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -796,7 +796,7 @@
             position: fixed;
             left: 20px;
             top: 80px;
-            width: 330px;
+            width: 350px;
             bottom: 80px;
             z-index: 200000;
             background: rgba(15, 23, 42, 0.95);
@@ -854,22 +854,24 @@
         .sj-ws-list {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 7px;
         }
         .sj-ws-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 18px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid rgba(255, 255, 255, 0.04);
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             user-select: none;
+            min-height: 40px;
         }
         .sj-ws-row:hover {
             background: rgba(255, 255, 255, 0.06);
@@ -878,6 +880,10 @@
         .sj-ws-row.checked {
             border-color: rgba(16, 185, 129, 0.3);
             background: rgba(16, 185, 129, 0.05);
+        }
+        .sj-ws-row.pending {
+            border-color: rgba(245, 158, 11, 0.34);
+            background: rgba(245, 158, 11, 0.055);
         }
         .sj-ws-icon {
             width: 16px;
@@ -890,7 +896,6 @@
             color: transparent;
             background: rgba(255, 255, 255, 0.02);
             flex-shrink: 0;
-            margin-top: 1px;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .sj-ws-icon.checked {
@@ -906,47 +911,58 @@
         .sj-ws-label {
             font-size: 12px;
             color: #cbd5e1;
-            line-height: 1.4;
+            line-height: 1.35;
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
         .sj-ws-row.verified {
-            background: rgba(16, 185, 129, 0.04) !important;
-            border-color: rgba(16, 185, 129, 0.18) !important;
+            background: rgba(16, 185, 129, 0.035) !important;
+            border-color: rgba(16, 185, 129, 0.22) !important;
         }
         .sj-ws-row.verified .sj-ws-label {
-            color: #34d399 !important;
+            color: #99f6e4 !important;
         }
         .sj-ws-verify-btn {
             flex-shrink: 0;
             white-space: nowrap;
             margin-left: auto;
-            padding: 3px 8px;
+            width: 42px;
+            height: 22px;
+            padding: 0;
             font-size: 11px;
-            line-height: 1.1;
-            font-weight: 600;
-            border-radius: 20px;
+            line-height: 20px;
+            font-weight: 700;
+            border-radius: 999px;
             cursor: pointer;
             user-select: none;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: center;
+            font-family: inherit;
+            appearance: none;
+            outline: none;
+            transition: background 0.16s ease-out, border-color 0.16s ease-out, color 0.16s ease-out;
+        }
+        .sj-ws-verify-btn:focus-visible {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
         }
         .sj-ws-verify-btn.pending {
-            background: rgba(245, 158, 11, 0.08);
-            border: 1px solid rgba(245, 158, 11, 0.25);
-            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.46);
+            color: #fcd34d;
         }
         .sj-ws-verify-btn.pending:hover {
-            background: rgba(245, 158, 11, 0.16);
-            border-color: rgba(245, 158, 11, 0.4);
-            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.62);
+            color: #fde68a;
         }
         .sj-ws-verify-btn.verified {
-            background: rgba(16, 185, 129, 0.16);
-            border: 1px solid rgba(16, 185, 129, 0.35);
-            color: #34d399;
+            background: rgba(20, 184, 166, 0.14);
+            border: 1px solid rgba(45, 212, 191, 0.32);
+            color: #5eead4;
         }
         .sj-ws-verify-btn.verified:hover {
-            background: rgba(16, 185, 129, 0.24);
-            border-color: rgba(16, 185, 129, 0.5);
-            color: #10b981;
+            background: rgba(20, 184, 166, 0.22);
+            border-color: rgba(45, 212, 191, 0.5);
+            color: #99f6e4;
         }
         .sj-ws-fill-row {
             display: flex;
@@ -4486,7 +4502,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.12)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.2.0)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4565,7 +4581,7 @@
             const isVerified = activeWSTab === 'Q13' && auditHelperVerifiedQ13Options.has(optKey);
 
             const row = document.createElement('div');
-            row.className = `sj-ws-row ${isChecked ? 'checked' : ''} ${isVerified ? 'verified' : ''}`;
+            row.className = `sj-ws-row ${isChecked ? 'checked' : ''} ${isVerified ? 'verified' : ''} ${activeWSTab === 'Q13' && isChecked && !isVerified ? 'pending' : ''}`;
 
             const icon = document.createElement('div');
             icon.className = `sj-ws-icon ${isChecked ? 'checked' : ''}`;
@@ -4589,9 +4605,11 @@
 
             // 只有当网页上勾选了此选项时，才显示核对进度按钮，极大地净化界面
             if (activeWSTab === 'Q13' && isChecked) {
-                const verifyBtn = document.createElement('div');
+                const verifyBtn = document.createElement('button');
+                verifyBtn.type = 'button';
                 verifyBtn.className = `sj-ws-verify-btn ${isVerified ? 'verified' : 'pending'}`;
                 verifyBtn.textContent = isVerified ? '已核' : '待核';
+                verifyBtn.title = isVerified ? '点击标记为待核' : '点击标记为已核';
                 verifyBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
