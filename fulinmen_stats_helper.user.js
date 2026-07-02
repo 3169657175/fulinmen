@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.6
+// @version      1.1.7
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4385,6 +4385,14 @@
             return;
         }
 
+        // 如果在输入框处于焦点状态，且没有切换大图和 Tab，则跳过重绘，避免失去焦点
+        if (document.activeElement && 
+            document.activeElement.classList.contains('sj-ws-fill-input') && 
+            activeWSDialogQNum === qNum && 
+            activeWSTab) {
+            return;
+        }
+
         // 如果切换了放大图的题目卡片，重置 Tab
         if (activeWSDialogQNum !== qNum) {
             activeWSDialogQNum = qNum;
@@ -4436,7 +4444,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.6)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.7)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
