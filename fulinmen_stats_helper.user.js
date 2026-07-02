@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.5
+// @version      1.1.6
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -906,6 +906,46 @@
             font-size: 12px;
             color: #cbd5e1;
             line-height: 1.4;
+        }
+        .sj-ws-fill-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .sj-ws-fill-label {
+            font-size: 12px;
+            line-height: 1.35;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+        .sj-ws-fill-input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #f8fafc;
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 8px 10px;
+            outline: none;
+        }
+        .sj-ws-fill-input:focus {
+            border-color: rgba(59, 130, 246, 0.8);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+        }
+        .sj-ws-empty {
+            padding: 14px 12px;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(148, 163, 184, 0.25);
         }
     `);
     // 全局今日数据缓存 (v2.8)
@@ -4234,6 +4274,97 @@
         return true;
     }
 
+    function auditHelperSetNativeValue(input, value) {
+        const proto = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const valueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        if (valueSetter) {
+            valueSetter.call(input, value);
+        } else {
+            input.value = value;
+        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function auditHelperIsEditableFillInput(el) {
+        if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
+        if (el.type && ['hidden', 'button', 'submit', 'reset', 'checkbox', 'radio', 'file'].includes(el.type)) return false;
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }
+
+    function auditHelperGetFillRow(input) {
+        let el = input.parentElement;
+        while (el && el !== document.body) {
+            const inputs = Array.from(el.querySelectorAll('input, textarea')).filter(auditHelperIsEditableFillInput);
+            if (inputs.length === 1 && el.textContent.trim()) return el;
+            el = el.parentElement;
+        }
+        return input.parentElement || input;
+    }
+
+    function auditHelperGetFillLabel(input, index) {
+        const row = auditHelperGetFillRow(input);
+        const directLabel = row.querySelector('label, .el-form-item__label, [class*="label"], [class*="title"]');
+        if (directLabel && directLabel.textContent.trim()) {
+            return directLabel.textContent.trim();
+        }
+        const text = row.textContent
+            .replace(input.value || '', '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        return text || `Q8 填空 ${index + 1}`;
+    }
+
+    function auditHelperGetFillInputs(card) {
+        return Array.from(card.querySelectorAll('input, textarea')).filter(auditHelperIsEditableFillInput);
+    }
+
+    function auditHelperRenderFillInputs(card, listContainer, activeDialog) {
+        const fillInputs = auditHelperGetFillInputs(card);
+        // Clear container to prevent duplicate elements on update
+        listContainer.innerHTML = '';
+        if (fillInputs.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'sj-ws-empty';
+            empty.textContent = '未找到 Q8 填空输入框';
+            listContainer.appendChild(empty);
+            return;
+        }
+
+        fillInputs.forEach((sourceInput, index) => {
+            const row = document.createElement('div');
+            row.className = 'sj-ws-fill-row';
+
+            const label = document.createElement('div');
+            label.className = 'sj-ws-fill-label';
+            label.textContent = auditHelperGetFillLabel(sourceInput, index);
+
+            const input = sourceInput instanceof HTMLTextAreaElement ? document.createElement('textarea') : document.createElement('input');
+            input.className = 'sj-ws-fill-input';
+            if (sourceInput instanceof HTMLInputElement) input.type = sourceInput.type === 'number' ? 'number' : 'text';
+            input.value = sourceInput.value || '';
+            input.placeholder = sourceInput.placeholder || '';
+
+            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('keydown', (e) => e.stopPropagation());
+            input.addEventListener('input', () => {
+                const scrollState = auditHelperCaptureScrollState([sourceInput, activeDialog]);
+                auditHelperSetNativeValue(sourceInput, input.value);
+                auditHelperRestoreScrollState(scrollState);
+                requestAnimationFrame(() => auditHelperRestoreScrollState(scrollState));
+            });
+            input.addEventListener('change', () => {
+                auditHelperSetNativeValue(sourceInput, input.value);
+            });
+
+            row.appendChild(label);
+            row.appendChild(input);
+            listContainer.appendChild(row);
+        });
+    }
+
     let activeWSDialogQNum = null; // 缓存当前放大图片所在的题号，如 'Q7' 或 'Q10'
     let activeWSTab = ''; // 缓存当前选中的工作台 Tab，如 'Q13'
 
@@ -4305,7 +4436,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.4)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.6)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4338,6 +4469,13 @@
         // 3. 选项列表容器
         const listContainer = document.createElement('div');
         listContainer.className = 'sj-ws-list';
+
+        const fillInputs = auditHelperGetFillInputs(targetCard);
+        if (fillInputs.length > 0 && (activeWSTab === 'Q8' || activeWSTab === 'Q12' || targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option').length === 0)) {
+            auditHelperRenderFillInputs(targetCard, listContainer, activeDialog);
+            ws.appendChild(listContainer);
+            return;
+        }
 
         const options = targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option');
         const originalOptions = Array.from(options).filter(el => 
