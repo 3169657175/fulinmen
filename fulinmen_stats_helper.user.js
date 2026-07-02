@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.1.1
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4138,7 +4138,7 @@
     };
 
     // ==========================================
-    // 审核辅助增强模块 - 大图联动审核工作台 (v1.1.0)
+    // 审核辅助增强模块 - 大图联动审核工作台 (v1.1.1)
     // ==========================================
 
     // 从放大对话框的标题或属性中提取题号，如 'Q7' 或 'Q10'
@@ -4177,6 +4177,67 @@
     }
 
     // 智能审核工作台主渲染与同步控制
+    function auditHelperCaptureScrollState(anchorEls = []) {
+        const scrollTargets = new Set([document.scrollingElement || document.documentElement]);
+        anchorEls.filter(Boolean).forEach((anchor) => {
+            let el = anchor;
+            while (el && el !== document.body && el !== document.documentElement) {
+                const style = window.getComputedStyle(el);
+                const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight;
+                const canScrollX = /(auto|scroll|overlay)/.test(style.overflowX) && el.scrollWidth > el.clientWidth;
+                if (canScrollY || canScrollX) scrollTargets.add(el);
+                el = el.parentElement;
+            }
+        });
+
+        return Array.from(scrollTargets).map((el) => ({
+            el,
+            left: el.scrollLeft,
+            top: el.scrollTop
+        }));
+    }
+
+    function auditHelperRestoreScrollState(state) {
+        state.forEach(({ el, left, top }) => {
+            el.scrollLeft = left;
+            el.scrollTop = top;
+        });
+    }
+
+    function auditHelperIsOptionChecked(opt) {
+        if (!opt) return false;
+        return opt.classList.contains('selected') ||
+            opt.classList.contains('checked') ||
+            opt.classList.contains('is-checked') ||
+            opt.classList.contains('active') ||
+            opt.classList.contains('is-active') ||
+            !!opt.querySelector('.is-checked, .checked, .selected, .active, [class*="square-check"]');
+    }
+
+    function auditHelperClickQ13Option(opt, activeDialog) {
+        if (!opt) return false;
+        const scrollState = auditHelperCaptureScrollState([opt, activeDialog]);
+        const activeEl = document.activeElement;
+        const title = opt.querySelector('.option-title');
+
+        if (title) {
+            autoReviewClickCenter(title);
+        }
+        autoReviewClickCenter(opt);
+
+        auditHelperRestoreScrollState(scrollState);
+        requestAnimationFrame(() => auditHelperRestoreScrollState(scrollState));
+        setTimeout(() => auditHelperRestoreScrollState(scrollState), 80);
+        setTimeout(() => auditHelperRestoreScrollState(scrollState), 180);
+
+        if (activeEl && typeof activeEl.focus === 'function') {
+            setTimeout(() => {
+                try { activeEl.focus({ preventScroll: true }); } catch (err) { /* ignore focus restore failures */ }
+            }, 0);
+        }
+        return true;
+    }
+
     function auditHelperUpdateWorkspace() {
         const activeDialog = findTargetZoomDialog();
         if (!activeDialog) {
@@ -4218,7 +4279,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = '<span>🔍 Q13 联动审核工作台 (v1.1.0)</span>';
+        title.innerHTML = '<span>🔍 Q13 联动审核工作台 (v1.1.1)</span>';
         ws.appendChild(title);
 
         // 2. 选项列表容器
@@ -4232,12 +4293,7 @@
 
         originalOptions.forEach((opt, index) => {
             // 修正选中状态检测，排除宽泛的 contains 模糊匹配，聚焦精确的 class 标志
-            const isChecked = opt.classList.contains('selected') || 
-                             opt.classList.contains('checked') || 
-                             opt.classList.contains('is-checked') || 
-                             opt.classList.contains('active') || 
-                             opt.classList.contains('is-active') || 
-                             !!opt.querySelector('.is-checked, .checked, .selected, .active');
+            const isChecked = auditHelperIsOptionChecked(opt);
 
             const textEl = opt.querySelector('.option-title, span') || opt;
             
@@ -4294,12 +4350,17 @@
 
             row.addEventListener('click', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                row.classList.toggle('checked');
+                icon.classList.toggle('checked');
+                icon.innerHTML = icon.classList.contains('checked') ? (isMultiple ? '&check;' : '&#9679;') : '';
                 // 滚动原选项卡到可视范围以确保点击响应
-                opt.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                // Keep the image dialog in place while toggling Q13 in the background.
                 // 模拟精准点击原卡片选项
-                autoReviewClickCenter(opt);
+                auditHelperClickQ13Option(opt, activeDialog);
                 // 延迟 80ms 同步工作台显示状态，留给 Vue 响应和渲染
                 setTimeout(auditHelperUpdateWorkspace, 80);
+                setTimeout(auditHelperUpdateWorkspace, 220);
             });
 
             listContainer.appendChild(row);
