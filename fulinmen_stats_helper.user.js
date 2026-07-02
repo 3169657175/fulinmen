@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.1.10
+// @version      1.1.11
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -33,6 +33,7 @@
     let manuallyExpandedQuestions = new Set();
     let reviewLastLocationHref = null;
     let q22SelectedForCurrentOrder = false;
+    let auditHelperVerifiedQ13Options = new Set();
     let resizeHandler = null;      // 全局共享的 resize 处理器，防内存泄漏
     const queryCache = {};         // 内存缓存 API 请求，防接口高频被限流
     let autoRefreshInterval = null; // 自动刷新定时器
@@ -906,6 +907,36 @@
             font-size: 12px;
             color: #cbd5e1;
             line-height: 1.4;
+        }
+        .sj-ws-row.verified {
+            background: rgba(16, 185, 129, 0.08) !important;
+            border-color: rgba(16, 185, 129, 0.25) !important;
+        }
+        .sj-ws-row.verified .sj-ws-label {
+            color: #10b981 !important;
+        }
+        .sj-ws-verify-btn {
+            margin-left: auto;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            transition: all 0.15s ease;
+        }
+        .sj-ws-verify-btn:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: #10b981;
+        }
+        .sj-ws-row.verified .sj-ws-verify-btn {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.5);
+            color: #10b981;
         }
         .sj-ws-fill-row {
             display: flex;
@@ -2304,6 +2335,7 @@
                 reviewLastLocationHref = location.href;
                 manuallyExpandedQuestions.clear();
                 q22SelectedForCurrentOrder = false;
+                auditHelperVerifiedQ13Options.clear();
             }
         if (document.querySelector('.answer--review')) {
             if (!document.getElementById('sj-auto-review-btn')) {
@@ -4444,7 +4476,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.10)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.1.11)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4519,8 +4551,11 @@
                 }
             });
 
+            const optKey = originalText.trim();
+            const isVerified = activeWSTab === 'Q13' && auditHelperVerifiedQ13Options.has(optKey);
+
             const row = document.createElement('div');
-            row.className = `sj-ws-row ${isChecked ? 'checked' : ''}`;
+            row.className = `sj-ws-row ${isChecked ? 'checked' : ''} ${isVerified ? 'verified' : ''}`;
 
             const icon = document.createElement('div');
             icon.className = `sj-ws-icon ${isChecked ? 'checked' : ''}`;
@@ -4542,6 +4577,23 @@
             row.appendChild(icon);
             row.appendChild(label);
 
+            if (activeWSTab === 'Q13') {
+                const verifyBtn = document.createElement('div');
+                verifyBtn.className = 'sj-ws-verify-btn';
+                verifyBtn.textContent = isVerified ? '已核' : '未核';
+                verifyBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (auditHelperVerifiedQ13Options.has(optKey)) {
+                        auditHelperVerifiedQ13Options.delete(optKey);
+                    } else {
+                        auditHelperVerifiedQ13Options.add(optKey);
+                    }
+                    auditHelperUpdateWorkspace();
+                });
+                row.appendChild(verifyBtn);
+            }
+
             row.addEventListener('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -4549,6 +4601,14 @@
                 icon.classList.toggle('checked');
                 icon.innerHTML = icon.classList.contains('checked') ? (isMultiple ? '&check;' : '&#9679;') : '';
             
+                if (activeWSTab === 'Q13') {
+                    if (!isChecked) {
+                        auditHelperVerifiedQ13Options.add(optKey);
+                    } else {
+                        auditHelperVerifiedQ13Options.delete(optKey);
+                    }
+                }
+
                 // 使用通用模拟背景点击函数
                 auditHelperClickOption(opt, activeDialog);
             
