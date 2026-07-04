@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4489,6 +4489,14 @@
 
         // 插入工作台到放大框内以防止点击拦截
         let ws = document.getElementById('sj-zoom-workspace');
+        let oldScrollTop = 0;
+        if (ws) {
+            const oldList = ws.querySelector('.sj-ws-list');
+            if (oldList) {
+                oldScrollTop = oldList.scrollTop;
+            }
+        }
+
         if (!ws) {
             ws = document.createElement('div');
             ws.id = 'sj-zoom-workspace';
@@ -4502,7 +4510,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.2.0)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.2.1)</span>`;
         ws.appendChild(title);
 
         // 2. 动态选项卡 Tab 头部
@@ -4540,6 +4548,13 @@
         if (fillInputs.length > 0 && (activeWSTab === 'Q8' || targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option').length === 0)) {
             auditHelperRenderFillInputs(targetCard, listContainer, activeDialog);
             ws.appendChild(listContainer);
+            
+            if (oldScrollTop > 0) {
+                listContainer.scrollTop = oldScrollTop;
+                requestAnimationFrame(() => {
+                    listContainer.scrollTop = oldScrollTop;
+                });
+            }
             return;
         }
 
@@ -4649,6 +4664,13 @@
         });
 
         ws.appendChild(listContainer);
+
+        if (oldScrollTop > 0) {
+            listContainer.scrollTop = oldScrollTop;
+            requestAnimationFrame(() => {
+                listContainer.scrollTop = oldScrollTop;
+            });
+        }
     }
 
     const startHelper = () => {
