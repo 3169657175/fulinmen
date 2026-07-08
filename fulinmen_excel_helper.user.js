@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.1.1
 // @description  上传 Excel 文件进行排队对账，支持自动定位、直接修改内存数据并导出新 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -18,8 +18,8 @@
     // 默认键名变量，自动识别 Excel 列名
     let orderIdKey = "工单ID";
     let handlerKey = "处理人";
-    let totalFacingKey = "【主货架排面数】所有品牌食用油主货架排面数";
-    let flmFacingKey = "【主货架排面数】福临门品牌食用油主货架排面数";
+    let totalFacingKey = "【主货架排面】所有品牌食用油主货架排面数";
+    let flmFacingKey = "【主货架排面】福临门品牌食用油主货架排面数";
 
     // 识别与绑定 Excel 属性名
     function identifyKeys(firstRow) {
@@ -36,24 +36,17 @@
                 flmFacingKey = key;
             }
         }
-        GM_setValue('sj_key_order_id', orderIdKey);
-        GM_setValue('sj_key_handler', handlerKey);
-        GM_setValue('sj_key_total_facing', totalFacingKey);
-        GM_setValue('sj_key_flm_facing', flmFacingKey);
     }
 
-    function loadKeys() {
-        orderIdKey = GM_getValue('sj_key_order_id', orderIdKey);
-        handlerKey = GM_getValue('sj_key_handler', handlerKey);
-        totalFacingKey = GM_getValue('sj_key_total_facing', totalFacingKey);
-        flmFacingKey = GM_getValue('sj_key_flm_facing', flmFacingKey);
-    }
-
-    // 从本地缓存读取和保存 Excel 的行数据
+    // 从本地缓存读取和保存 Excel 的行数据 (读取时动态识别列名，防止本地缓存污染)
     function getStoredRows() {
         const json = GM_getValue('sj_excel_rows', '[]');
         try {
-            return JSON.parse(json);
+            const rows = JSON.parse(json);
+            if (rows.length > 0) {
+                identifyKeys(rows[0]);
+            }
+            return rows;
         } catch (e) {
             return [];
         }
@@ -272,7 +265,6 @@
 
     // 筛选当前处理人的所有工单列表 (保持原有 Excel 物理行顺序排列)
     function getActiveQueue() {
-        loadKeys();
         const handler = GM_getValue('sj_excel_handler', '');
         const rows = getStoredRows();
         if (!handler || rows.length === 0) return [];
@@ -283,7 +275,6 @@
     function markCurrentOrderAsViewed() {
         const currentId = getOrderFromUrl();
         if (!currentId) return;
-        loadKeys();
         const rows = getStoredRows();
         let updated = false;
         for (let row of rows) {
@@ -382,7 +373,6 @@
         const select = document.getElementById('sj-excel-auditor-select');
         if (!select) return;
 
-        loadKeys();
         const rows = getStoredRows();
         const handlerSet = new Set();
         rows.forEach(row => {
@@ -476,7 +466,6 @@
             return;
         }
 
-        loadKeys();
         const headersJson = GM_getValue('sj_excel_headers', '[]');
         let headers = [];
         try {
@@ -544,8 +533,8 @@
 
         // 读取当前订单的值，用于顶部导航比对
         const targetRow = queue.find(row => String(row[orderIdKey]) === currentId);
-        const totalVal = targetRow ? (targetRow[totalFacingKey] !== "" ? targetRow[totalFacingKey] : 0) : 0;
-        const flmVal = targetRow ? (targetRow[flmFacingKey] !== "" ? targetRow[flmFacingKey] : 0) : 0;
+        const totalVal = targetRow ? (targetRow[totalFacingKey] !== undefined && targetRow[totalFacingKey] !== null ? targetRow[totalFacingKey] : "") : "";
+        const flmVal = targetRow ? (targetRow[flmFacingKey] !== undefined && targetRow[flmFacingKey] !== null ? targetRow[flmFacingKey] : "") : "";
 
         bar.innerHTML = '';
 
@@ -636,7 +625,6 @@
         const currentId = getOrderFromUrl();
         if (!currentId) return;
 
-        loadKeys();
         const rows = getStoredRows();
         const targetRow = rows.find(row => String(row[orderIdKey]) === currentId);
         if (!targetRow) return;
@@ -662,6 +650,9 @@
         title.textContent = '📊 表格预设数据对账：';
         cmpCard.appendChild(title);
 
+        const totalVal = targetRow[totalFacingKey] !== undefined && targetRow[totalFacingKey] !== null ? targetRow[totalFacingKey] : "";
+        const flmVal = targetRow[flmFacingKey] !== undefined && targetRow[flmFacingKey] !== null ? targetRow[flmFacingKey] : "";
+
         // 1. 总排面输入框
         const totalDiv = document.createElement('div');
         totalDiv.className = 'sj-comparison-field';
@@ -670,7 +661,7 @@
         totalInput.className = 'sj-comparison-input';
         totalInput.id = 'sj-q10-total-input';
         totalInput.type = 'number';
-        totalInput.value = targetRow[totalFacingKey] !== "" ? targetRow[totalFacingKey] : 0;
+        totalInput.value = totalVal;
         totalInput.addEventListener('input', (e) => {
             targetRow[totalFacingKey] = e.target.value;
             saveRows(rows);
@@ -689,7 +680,7 @@
         flmInput.className = 'sj-comparison-input';
         flmInput.id = 'sj-q10-flm-input';
         flmInput.type = 'number';
-        flmInput.value = targetRow[flmFacingKey] !== "" ? targetRow[flmFacingKey] : 0;
+        flmInput.value = flmVal;
         flmInput.addEventListener('input', (e) => {
             targetRow[flmFacingKey] = e.target.value;
             saveRows(rows);
