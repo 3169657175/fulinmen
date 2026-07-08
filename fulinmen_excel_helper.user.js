@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.1.2
+// @version      1.1.4
 // @description  上传 Excel 文件进行排队对账，支持自动定位、直接修改内存数据并导出新 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -20,6 +20,9 @@
     let handlerKey = "处理人";
     let totalFacingKey = "【主货架排面】所有品牌食用油主货架排面数";
     let flmFacingKey = "【主货架排面】福临门品牌食用油主货架排面数";
+
+    // 独立记录 Excel 助手折叠过的卡片状态
+    const manuallyExpandedQuestionsExcel = new Set();
 
     // 识别与绑定 Excel 属性名
     function identifyKeys(firstRow) {
@@ -251,9 +254,26 @@
         .sj-comparison-input:focus {
             border-color: #10b981;
         }
-        /* 自动折叠其他题目 */
-        .sj-excel-collapsed-card > div:not(.question-title):not(header):not(h4):not(h3):not(.sj-comparison-card):not(.title) {
-            display: none !important;
+        /* 对账版专属折叠卡片样式（不影响原插件样式名） */
+        .sj-excel-collapsed-card {
+            height: 38px !important;
+            overflow: hidden !important;
+            opacity: 0.65;
+            position: relative;
+            border: 1px dashed #dcdfe6 !important;
+            background-color: #f5f7fa !important;
+            transition: all 0.2s ease-in-out;
+        }
+        .sj-excel-collapsed-card:hover {
+            opacity: 1;
+            background-color: #ecf5ff !important;
+            border-color: #c6e2ff !important;
+        }
+        .sj-excel-collapsed-card * {
+            pointer-events: none !important;
+        }
+        .sj-excel-collapsed-card .sj-excel-collapse-toggle-btn {
+            pointer-events: auto !important;
         }
         /* 拦截说明信息的高频弹窗 */
         .question-detail-text.el-popover__reference,
@@ -707,22 +727,80 @@
         }
     }
 
-    // 自动折叠除了第10题之外的所有题目
-    function excelHelperCollapseUnneeded() {
-        const cards = document.querySelectorAll('.question-card, .question, [class*="card"]');
-        cards.forEach(card => {
-            const titleEl = card.querySelector('.question-title, header, h4, h3, .title');
-            if (!titleEl) return;
-            const text = titleEl.textContent;
-            const match = text.match(/Q\d+/);
-            const qNum = match ? match[0] : null;
-
-            if (qNum) {
-                if (qNum !== 'Q7' && qNum !== 'Q10') {
-                    card.classList.add('sj-excel-collapsed-card');
-                } else {
-                    card.classList.remove('sj-excel-collapsed-card');
+    // 复刻原版折叠的核心辅助逻辑
+    function findQuestionCard(reviewEl) {
+        let current = reviewEl;
+        while (current) {
+            if (current.classList.contains('question-card') || current.classList.contains('question') || current.className.includes('card')) {
+                const titleEl = current.querySelector('.question-title, header, h4, h3, .title');
+                if (titleEl) {
+                    const text = titleEl.textContent;
+                    const match = text.match(/Q\d+/);
+                    const qNum = match ? match[0] : null;
+                    return { card: current, qNum, titleEl };
                 }
+            }
+            current = current.parentElement;
+        }
+        return null;
+    }
+
+    // 复刻原版折叠逻辑：除了 Q7 和 Q10 外的 1-22 所有题目全部默认折叠，且支持点【展开/收起】按钮交互
+    function excelHelperCollapseUnneeded() {
+        const collapseNums = new Set([
+            'Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q8', 'Q9', 
+            'Q11', 'Q12', 'Q13', 'Q14', 'Q15', 'Q16', 'Q17', 
+            'Q18', 'Q19', 'Q20', 'Q21', 'Q22'
+        ]);
+        const reviews = document.querySelectorAll('.answer--review');
+        if (reviews.length === 0) return;
+
+        reviews.forEach((review) => {
+            const cardInfo = findQuestionCard(review);
+            if (!cardInfo) return;
+
+            const { card, qNum, titleEl } = cardInfo;
+            if (!qNum) return;
+
+            const shouldCollapse = collapseNums.has(qNum) && !manuallyExpandedQuestionsExcel.has(qNum);
+
+            if (!card.dataset.sjExcelCollapseBound) {
+                card.dataset.sjExcelCollapseBound = 'true';
+                card.addEventListener('click', (e) => {
+                    const toggleBtn = card.querySelector('.sj-excel-collapse-toggle-btn');
+                    if (card.classList.contains('sj-excel-collapsed-card')) {
+                        card.classList.remove('sj-excel-collapsed-card');
+                        manuallyExpandedQuestionsExcel.add(qNum);
+                        if (toggleBtn) toggleBtn.textContent = ' 收起';
+                        e.stopPropagation();
+                        e.preventDefault();
+                    } else if (e.target.classList.contains('sj-excel-collapse-toggle-btn')) {
+                        card.classList.add('sj-excel-collapsed-card');
+                        manuallyExpandedQuestionsExcel.delete(qNum);
+                        if (toggleBtn) toggleBtn.textContent = ' 展开';
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            let toggleBtn = card.querySelector('.sj-excel-collapse-toggle-btn');
+            if (collapseNums.has(qNum) && !toggleBtn) {
+                toggleBtn = document.createElement('span');
+                toggleBtn.className = 'sj-excel-collapse-toggle-btn';
+                toggleBtn.style.color = '#3b82f6';
+                toggleBtn.style.marginLeft = '10px';
+                toggleBtn.style.cursor = 'pointer';
+                toggleBtn.style.fontWeight = 'bold';
+                titleEl.appendChild(toggleBtn);
+            }
+
+            if (shouldCollapse) {
+                card.classList.add('sj-excel-collapsed-card');
+                if (toggleBtn) toggleBtn.textContent = ' 展开';
+            } else {
+                card.classList.remove('sj-excel-collapsed-card');
+                if (toggleBtn) toggleBtn.textContent = collapseNums.has(qNum) ? ' 收起' : '';
             }
         });
     }
