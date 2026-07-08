@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.2
 // @description  上传 Excel 文件进行排队对账，直接修改并保存原版 Workbook 单元格值，支持导出 100% 原格式的 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -17,6 +17,12 @@
 
     // 独立记录 Excel 助手折叠过的卡片状态
     const manuallyExpandedQuestionsExcel = new Set();
+
+    // 默认键名变量，自动识别 Excel 列名
+    let orderIdKey = "工单ID";
+    let handlerKey = "处理人";
+    let totalFacingKey = "【主货架排面】所有品牌食用油主货架排面数";
+    let flmFacingKey = "【主货架排面】福临门品牌食用油主货架排面数";
 
     // 寻找表头在 Sheet1 里的列索引
     function findColumnIndices(sheet) {
@@ -274,7 +280,7 @@
         .sj-comparison-input:focus {
             border-color: #10b981;
         }
-        /* 对账版专属折叠卡片样式（不影响原插件样式名） */
+        /* 对账版专属折叠卡片样式（独立类名，防止覆盖原插件） */
         .sj-excel-collapsed-card {
             height: 38px !important;
             overflow: hidden !important;
@@ -294,6 +300,10 @@
         }
         .sj-excel-collapsed-card .sj-excel-collapse-toggle-btn {
             pointer-events: auto !important;
+        }
+        /* 屏蔽原版插件的展开/收起按钮，防止双重按钮出现 */
+        .sj-collapse-toggle-btn {
+            display: none !important;
         }
         /* 拦截说明信息的高频弹窗 */
         .question-detail-text.el-popover__reference,
@@ -348,7 +358,7 @@
         // 1. 同步到轻量队列
         matched.total = totalVal;
         matched.flm = flmVal;
-        matched.viewed = "是";
+        matched.viewed = "集"; // 标记为已修改
         saveQueue(queue);
 
         // 2. 直接改写原版 Workbook 里的单元格
@@ -485,6 +495,7 @@
     }
 
     // 上传文件解析并保存 Workbook
+    // 使用 cellStyles/cellFormulas/cellNF 确保完美保留所有列结构与属性
     function handleFileUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -495,8 +506,14 @@
         reader.onload = function(evt) {
             try {
                 const data = new Uint8Array(evt.target.result);
-                // 1. 读入原版二进制 workbook
-                const workbook = XLSX.read(data, { type: 'array' });
+                // 1. 读入原版二进制 workbook，使用最全面的解析选项，防止隐藏列和工作表丢失
+                const workbook = XLSX.read(data, {
+                    type: 'array',
+                    cellStyles: true,
+                    cellFormulas: true,
+                    cellDates: true,
+                    cellNF: true
+                });
                 
                 // 保存整个 Workbook
                 saveWorkbook(workbook);
