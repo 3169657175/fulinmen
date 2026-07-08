@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.1.0
 // @description  上传 Excel 文件进行排队对账，支持自动定位、直接修改内存数据并导出新 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -190,6 +190,35 @@
             font-weight: 500;
             color: #94a3b8;
         }
+        .sj-nav-facings-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0 14px;
+            margin: 0 2px;
+        }
+        .sj-nav-field {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .sj-nav-input {
+            width: 44px;
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            color: #f1f5f9;
+            padding: 2px 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            outline: none;
+        }
+        .sj-nav-input:focus {
+            border-color: #10b981;
+        }
         /* 题目上方数据比对卡 */
         .sj-comparison-card {
             margin: 10px 0;
@@ -229,6 +258,10 @@
         .sj-comparison-input:focus {
             border-color: #10b981;
         }
+        /* 自动折叠其他题目 */
+        .sj-excel-collapsed-card > div:not(.question-title):not(header):not(h4):not(h3):not(.sj-comparison-card):not(.title) {
+            display: none !important;
+        }
     `);
 
     // 获取当前工单 ID
@@ -237,7 +270,7 @@
         return match ? match[1] : null;
     }
 
-    // 筛选当前处理人的所有工单列表
+    // 筛选当前处理人的所有工单列表 (保持原有 Excel 物理行顺序排列)
     function getActiveQueue() {
         loadKeys();
         const handler = GM_getValue('sj_excel_handler', '');
@@ -415,7 +448,6 @@
                     // 补全“是否看过”标记
                     rows.forEach(row => {
                         if (!row["是否看过"]) {
-                            // 如果主货架排面数不为空且不为0，则默认判定为已看过/已填写，防止覆盖其他进度
                             row["是否看过"] = (row[totalFacingKey] !== "" && parseInt(row[totalFacingKey], 10) > 0) ? "是" : "否";
                         }
                     });
@@ -497,11 +529,8 @@
         const total = queue.length;
         const viewed = queue.filter(r => r["是否看过"] === "是").length;
 
-        // 寻找上下文未看的单号
-        let prevId = null;
-        let nextId = null;
+        // 寻找当前工单在队列中的索引
         let currentIndex = -1;
-
         for (let i = 0; i < queue.length; i++) {
             if (String(queue[i][orderIdKey]) === currentId) {
                 currentIndex = i;
@@ -509,26 +538,21 @@
             }
         }
 
-        // 找到前一个和后一个“未看”的单号
-        for (let i = currentIndex - 1; i >= 0; i--) {
-            if (queue[i]["是否看过"] !== "是") {
-                prevId = queue[i][orderIdKey];
-                break;
-            }
-        }
-        for (let i = currentIndex + 1; i < queue.length; i++) {
-            if (queue[i]["是否看过"] !== "是") {
-                nextId = queue[i][orderIdKey];
-                break;
-            }
-        }
+        // 上一单和下一单直接在物理行队列中进行加减（不跳过已看过，保证顺序 100% 正确）
+        let prevId = (currentIndex > 0) ? queue[currentIndex - 1][orderIdKey] : null;
+        let nextId = (currentIndex >= 0 && currentIndex < queue.length - 1) ? queue[currentIndex + 1][orderIdKey] : null;
+
+        // 读取当前订单的值，用于顶部导航比对
+        const targetRow = queue.find(row => String(row[orderIdKey]) === currentId);
+        const totalVal = targetRow ? (targetRow[totalFacingKey] !== "" ? targetRow[totalFacingKey] : 0) : 0;
+        const flmVal = targetRow ? (targetRow[flmFacingKey] !== "" ? targetRow[flmFacingKey] : 0) : 0;
 
         bar.innerHTML = '';
 
         // 1. 上一单按钮
         const prevBtn = document.createElement('button');
         prevBtn.className = 'sj-nav-btn';
-        prevBtn.textContent = '⬅️ 上一单未看';
+        prevBtn.textContent = '⬅️ 上一单';
         if (prevId) {
             prevBtn.addEventListener('click', () => {
                 GM_setValue('sj_excel_autofocus_q10', true);
@@ -543,13 +567,58 @@
         // 2. 进度文本
         const progress = document.createElement('span');
         progress.className = 'sj-nav-progress';
-        progress.textContent = `👤 ${handler} (已看: ${viewed} / 总计: ${total})`;
+        progress.textContent = `👤 ${handler} (${viewed}/${total})`;
         bar.appendChild(progress);
 
-        // 3. 下一单按钮
+        // 3. 📊 数据比对输入框挂载在顶部 Navbar，最省眼！
+        if (targetRow) {
+            const navCmp = document.createElement('div');
+            navCmp.className = 'sj-nav-facings-wrapper';
+            navCmp.innerHTML = `
+                <div class="sj-nav-field">
+                    <span style="color: #60a5fa;">总排面:</span>
+                    <input type="number" class="sj-nav-input" id="sj-nav-total-facing" value="${totalVal}">
+                </div>
+                <div class="sj-nav-field">
+                    <span style="color: #f87171;">福临门:</span>
+                    <input type="number" class="sj-nav-input" id="sj-nav-flm-facing" value="${flmVal}">
+                </div>
+            `;
+
+            // 同步写回数据
+            const totalInput = navCmp.querySelector('#sj-nav-total-facing');
+            totalInput.addEventListener('input', (e) => {
+                const rows = getStoredRows();
+                const matched = rows.find(r => String(r[orderIdKey]) === currentId);
+                if (matched) {
+                    matched[totalFacingKey] = e.target.value;
+                    saveRows(rows);
+                    // 同步到 Q10 题目卡片
+                    const q10Input = document.getElementById('sj-q10-total-input');
+                    if (q10Input) q10Input.value = e.target.value;
+                }
+            });
+
+            const flmInput = navCmp.querySelector('#sj-nav-flm-facing');
+            flmInput.addEventListener('input', (e) => {
+                const rows = getStoredRows();
+                const matched = rows.find(r => String(r[orderIdKey]) === currentId);
+                if (matched) {
+                    matched[flmFacingKey] = e.target.value;
+                    saveRows(rows);
+                    // 同步到 Q10 题目卡片
+                    const q10Input = document.getElementById('sj-q10-flm-input');
+                    if (q10Input) q10Input.value = e.target.value;
+                }
+            });
+
+            bar.appendChild(navCmp);
+        }
+
+        // 4. 下一单按钮
         const nextBtn = document.createElement('button');
         nextBtn.className = 'sj-nav-btn';
-        nextBtn.textContent = '下一单未看 ➡️';
+        nextBtn.textContent = '下一单 ➡️';
         if (nextId) {
             nextBtn.addEventListener('click', () => {
                 GM_setValue('sj_excel_autofocus_q10', true);
@@ -572,10 +641,14 @@
         const targetRow = rows.find(row => String(row[orderIdKey]) === currentId);
         if (!targetRow) return;
 
-        // 寻找第十题卡片 Q10
+        // 寻找第十题卡片 Q10 (模糊匹配标题)
         const q10Card = Array.from(document.querySelectorAll('.question-card, .question, [class*="card"]')).find(card => {
-            const text = card.textContent;
-            return text.includes('Q10') && text.includes('排面');
+            const titleEl = card.querySelector('.question-title, header, h4, h3, .title');
+            if (titleEl) {
+                const text = titleEl.textContent;
+                return text.includes('Q10') || text.includes('第10题') || text.includes('10.');
+            }
+            return card.textContent.includes('Q10') || card.textContent.includes('第十题');
         });
 
         if (!q10Card || q10Card.querySelector('.sj-comparison-card')) return;
@@ -595,11 +668,15 @@
         totalDiv.innerHTML = `<span>总排面数:</span>`;
         const totalInput = document.createElement('input');
         totalInput.className = 'sj-comparison-input';
+        totalInput.id = 'sj-q10-total-input';
         totalInput.type = 'number';
         totalInput.value = targetRow[totalFacingKey] !== "" ? targetRow[totalFacingKey] : 0;
         totalInput.addEventListener('input', (e) => {
             targetRow[totalFacingKey] = e.target.value;
             saveRows(rows);
+            // 同步顶部 navbar
+            const navTotal = document.getElementById('sj-nav-total-facing');
+            if (navTotal) navTotal.value = e.target.value;
         });
         totalDiv.appendChild(totalInput);
         cmpCard.appendChild(totalDiv);
@@ -610,22 +687,46 @@
         flmDiv.innerHTML = `<span>福临门排面:</span>`;
         const flmInput = document.createElement('input');
         flmInput.className = 'sj-comparison-input';
+        flmInput.id = 'sj-q10-flm-input';
         flmInput.type = 'number';
         flmInput.value = targetRow[flmFacingKey] !== "" ? targetRow[flmFacingKey] : 0;
         flmInput.addEventListener('input', (e) => {
             targetRow[flmFacingKey] = e.target.value;
             saveRows(rows);
+            // 同步顶部 navbar
+            const navFlm = document.getElementById('sj-nav-flm-facing');
+            if (navFlm) navFlm.value = e.target.value;
         });
         flmDiv.appendChild(flmInput);
         cmpCard.appendChild(flmDiv);
 
-        // 注入到 Q10 题目标题下方或内层
-        const insertTarget = q10Card.querySelector('.question-title, header, h4, h3') || q10Card.firstChild;
+        // 注入到 Q10 题目标题下方
+        const insertTarget = q10Card.querySelector('.question-title, header, h4, h3, .title') || q10Card.firstChild;
         if (insertTarget.nextSibling) {
             q10Card.insertBefore(cmpCard, insertTarget.nextSibling);
         } else {
             q10Card.appendChild(cmpCard);
         }
+    }
+
+    // 自动折叠除了第10题之外的所有题目
+    function excelHelperCollapseUnneeded() {
+        const cards = document.querySelectorAll('.question-card, .question, [class*="card"]');
+        cards.forEach(card => {
+            const titleEl = card.querySelector('.question-title, header, h4, h3, .title');
+            if (!titleEl) return;
+            const text = titleEl.textContent;
+            const match = text.match(/Q\d+/);
+            const qNum = match ? match[0] : null;
+
+            if (qNum) {
+                if (qNum !== 'Q10') {
+                    card.classList.add('sj-excel-collapsed-card');
+                } else {
+                    card.classList.remove('sj-excel-collapsed-card');
+                }
+            }
+        });
     }
 
     // 自动定位和展开大图逻辑
@@ -638,8 +739,12 @@
         const interval = setInterval(() => {
             attempts++;
             const q10Card = Array.from(document.querySelectorAll('.question-card, .question, [class*="card"]')).find(card => {
-                const text = card.textContent;
-                return text.includes('Q10') && text.includes('排面');
+                const titleEl = card.querySelector('.question-title, header, h4, h3, .title');
+                if (titleEl) {
+                    const text = titleEl.textContent;
+                    return text.includes('Q10') || text.includes('第10题') || text.includes('10.');
+                }
+                return card.textContent.includes('Q10') || card.textContent.includes('第十题');
             });
 
             if (q10Card) {
@@ -657,7 +762,6 @@
 
                 // 3. 自动点开第一张证据图
                 setTimeout(() => {
-                    // 使用 Heuristic 寻找照片证据容器
                     const titleEl = Array.from(q10Card.querySelectorAll('*')).find(el => {
                         if (el.children.length > 0) return false;
                         return el.textContent.trim().includes('照片证据');
@@ -674,7 +778,7 @@
                             img.click(); // 自动模拟点击第一张图，弹出联动工作台
                         }
                     }
-                }, 400);
+                }, 500);
 
             }
 
@@ -691,9 +795,10 @@
         markCurrentOrderAsViewed();
         updateNavbarProgress();
         
-        // 动态注入检测
+        // 动态注入与自动折叠检测
         setInterval(() => {
             injectComparisonUI();
+            excelHelperCollapseUnneeded();
         }, 1000);
 
         handleAutofocus();
