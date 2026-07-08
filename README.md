@@ -12,8 +12,8 @@
 
 1.  请确保您的浏览器已安装 **[Tampermonkey (油猴)](https://www.tampermonkey.net/)** 扩展。
 2.  点击下方链接直接安装或自动更新至最新版本：
-    *   🚀 **[点此一键安装/更新《福临门 Excel 联动对账助手》](https://raw.githubusercontent.com/3169657175/fulinmen/master/fulinmen_excel_helper.user.js)** （★ 本次新增的排面对账专属插件）
-    *   📊 **[点此一键安装/更新《爱零工审单数据助手福临门》](https://raw.githubusercontent.com/3169657175/fulinmen/master/fulinmen_stats_helper.user.js)** （原有的日常数据统计与折叠大图联动插件）
+    *   🚀 **[点此一键安装/更新《福临门 Excel 联动对账助手》](https://cdn.jsdelivr.net/gh/3169657175/fulinmen@master/fulinmen_excel_helper.user.js)** （★ 本次新增的排面对账专属插件）
+    *   📊 **[点此一键安装/更新《爱零工审单数据助手福临门》](https://cdn.jsdelivr.net/gh/3169657175/fulinmen@master/fulinmen_stats_helper.user.js)** （原有的日常数据统计与折叠大图联动插件）
     *(点击后油猴会自动拦截并弹出安装确认页面，点击“安装”或“更新”即可)*
 3.  匹配域名：`*://admin2.slicejobs.com/*`
 
