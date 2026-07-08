@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.2.4
+// @version      1.2.5
 // @description  上传 Excel 文件进行排队对账，直接修改并保存原版 Workbook 单元格值，支持导出 100% 原格式的 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -28,7 +28,7 @@
     function findColumnIndices(sheet) {
         const range = XLSX.utils.decode_range(sheet['!ref']);
         let indices = { orderIdCol: -1, totalCol: -1, flmCol: -1, handlerCol: -1 };
-        
+
         // 假设表头在第一行 (r = range.s.r)
         const R = range.s.r;
         for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -402,7 +402,7 @@
         const panel = document.createElement('div');
         panel.id = 'sj-excel-panel';
         panel.className = GM_getValue('sj_excel_panel_collapsed', false) ? 'collapsed' : '';
-        
+
         // 展开与折叠控制
         panel.addEventListener('click', (e) => {
             if (panel.classList.contains('collapsed')) {
@@ -414,7 +414,7 @@
         const title = document.createElement('div');
         title.className = 'sj-excel-title';
         title.innerHTML = `<span>📊 福临门 Excel 联动对账</span>`;
-        
+
         const closeBtn = document.createElement('span');
         closeBtn.className = 'sj-excel-close';
         closeBtn.textContent = '❌';
@@ -483,7 +483,7 @@
         });
 
         select.innerHTML = '';
-        
+
         // 如果数据为空
         if (handlerSet.size === 0) {
             const opt = document.createElement('option');
@@ -528,7 +528,7 @@
                     cellDates: true,
                     cellNF: true
                 });
-                
+
                 // 保存整个 Workbook
                 saveWorkbook(workbook);
 
@@ -554,7 +554,7 @@
                     if (idCell && idCell.v) {
                         const totalVal = (totalCell && totalCell.v !== undefined) ? String(totalCell.v).trim() : "";
                         const flmVal = (flmCell && flmCell.v !== undefined) ? String(flmCell.v).trim() : "";
-                        
+
                         queue.push({
                             id: String(idCell.v).trim(),
                             rowIdx: R,
@@ -794,18 +794,20 @@
 
     // 复刻原版折叠的核心辅助逻辑
     function findQuestionCard(reviewEl) {
-        let current = reviewEl;
-        while (current) {
-            if (current.classList.contains('question-card') || current.classList.contains('question') || current.className.includes('card')) {
-                const titleEl = current.querySelector('.question-title, header, h4, h3, .title');
-                if (titleEl) {
-                    const text = titleEl.textContent;
-                    const match = text.match(/Q\d+/);
-                    const qNum = match ? match[0] : null;
-                    return { card: current, qNum, titleEl };
+        let temp = reviewEl.parentElement;
+        while (temp && temp !== document.body) {
+            const titleEl = temp.querySelector('.answer-title, h4, h3, .el-form-item__label, .answer-question-title, [class*="title"], [class*="header"]');
+            if (titleEl) {
+                const match = titleEl.textContent.trim().match(/^[qQ](\d+)/);
+                if (match) {
+                    return {
+                        card: temp,
+                        qNum: 'Q' + match[1],
+                        titleEl
+                    };
                 }
             }
-            current = current.parentElement;
+            temp = temp.parentElement;
         }
         return null;
     }
@@ -813,8 +815,8 @@
     // 复刻原版折叠逻辑：除了 Q7 和 Q10 外的 1-22 所有题目全部默认折叠，且支持点【展开/收起】按钮交互
     function excelHelperCollapseUnneeded() {
         const collapseNums = new Set([
-            'Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q8', 'Q9', 
-            'Q11', 'Q12', 'Q13', 'Q14', 'Q15', 'Q16', 'Q17', 
+            'Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q8', 'Q9',
+            'Q11', 'Q12', 'Q13', 'Q14', 'Q15', 'Q16', 'Q17',
             'Q18', 'Q19', 'Q20', 'Q21', 'Q22'
         ]);
         const reviews = document.querySelectorAll('.answer--review');
@@ -935,7 +937,7 @@
         createConfigPanel();
         markCurrentOrderAsViewed();
         updateNavbarProgress();
-        
+
         // 动态注入与自动折叠检测
         setInterval(() => {
             injectComparisonUI();
