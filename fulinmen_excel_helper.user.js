@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.1.4
-// @description  上传 Excel 文件进行排队对账，支持自动定位、直接修改内存数据并导出新 Excel。
+// @version      1.2.0
+// @description  上传 Excel 文件进行排队对账，直接修改并保存原版 Workbook 单元格值，支持导出 100% 原格式的 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
@@ -15,48 +15,68 @@
 (function() {
     'use strict';
 
-    // 默认键名变量，自动识别 Excel 列名
-    let orderIdKey = "工单ID";
-    let handlerKey = "处理人";
-    let totalFacingKey = "【主货架排面】所有品牌食用油主货架排面数";
-    let flmFacingKey = "【主货架排面】福临门品牌食用油主货架排面数";
-
     // 独立记录 Excel 助手折叠过的卡片状态
     const manuallyExpandedQuestionsExcel = new Set();
 
-    // 识别与绑定 Excel 属性名
-    function identifyKeys(firstRow) {
-        if (!firstRow) return;
-        for (let key in firstRow) {
-            const lowerKey = key.toLowerCase();
-            if (lowerKey.includes("工单id") || lowerKey.includes("工单号")) {
-                orderIdKey = key;
-            } else if (lowerKey.includes("处理人") || lowerKey.includes("审核员")) {
-                handlerKey = key;
-            } else if (lowerKey.includes("所有品牌") && lowerKey.includes("主货架排面")) {
-                totalFacingKey = key;
-            } else if (lowerKey.includes("福临门") && lowerKey.includes("主货架排面")) {
-                flmFacingKey = key;
+    // 寻找表头在 Sheet1 里的列索引
+    function findColumnIndices(sheet) {
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        let indices = { orderIdCol: -1, totalCol: -1, flmCol: -1, handlerCol: -1 };
+        
+        // 假设表头在第一行 (r = range.s.r)
+        const R = range.s.r;
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+            const cell = sheet[cellRef];
+            if (cell && cell.v) {
+                const val = String(cell.v).toLowerCase();
+                if (val.includes("工单id") || val.includes("工单号")) {
+                    indices.orderIdCol = C;
+                } else if (val.includes("处理人") || val.includes("审核员")) {
+                    indices.handlerCol = C;
+                } else if (val.includes("所有品牌") && val.includes("主货架排面")) {
+                    indices.totalCol = C;
+                } else if (val.includes("福临门") && val.includes("主货架排面")) {
+                    indices.flmCol = C;
+                }
             }
+        }
+        return indices;
+    }
+
+    // 从本地缓存读取和保存 Excel 的整个二进制 Workbook 对象
+    function getWorkbook() {
+        const base64 = GM_getValue('sj_excel_workbook', '');
+        if (!base64) return null;
+        try {
+            return XLSX.read(base64, { type: 'base64' });
+        } catch (e) {
+            console.error("Failed to read workbook:", e);
+            return null;
         }
     }
 
-    // 从本地缓存读取和保存 Excel 的行数据 (读取时动态识别列名，防止本地缓存污染)
-    function getStoredRows() {
-        const json = GM_getValue('sj_excel_rows', '[]');
+    function saveWorkbook(workbook) {
         try {
-            const rows = JSON.parse(json);
-            if (rows.length > 0) {
-                identifyKeys(rows[0]);
-            }
-            return rows;
+            const base64 = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+            GM_setValue('sj_excel_workbook', base64);
+        } catch (e) {
+            console.error("Failed to save workbook:", e);
+        }
+    }
+
+    // 从本地缓存读取和保存队列元数据
+    function getStoredQueue() {
+        const json = GM_getValue('sj_excel_queue', '[]');
+        try {
+            return JSON.parse(json);
         } catch (e) {
             return [];
         }
     }
 
-    function saveRows(rows) {
-        GM_setValue('sj_excel_rows', JSON.stringify(rows));
+    function saveQueue(queue) {
+        GM_setValue('sj_excel_queue', JSON.stringify(queue));
     }
 
     // 样式注入
@@ -290,32 +310,63 @@
         return match ? match[1] : null;
     }
 
-    // 筛选当前处理人的所有工单列表 (保持原有 Excel 物理行顺序排列)
+    // 筛选当前处理人的所有工单列表
     function getActiveQueue() {
         const handler = GM_getValue('sj_excel_handler', '');
-        const rows = getStoredRows();
-        if (!handler || rows.length === 0) return [];
-        return rows.filter(row => String(row[handlerKey]) === handler);
+        const queue = getStoredQueue();
+        if (!handler || queue.length === 0) return [];
+        return queue.filter(item => item.handler === handler);
     }
 
     // 标记当前工单为“已看过”
     function markCurrentOrderAsViewed() {
         const currentId = getOrderFromUrl();
         if (!currentId) return;
-        const rows = getStoredRows();
+        const queue = getStoredQueue();
         let updated = false;
-        for (let row of rows) {
-            if (String(row[orderIdKey]) === currentId) {
-                if (row["是否看过"] !== "是") {
-                    row["是否看过"] = "是";
+        for (let item of queue) {
+            if (item.id === currentId) {
+                if (item.viewed !== "是") {
+                    item.viewed = "是";
                     updated = true;
                 }
                 break;
             }
         }
         if (updated) {
-            saveRows(rows);
+            saveQueue(queue);
             updateNavbarProgress();
+        }
+    }
+
+    // 更新内存中的数值，并直接写回 Excel Workbook 对象的相应单元格中！
+    function updateExcelCell(orderId, totalVal, flmVal) {
+        const queue = getStoredQueue();
+        const matched = queue.find(item => item.id === orderId);
+        if (!matched) return;
+
+        // 1. 同步到轻量队列
+        matched.total = totalVal;
+        matched.flm = flmVal;
+        matched.viewed = "是";
+        saveQueue(queue);
+
+        // 2. 直接改写原版 Workbook 里的单元格
+        const workbook = getWorkbook();
+        if (workbook) {
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const indices = findColumnIndices(sheet);
+
+            if (indices.totalCol !== -1 && totalVal !== "") {
+                const cellRef = XLSX.utils.encode_cell({ r: matched.rowIdx, c: indices.totalCol });
+                sheet[cellRef] = { t: 'n', v: Number(totalVal) };
+            }
+            if (indices.flmCol !== -1 && flmVal !== "") {
+                const cellRef = XLSX.utils.encode_cell({ r: matched.rowIdx, c: indices.flmCol });
+                sheet[cellRef] = { t: 'n', v: Number(flmVal) };
+            }
+            saveWorkbook(workbook);
         }
     }
 
@@ -400,10 +451,10 @@
         const select = document.getElementById('sj-excel-auditor-select');
         if (!select) return;
 
-        const rows = getStoredRows();
+        const queue = getStoredQueue();
         const handlerSet = new Set();
-        rows.forEach(row => {
-            if (row[handlerKey]) handlerSet.add(row[handlerKey]);
+        queue.forEach(item => {
+            if (item.handler) handlerSet.add(item.handler);
         });
 
         select.innerHTML = '';
@@ -433,7 +484,7 @@
         select.value = storedHandler;
     }
 
-    // 上传文件解析
+    // 上传文件解析并保存 Workbook
     function handleFileUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -444,38 +495,54 @@
         reader.onload = function(evt) {
             try {
                 const data = new Uint8Array(evt.target.result);
+                // 1. 读入原版二进制 workbook
                 const workbook = XLSX.read(data, { type: 'array' });
+                
+                // 保存整个 Workbook
+                saveWorkbook(workbook);
+
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
 
-                // 备份表头顺序
-                const range = XLSX.utils.decode_range(sheet['!ref']);
-                const headers = [];
-                for (let C = range.s.c; C <= range.e.c; ++C) {
-                    const cell = sheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
-                    headers.push(cell ? cell.v : "");
+                // 2. 识别列名并生成纯净进度队列，只保存元数据，不破坏 Workbook 整体
+                const indices = findColumnIndices(sheet);
+                if (indices.orderIdCol === -1 || indices.handlerCol === -1) {
+                    alert("❌ 无法识别“工单ID”或“处理人”列，请检查表格表头！");
+                    return;
                 }
-                GM_setValue('sj_excel_headers', JSON.stringify(headers));
 
-                // 转换 JSON
-                const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-                if (rows.length > 0) {
-                    identifyKeys(rows[0]);
-                    
-                    // 补全“是否看过”标记
-                    rows.forEach(row => {
-                        if (!row["是否看过"]) {
-                            row["是否看过"] = (row[totalFacingKey] !== "" && parseInt(row[totalFacingKey], 10) > 0) ? "是" : "否";
-                        }
-                    });
+                const range = XLSX.utils.decode_range(sheet['!ref']);
+                const queue = [];
 
-                    saveRows(rows);
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    const idCell = sheet[XLSX.utils.encode_cell({ r: R, c: indices.orderIdCol })];
+                    const handlerCell = sheet[XLSX.utils.encode_cell({ r: R, c: indices.handlerCol })];
+                    const totalCell = sheet[XLSX.utils.encode_cell({ r: R, c: indices.totalCol })];
+                    const flmCell = sheet[XLSX.utils.encode_cell({ r: R, c: indices.flmCol })];
+
+                    if (idCell && idCell.v) {
+                        const totalVal = (totalCell && totalCell.v !== undefined) ? String(totalCell.v).trim() : "";
+                        const flmVal = (flmCell && flmCell.v !== undefined) ? String(flmCell.v).trim() : "";
+                        
+                        queue.push({
+                            id: String(idCell.v).trim(),
+                            rowIdx: R,
+                            handler: handlerCell ? String(handlerCell.v).trim() : "",
+                            total: totalVal,
+                            flm: flmVal,
+                            viewed: (totalVal !== "" && parseInt(totalVal, 10) > 0) ? "是" : "否"
+                        });
+                    }
+                }
+
+                if (queue.length > 0) {
+                    saveQueue(queue);
                     updateAuditorDropdown();
                     updateNavbarProgress();
-                    alert(`🎉 成功解析并导入 ${rows.length} 行数据！`);
+                    alert(`🎉 成功导入原版 Excel 文件！共识别 ${queue.length} 个工单。`);
                     location.reload();
                 } else {
-                    alert("⚠️ 表格数据为空！");
+                    alert("⚠️ 未在表格的第一张 Sheet 中找到有效数据！");
                 }
             } catch (err) {
                 console.error(err);
@@ -485,35 +552,14 @@
         reader.readAsArrayBuffer(file);
     }
 
-    // 导出 Excel
+    // 直接下载完全原装保存的原版 Excel
     function handleExportExcel() {
-        const rows = getStoredRows();
-        if (rows.length === 0) {
-            alert("⚠️ 没有可导出的数据！");
+        const workbook = getWorkbook();
+        if (!workbook) {
+            alert("⚠️ 没有导入任何数据！");
             return;
         }
-
-        const headersJson = GM_getValue('sj_excel_headers', '[]');
-        let headers = [];
         try {
-            headers = JSON.parse(headersJson);
-        } catch (e) {}
-
-        // 复制行并彻底移除“是否看过”列，防止污染导出的 Excel 结构
-        const exportRows = rows.map(row => {
-            const newRow = { ...row };
-            delete newRow["是否看过"];
-            return newRow;
-        });
-
-        // 确保表头中没有“是否看过”列
-        headers = headers.filter(h => h !== "是否看过");
-
-        try {
-            const newSheet = XLSX.utils.json_to_sheet(exportRows, { header: headers });
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, newSheet, "Sheet1");
-
             const filename = GM_getValue('sj_excel_filename', 'fulinmen_export.xlsx');
             XLSX.writeFile(workbook, filename);
         } catch (err) {
@@ -543,25 +589,25 @@
 
         // 计算进度
         const total = queue.length;
-        const viewed = queue.filter(r => r["是否看过"] === "是").length;
+        const viewed = queue.filter(r => r.viewed === "集" || r.viewed === "是").length;
 
         // 寻找当前工单在队列中的索引
         let currentIndex = -1;
         for (let i = 0; i < queue.length; i++) {
-            if (String(queue[i][orderIdKey]) === currentId) {
+            if (queue[i].id === currentId) {
                 currentIndex = i;
                 break;
             }
         }
 
         // 上一单和下一单直接在物理行队列中进行加减（不跳过已看过，保证顺序 100% 正确）
-        let prevId = (currentIndex > 0) ? queue[currentIndex - 1][orderIdKey] : null;
-        let nextId = (currentIndex >= 0 && currentIndex < queue.length - 1) ? queue[currentIndex + 1][orderIdKey] : null;
+        let prevId = (currentIndex > 0) ? queue[currentIndex - 1].id : null;
+        let nextId = (currentIndex >= 0 && currentIndex < queue.length - 1) ? queue[currentIndex + 1].id : null;
 
         // 读取当前订单的值，用于顶部导航比对
-        const targetRow = queue.find(row => String(row[orderIdKey]) === currentId);
-        const totalVal = targetRow ? (targetRow[totalFacingKey] !== undefined && targetRow[totalFacingKey] !== null ? targetRow[totalFacingKey] : "") : "";
-        const flmVal = targetRow ? (targetRow[flmFacingKey] !== undefined && targetRow[flmFacingKey] !== null ? targetRow[flmFacingKey] : "") : "";
+        const targetRow = queue.find(row => row.id === currentId);
+        const totalVal = targetRow ? targetRow.total : "";
+        const flmVal = targetRow ? targetRow.flm : "";
 
         bar.innerHTML = '';
 
@@ -604,28 +650,16 @@
             // 同步写回数据
             const totalInput = navCmp.querySelector('#sj-nav-total-facing');
             totalInput.addEventListener('input', (e) => {
-                const rows = getStoredRows();
-                const matched = rows.find(r => String(r[orderIdKey]) === currentId);
-                if (matched) {
-                    matched[totalFacingKey] = e.target.value;
-                    saveRows(rows);
-                    // 同步到 Q10 题目卡片
-                    const q10Input = document.getElementById('sj-q10-total-input');
-                    if (q10Input) q10Input.value = e.target.value;
-                }
+                updateExcelCell(currentId, e.target.value, flmInput.value);
+                const q10Input = document.getElementById('sj-q10-total-input');
+                if (q10Input) q10Input.value = e.target.value;
             });
 
             const flmInput = navCmp.querySelector('#sj-nav-flm-facing');
             flmInput.addEventListener('input', (e) => {
-                const rows = getStoredRows();
-                const matched = rows.find(r => String(r[orderIdKey]) === currentId);
-                if (matched) {
-                    matched[flmFacingKey] = e.target.value;
-                    saveRows(rows);
-                    // 同步到 Q10 题目卡片
-                    const q10Input = document.getElementById('sj-q10-flm-input');
-                    if (q10Input) q10Input.value = e.target.value;
-                }
+                updateExcelCell(currentId, totalInput.value, e.target.value);
+                const q10Input = document.getElementById('sj-q10-flm-input');
+                if (q10Input) q10Input.value = e.target.value;
             });
 
             bar.appendChild(navCmp);
@@ -652,8 +686,8 @@
         const currentId = getOrderFromUrl();
         if (!currentId) return;
 
-        const rows = getStoredRows();
-        const targetRow = rows.find(row => String(row[orderIdKey]) === currentId);
+        const queue = getStoredQueue();
+        const targetRow = queue.find(row => row.id === currentId);
         if (!targetRow) return;
 
         // 寻找第十题卡片 Q10 (模糊匹配标题)
@@ -677,8 +711,8 @@
         title.textContent = '📊 表格预设数据对账：';
         cmpCard.appendChild(title);
 
-        const totalVal = targetRow[totalFacingKey] !== undefined && targetRow[totalFacingKey] !== null ? targetRow[totalFacingKey] : "";
-        const flmVal = targetRow[flmFacingKey] !== undefined && targetRow[flmFacingKey] !== null ? targetRow[flmFacingKey] : "";
+        const totalVal = targetRow.total;
+        const flmVal = targetRow.flm;
 
         // 1. 总排面输入框
         const totalDiv = document.createElement('div');
@@ -690,8 +724,7 @@
         totalInput.type = 'number';
         totalInput.value = totalVal;
         totalInput.addEventListener('input', (e) => {
-            targetRow[totalFacingKey] = e.target.value;
-            saveRows(rows);
+            updateExcelCell(currentId, e.target.value, flmInput.value);
             // 同步顶部 navbar
             const navTotal = document.getElementById('sj-nav-total-facing');
             if (navTotal) navTotal.value = e.target.value;
@@ -709,8 +742,7 @@
         flmInput.type = 'number';
         flmInput.value = flmVal;
         flmInput.addEventListener('input', (e) => {
-            targetRow[flmFacingKey] = e.target.value;
-            saveRows(rows);
+            updateExcelCell(currentId, totalInput.value, e.target.value);
             // 同步顶部 navbar
             const navFlm = document.getElementById('sj-nav-flm-facing');
             if (navFlm) navFlm.value = e.target.value;
