@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.2.3
+// @version      1.2.4
 // @description  上传 Excel 文件进行排队对账，直接修改并保存原版 Workbook 单元格值，支持导出 100% 原格式的 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -361,7 +361,8 @@
         saveQueue(queue);
     }
 
-    // 将轻量队列中待同步的改动，批量一次性写回原装二进制 Workbook
+    // 将轻量队列中所有标记为“集”的改动，批量一次性写回并保存原装二进制 Workbook
+    // (仅在导出时执行，平时审核时绝对不调用，从而保障 100% 毫无卡顿！)
     function syncQueueToWorkbook() {
         const queue = getStoredQueue();
         const workbook = getWorkbook();
@@ -519,7 +520,7 @@
         reader.onload = function(evt) {
             try {
                 const data = new Uint8Array(evt.target.result);
-                // 1. 读入原版二进制 workbook
+                // 读入原版二进制 workbook
                 const workbook = XLSX.read(data, {
                     type: 'array',
                     cellStyles: true,
@@ -534,7 +535,7 @@
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
 
-                // 2. 识别列名并生成纯净进度队列，只保存元数据，不破坏 Workbook 整体
+                // 识别列名并生成纯净进度队列，只保存元数据，不破坏 Workbook 整体
                 const indices = findColumnIndices(sheet);
                 if (indices.orderIdCol === -1 || indices.handlerCol === -1) {
                     alert("❌ 无法识别“工单ID”或“处理人”列，请检查表格表头！");
@@ -649,7 +650,6 @@
         prevBtn.textContent = '⬅️ 上一单';
         if (prevId) {
             prevBtn.addEventListener('click', () => {
-                syncQueueToWorkbook(); // 页面跳转前同步数据
                 GM_setValue('sj_excel_autofocus_q10', true);
                 window.location.href = `/order/review/${prevId}`;
             });
@@ -704,7 +704,6 @@
         nextBtn.textContent = '下一单 ➡️';
         if (nextId) {
             nextBtn.addEventListener('click', () => {
-                syncQueueToWorkbook(); // 页面跳转前同步数据
                 GM_setValue('sj_excel_autofocus_q10', true);
                 window.location.href = `/order/review/${nextId}`;
             });
@@ -930,9 +929,6 @@
             }
         }, 300);
     }
-
-    // 页面卸载前确保所有数据落盘
-    window.addEventListener('beforeunload', syncQueueToWorkbook);
 
     // 脚本启动逻辑
     const init = () => {
