@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.0.1
 // @description  上传 Excel 文件进行排队对账，支持自动定位、直接修改内存数据并导出新 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -374,10 +374,10 @@
             select.appendChild(opt);
         });
 
-        // 默认恢复已选处理人，如果没有，默认匹配含有“牛吴文”的选项
+        // 默认恢复已选处理人，如果没有，默认匹配含有“牛昊文”的选项
         let storedHandler = GM_getValue('sj_excel_handler', '');
         if (!storedHandler || !handlerSet.has(storedHandler)) {
-            storedHandler = sortedHandlers.find(h => h.includes('牛吴文')) || sortedHandlers[0];
+            storedHandler = sortedHandlers.find(h => h.includes('牛昊文')) || sortedHandlers[0];
             GM_setValue('sj_excel_handler', storedHandler);
         }
         select.value = storedHandler;
@@ -451,13 +451,18 @@
             headers = JSON.parse(headersJson);
         } catch (e) {}
 
-        // 确保“是否看过”在表头慢尾
-        if (headers.length > 0 && !headers.includes("是否看过")) {
-            headers.push("是否看过");
-        }
+        // 复制行并彻底移除“是否看过”列，防止污染导出的 Excel 结构
+        const exportRows = rows.map(row => {
+            const newRow = { ...row };
+            delete newRow["是否看过"];
+            return newRow;
+        });
+
+        // 确保表头中没有“是否看过”列
+        headers = headers.filter(h => h !== "是否看过");
 
         try {
-            const newSheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+            const newSheet = XLSX.utils.json_to_sheet(exportRows, { header: headers });
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, newSheet, "Sheet1");
 
