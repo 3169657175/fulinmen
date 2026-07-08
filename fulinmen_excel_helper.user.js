@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.2
 // @description  上传 Excel 文件进行排队对账，支持自动定位、直接修改内存数据并导出新 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -254,6 +254,13 @@
         /* 自动折叠其他题目 */
         .sj-excel-collapsed-card > div:not(.question-title):not(header):not(h4):not(h3):not(.sj-comparison-card):not(.title) {
             display: none !important;
+        }
+        /* 拦截说明信息的高频弹窗 */
+        .question-detail-text.el-popover__reference,
+        .question-detail-text,
+        .question-detail {
+            pointer-events: none !important;
+            user-select: none !important;
         }
     `);
 
@@ -711,7 +718,7 @@
             const qNum = match ? match[0] : null;
 
             if (qNum) {
-                if (qNum !== 'Q10') {
+                if (qNum !== 'Q7' && qNum !== 'Q10') {
                     card.classList.add('sj-excel-collapsed-card');
                 } else {
                     card.classList.remove('sj-excel-collapsed-card');
