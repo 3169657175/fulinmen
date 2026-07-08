@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手-福临门排面对账版
 // @namespace    http://tampermonkey.net/
-// @version      1.2.2
+// @version      1.2.3
 // @description  上传 Excel 文件进行排队对账，直接修改并保存原版 Workbook 单元格值，支持导出 100% 原格式的 Excel。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -336,7 +336,7 @@
         let updated = false;
         for (let item of queue) {
             if (item.id === currentId) {
-                if (item.viewed !== "是") {
+                if (item.viewed !== "是" && item.viewed !== "集") {
                     item.viewed = "是";
                     updated = true;
                 }
@@ -349,34 +349,48 @@
         }
     }
 
-    // 更新内存中的数值，并直接写回 Excel Workbook 对象的相应单元格中！
-    function updateExcelCell(orderId, totalVal, flmVal) {
+    // 更新轻量队列数值 (仅修改 localStorage 中极小的 JSON，完全不卡顿，0ms 延时)
+    function updateQueueValue(orderId, totalVal, flmVal) {
         const queue = getStoredQueue();
         const matched = queue.find(item => item.id === orderId);
         if (!matched) return;
 
-        // 1. 同步到轻量队列
         matched.total = totalVal;
         matched.flm = flmVal;
-        matched.viewed = "集"; // 标记为已修改
+        matched.viewed = "集"; // 标记为待同步改写
         saveQueue(queue);
+    }
 
-        // 2. 直接改写原版 Workbook 里的单元格
+    // 将轻量队列中待同步的改动，批量一次性写回原装二进制 Workbook
+    function syncQueueToWorkbook() {
+        const queue = getStoredQueue();
         const workbook = getWorkbook();
-        if (workbook) {
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            const indices = findColumnIndices(sheet);
+        if (!workbook || queue.length === 0) return;
 
-            if (indices.totalCol !== -1 && totalVal !== "") {
-                const cellRef = XLSX.utils.encode_cell({ r: matched.rowIdx, c: indices.totalCol });
-                sheet[cellRef] = { t: 'n', v: Number(totalVal) };
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const indices = findColumnIndices(sheet);
+
+        let modified = false;
+        queue.forEach(item => {
+            if (item.viewed === "集") {
+                if (indices.totalCol !== -1 && item.total !== "") {
+                    const cellRef = XLSX.utils.encode_cell({ r: item.rowIdx, c: indices.totalCol });
+                    sheet[cellRef] = { t: 'n', v: Number(item.total) };
+                    modified = true;
+                }
+                if (indices.flmCol !== -1 && item.flm !== "") {
+                    const cellRef = XLSX.utils.encode_cell({ r: item.rowIdx, c: indices.flmCol });
+                    sheet[cellRef] = { t: 'n', v: Number(item.flm) };
+                    modified = true;
+                }
+                item.viewed = "是"; // 状态收敛为已保存
             }
-            if (indices.flmCol !== -1 && flmVal !== "") {
-                const cellRef = XLSX.utils.encode_cell({ r: matched.rowIdx, c: indices.flmCol });
-                sheet[cellRef] = { t: 'n', v: Number(flmVal) };
-            }
+        });
+
+        if (modified) {
             saveWorkbook(workbook);
+            saveQueue(queue);
         }
     }
 
@@ -495,7 +509,6 @@
     }
 
     // 上传文件解析并保存 Workbook
-    // 使用 cellStyles/cellFormulas/cellNF 确保完美保留所有列结构与属性
     function handleFileUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -506,7 +519,7 @@
         reader.onload = function(evt) {
             try {
                 const data = new Uint8Array(evt.target.result);
-                // 1. 读入原版二进制 workbook，使用最全面的解析选项，防止隐藏列和工作表丢失
+                // 1. 读入原版二进制 workbook
                 const workbook = XLSX.read(data, {
                     type: 'array',
                     cellStyles: true,
@@ -571,6 +584,8 @@
 
     // 直接下载完全原装保存的原版 Excel
     function handleExportExcel() {
+        // 导出前强制同步所有改动到二进制文件
+        syncQueueToWorkbook();
         const workbook = getWorkbook();
         if (!workbook) {
             alert("⚠️ 没有导入任何数据！");
@@ -634,6 +649,7 @@
         prevBtn.textContent = '⬅️ 上一单';
         if (prevId) {
             prevBtn.addEventListener('click', () => {
+                syncQueueToWorkbook(); // 页面跳转前同步数据
                 GM_setValue('sj_excel_autofocus_q10', true);
                 window.location.href = `/order/review/${prevId}`;
             });
@@ -667,14 +683,14 @@
             // 同步写回数据
             const totalInput = navCmp.querySelector('#sj-nav-total-facing');
             totalInput.addEventListener('input', (e) => {
-                updateExcelCell(currentId, e.target.value, flmInput.value);
+                updateQueueValue(currentId, e.target.value, flmInput.value);
                 const q10Input = document.getElementById('sj-q10-total-input');
                 if (q10Input) q10Input.value = e.target.value;
             });
 
             const flmInput = navCmp.querySelector('#sj-nav-flm-facing');
             flmInput.addEventListener('input', (e) => {
-                updateExcelCell(currentId, totalInput.value, e.target.value);
+                updateQueueValue(currentId, totalInput.value, e.target.value);
                 const q10Input = document.getElementById('sj-q10-flm-input');
                 if (q10Input) q10Input.value = e.target.value;
             });
@@ -688,6 +704,7 @@
         nextBtn.textContent = '下一单 ➡️';
         if (nextId) {
             nextBtn.addEventListener('click', () => {
+                syncQueueToWorkbook(); // 页面跳转前同步数据
                 GM_setValue('sj_excel_autofocus_q10', true);
                 window.location.href = `/order/review/${nextId}`;
             });
@@ -741,7 +758,7 @@
         totalInput.type = 'number';
         totalInput.value = totalVal;
         totalInput.addEventListener('input', (e) => {
-            updateExcelCell(currentId, e.target.value, flmInput.value);
+            updateQueueValue(currentId, e.target.value, flmInput.value);
             // 同步顶部 navbar
             const navTotal = document.getElementById('sj-nav-total-facing');
             if (navTotal) navTotal.value = e.target.value;
@@ -759,7 +776,7 @@
         flmInput.type = 'number';
         flmInput.value = flmVal;
         flmInput.addEventListener('input', (e) => {
-            updateExcelCell(currentId, totalInput.value, e.target.value);
+            updateQueueValue(currentId, totalInput.value, e.target.value);
             // 同步顶部 navbar
             const navFlm = document.getElementById('sj-nav-flm-facing');
             if (navFlm) navFlm.value = e.target.value;
@@ -913,6 +930,9 @@
             }
         }, 300);
     }
+
+    // 页面卸载前确保所有数据落盘
+    window.addEventListener('beforeunload', syncQueueToWorkbook);
 
     // 脚本启动逻辑
     const init = () => {
