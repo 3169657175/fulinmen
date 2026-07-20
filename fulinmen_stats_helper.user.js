@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.3.0
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -747,6 +747,38 @@
             stroke-linejoin: round;
             flex-shrink: 0;
             transition: stroke 0.3s ease;
+        }
+        #sj-skip-order-btn {
+            position: fixed;
+            top: calc(50% + 52px);
+            right: 12px;
+            z-index: 999998;
+            min-width: 118px;
+            padding: 9px 14px;
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            border-radius: 12px;
+            color: #fbbf24;
+            background: rgba(9, 13, 22, 0.92);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.22);
+            backdrop-filter: blur(12px);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            transition: all 0.2s ease;
+        }
+        #sj-skip-order-btn:hover:not(:disabled) {
+            color: #fcd34d;
+            border-color: rgba(245, 158, 11, 0.9);
+            background: rgba(245, 158, 11, 0.13);
+            box-shadow: 0 7px 24px rgba(245, 158, 11, 0.35);
+        }
+        #sj-skip-order-btn:disabled {
+            color: #64748b;
+            border-color: rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.65);
+            cursor: not-allowed;
+            box-shadow: none;
         }
         #sj-photo-edit-shortcut-btn {
             position: fixed;
@@ -1553,6 +1585,326 @@
         );
     }
 
+    // ==========================================
+    // 福临门单槽预取：任何时刻最多暂存一张下一单
+    // ==========================================
+    const FLM_PREFETCH_URL = '/customer/batch-order-review/table?customerid=51&projectId=7620&sj_prefetch=1';
+    const FLM_PREFETCH_SLOT_KEY = 'flm_prefetch_single_slot_v1';
+    const FLM_PREFETCH_LOCK_KEY = 'flm_prefetch_single_lock_v1';
+    const FLM_PREFETCH_ATTEMPT_PREFIX = 'flm_prefetch_attempt_v1_';
+    const FLM_PREFETCH_SLOT_TTL_MS = 25 * 60 * 1000;
+    const FLM_PREFETCH_ATTEMPT_TTL_MS = 10 * 60 * 1000;
+    let flmPrefetchInFlight = false;
+    let flmPrefetchJumping = false;
+    let flmSkipRunning = false;
+
+    function flmGetCurrentOrderId() {
+        const match = location.pathname.match(/\/order\/review\/(\d+)/);
+        return match ? match[1] : null;
+    }
+
+    function flmReadPrefetchSlot() {
+        const raw = localStorage.getItem(FLM_PREFETCH_SLOT_KEY);
+        if (!raw) return null;
+        try {
+            const slot = JSON.parse(raw);
+            const sourceOrderId = String(slot && slot.sourceOrderId || '');
+            const nextOrderId = String(slot && slot.nextOrderId || '');
+            const createdAt = Number(slot && slot.createdAt || 0);
+            if (!/^\d+$/.test(sourceOrderId) || !/^\d+$/.test(nextOrderId) ||
+                !createdAt || Date.now() - createdAt > FLM_PREFETCH_SLOT_TTL_MS) {
+                localStorage.removeItem(FLM_PREFETCH_SLOT_KEY);
+                return null;
+            }
+            return { ...slot, sourceOrderId, nextOrderId, createdAt };
+        } catch (error) {
+            localStorage.removeItem(FLM_PREFETCH_SLOT_KEY);
+            return null;
+        }
+    }
+
+    function flmWritePrefetchSlot(slot) {
+        localStorage.setItem(FLM_PREFETCH_SLOT_KEY, JSON.stringify(slot));
+    }
+
+    function flmFinalizePrefetchSlot(currentOrderId) {
+        const slot = flmReadPrefetchSlot();
+        if (!slot) return null;
+        if (slot.nextOrderId === String(currentOrderId) &&
+            (slot.state === 'consuming' || slot.state === 'ready')) {
+            localStorage.removeItem(FLM_PREFETCH_SLOT_KEY);
+            flmPrefetchJumping = false;
+            console.log(`[福临门预取] 已进入缓存订单 ${currentOrderId}，单槽已清空。`);
+            return null;
+        }
+        return slot;
+    }
+
+    function flmAcquirePrefetchLock() {
+        const now = Date.now();
+        try {
+            const existing = JSON.parse(localStorage.getItem(FLM_PREFETCH_LOCK_KEY) || 'null');
+            if (existing && Number(existing.expiresAt) > now) return null;
+        } catch (error) {}
+        const token = `${now}_${Math.random().toString(36).slice(2)}`;
+        localStorage.setItem(FLM_PREFETCH_LOCK_KEY, JSON.stringify({ token, expiresAt: now + 30000 }));
+        try {
+            const saved = JSON.parse(localStorage.getItem(FLM_PREFETCH_LOCK_KEY) || 'null');
+            return saved && saved.token === token ? token : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function flmReleasePrefetchLock(token) {
+        try {
+            const saved = JSON.parse(localStorage.getItem(FLM_PREFETCH_LOCK_KEY) || 'null');
+            if (saved && saved.token === token) localStorage.removeItem(FLM_PREFETCH_LOCK_KEY);
+        } catch (error) {}
+    }
+
+    function flmFrameElementIsVisible(element, frameWindow) {
+        if (!element || !element.isConnected) return false;
+        const style = frameWindow.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' &&
+            style.pointerEvents !== 'none' && rect.width > 0 && rect.height > 0;
+    }
+
+    function flmPrefetchNextOrder(currentOrderId) {
+        currentOrderId = String(currentOrderId || '');
+        if (window.self !== window.top || !/^\d+$/.test(currentOrderId)) return Promise.resolve(false);
+        if (flmFinalizePrefetchSlot(currentOrderId)) return Promise.resolve(false);
+        if (flmPrefetchInFlight) return Promise.resolve(false);
+
+        const attemptKey = FLM_PREFETCH_ATTEMPT_PREFIX + currentOrderId;
+        const previousAttempt = Number(sessionStorage.getItem(attemptKey) || 0);
+        if (previousAttempt && Date.now() - previousAttempt < FLM_PREFETCH_ATTEMPT_TTL_MS) {
+            return Promise.resolve(false);
+        }
+
+        const lockToken = flmAcquirePrefetchLock();
+        if (!lockToken) return Promise.resolve(false);
+        if (flmReadPrefetchSlot()) {
+            flmReleasePrefetchLock(lockToken);
+            return Promise.resolve(false);
+        }
+
+        flmPrefetchInFlight = true;
+        sessionStorage.setItem(attemptKey, String(Date.now()));
+
+        return new Promise((resolve) => {
+            const oldFrame = document.getElementById('flm-prefetch-frame');
+            if (oldFrame) oldFrame.remove();
+
+            const frame = document.createElement('iframe');
+            frame.id = 'flm-prefetch-frame';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10000px;top:-10000px;opacity:0;pointer-events:none;border:0;';
+            let clickedStart = false;
+            let settled = false;
+            let pollTimer = null;
+            let timeoutTimer = null;
+
+            const finish = (ok) => {
+                if (settled) return;
+                settled = true;
+                if (pollTimer) clearInterval(pollTimer);
+                if (timeoutTimer) clearTimeout(timeoutTimer);
+                frame.remove();
+                flmPrefetchInFlight = false;
+                flmReleasePrefetchLock(lockToken);
+                resolve(ok);
+            };
+
+            const inspectFrame = () => {
+                try {
+                    const frameWindow = frame.contentWindow;
+                    const frameDocument = frame.contentDocument;
+                    if (!frameWindow || !frameDocument) return;
+
+                    const orderMatch = frameWindow.location.pathname.match(/\/order\/review\/(\d+)/);
+                    if (orderMatch) {
+                        const nextOrderId = orderMatch[1];
+                        if (nextOrderId !== currentOrderId && !flmReadPrefetchSlot()) {
+                            flmWritePrefetchSlot({
+                                state: 'ready',
+                                sourceOrderId: currentOrderId,
+                                nextOrderId,
+                                createdAt: Date.now()
+                            });
+                            console.log(`[福临门预取] 已缓存订单 ${nextOrderId}（来源 ${currentOrderId}）。`);
+                            finish(true);
+                        } else {
+                            finish(false);
+                        }
+                        return;
+                    }
+
+                    if (clickedStart || !frameWindow.location.pathname.includes('/customer/batch-order-review/table')) return;
+                    const candidates = Array.from(frameDocument.querySelectorAll('button,a,.el-button,[role="button"]'));
+                    const firstStartButton = candidates.find((element) =>
+                        element.textContent.replace(/\s+/g, '') === '开始审单' &&
+                        flmFrameElementIsVisible(element, frameWindow)
+                    );
+                    if (firstStartButton) {
+                        clickedStart = true;
+                        console.log('[福临门预取] 已点击批次列表第一行“开始审单”。');
+                        firstStartButton.click();
+                    }
+                } catch (error) {
+                    // 同源页面尚未完成导航时可能暂时不可访问，下一轮继续检测。
+                }
+            };
+
+            frame.addEventListener('load', inspectFrame);
+            document.body.appendChild(frame);
+            frame.src = FLM_PREFETCH_URL;
+            pollTimer = setInterval(inspectFrame, 100);
+            timeoutTimer = setTimeout(() => {
+                console.warn('[福临门预取] 30 秒内未取得下一单，保留网站原生下一单作为回退。');
+                finish(false);
+            }, 30000);
+        });
+    }
+
+    function flmStartPrefetchForCurrentOrder() {
+        // 隐藏预取 iframe 里也会加载油猴脚本；只允许顶层审单页管理共享单槽。
+        if (window.self !== window.top) return;
+        const currentOrderId = flmGetCurrentOrderId();
+        if (!currentOrderId) return;
+        flmFinalizePrefetchSlot(currentOrderId);
+        flmPrefetchNextOrder(currentOrderId);
+    }
+
+    function flmConsumeReadySlot(fromOrderId, reason) {
+        if (flmPrefetchJumping) return false;
+        const slot = flmReadPrefetchSlot();
+        fromOrderId = String(fromOrderId || '');
+        if (!slot || slot.state !== 'ready' || slot.sourceOrderId !== fromOrderId ||
+            slot.nextOrderId === fromOrderId) return false;
+
+        flmPrefetchJumping = true;
+        flmWritePrefetchSlot({ ...slot, state: 'consuming', consumedAt: Date.now() });
+        autoReviewToast(`${reason}，正在进入已预取订单 ${slot.nextOrderId}...`);
+        try {
+            location.assign('/order/review/' + slot.nextOrderId);
+            return true;
+        } catch (error) {
+            flmWritePrefetchSlot({ ...slot, state: 'ready' });
+            flmPrefetchJumping = false;
+            console.error('[福临门预取] 跳转失败，已恢复缓存槽：', error);
+            return false;
+        }
+    }
+
+    function flmIsVisible(element) {
+        if (!element || !element.isConnected) return false;
+        const style = getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    }
+
+    function flmFindCancelOccupyButton() {
+        const nativeCancel = document.querySelector('i.el-alert__closebtn.is-customed');
+        if (nativeCancel && nativeCancel.textContent.replace(/\s+/g, '').includes('取消占有')) return nativeCancel;
+        return Array.from(document.querySelectorAll('button,.el-button,[role="button"],i')).find((element) => {
+            if (element.id === 'sj-skip-order-btn') return false;
+            return element.textContent.replace(/\s+/g, '').includes('取消占有');
+        }) || null;
+    }
+
+    async function flmConfirmCancelOccupyDialog(timeoutMs = 1000) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const dialogs = Array.from(document.querySelectorAll('.el-message-box__wrapper,.el-dialog__wrapper'));
+            const dialog = dialogs.find((element) => {
+                const text = element.textContent.replace(/\s+/g, '');
+                return flmIsVisible(element) && (text.includes('取消占有') || text.includes('确认取消'));
+            });
+            if (dialog) {
+                const confirmButton = Array.from(dialog.querySelectorAll('button')).find((button) => {
+                    const text = button.textContent.trim();
+                    return text === '确定' || text === '确认' || button.classList.contains('el-button--primary');
+                });
+                if (confirmButton) {
+                    autoReviewClickEl(confirmButton);
+                    return true;
+                }
+            }
+            await autoReviewSleep(50);
+        }
+        return false;
+    }
+
+    async function flmWaitForCancelSuccess(currentOrderId, cancelButton, timeoutMs = 15000) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            if (flmGetCurrentOrderId() !== currentOrderId || !cancelButton.isConnected) return true;
+            const successMessage = Array.from(document.querySelectorAll(
+                '.el-message--success,.el-notification.success,.el-notification--success'
+            )).find((element) => {
+                const text = element.textContent.replace(/\s+/g, '');
+                return flmIsVisible(element) && (text.includes('取消') || text.includes('释放'));
+            });
+            if (successMessage) return true;
+            await autoReviewSleep(100);
+        }
+        throw new Error('等待网站确认取消占有超时');
+    }
+
+    async function flmSkipCurrentOrder(button) {
+        if (flmSkipRunning || autoReviewRunning) return;
+        const currentOrderId = flmGetCurrentOrderId();
+        const slot = flmReadPrefetchSlot();
+        if (!currentOrderId) return;
+        if (!slot || slot.state !== 'ready' || slot.sourceOrderId !== currentOrderId) {
+            autoReviewToast('下一单尚未预取完成，请稍等后再跳过。', true);
+            flmStartPrefetchForCurrentOrder();
+            return;
+        }
+
+        const cancelButton = flmFindCancelOccupyButton();
+        if (!cancelButton) {
+            autoReviewToast('未找到网站的“取消占有”按钮，已停止跳过。', true);
+            return;
+        }
+
+        flmSkipRunning = true;
+        if (button) {
+            button.disabled = true;
+            button.textContent = '正在释放...';
+        }
+        try {
+            autoReviewToast('正在取消占有当前订单...');
+            autoReviewClickEl(cancelButton);
+            await flmConfirmCancelOccupyDialog();
+            await flmWaitForCancelSuccess(currentOrderId, cancelButton);
+            if (!flmConsumeReadySlot(currentOrderId, '当前订单已释放')) {
+                autoReviewToast('当前订单已释放，但缓存订单已失效，请手动进入下一单。', true);
+            }
+        } catch (error) {
+            console.error('[福临门跳过] 失败：', error);
+            autoReviewToast('取消占有未确认成功，已停止跳转：' + error.message, true);
+        } finally {
+            flmSkipRunning = false;
+            if (button && button.isConnected) {
+                button.disabled = false;
+                button.textContent = '⏭ 跳过此单';
+            }
+        }
+    }
+
+    function flmEnsureSkipButton() {
+        if (!document.body || document.getElementById('sj-skip-order-btn')) return;
+        const button = document.createElement('button');
+        button.id = 'sj-skip-order-btn';
+        button.type = 'button';
+        button.textContent = '⏭ 跳过此单';
+        button.title = '取消占有当前订单，并进入已预取的下一单';
+        button.addEventListener('click', () => flmSkipCurrentOrder(button));
+        document.body.appendChild(button);
+    }
+
     // 右上角提示
     function autoReviewToast(msg, isError) {
         if (!document.body) return; // 安全防御：以防 body 尚未挂载
@@ -1709,8 +2061,13 @@
             // ③ 去掉固定 400ms，检测到按钮存在直接跳转
             nextBtn = autoReviewGetNextOrderButton();
             if (nextBtn) {
-                autoReviewToast('审核已提交，正在跳转下一单...');
-                autoReviewClickEl(nextBtn);
+                // 保留福临门原有审核流程，只替换最后的“审核下一单”动作。
+                // 缓存有效时直接进入预取订单；缓存不可用时完整保留网站原按钮回退。
+                const currentOrderId = flmGetCurrentOrderId();
+                if (!flmConsumeReadySlot(currentOrderId, '审核已提交')) {
+                    autoReviewToast('审核已提交，缓存订单不可用，改走网站原生下一单...');
+                    autoReviewClickEl(nextBtn);
+                }
             } else {
                 autoReviewToast('审核可能已提交，但未找到"审核下一单"按钮，请手动确认', true);
             }
@@ -1822,6 +2179,7 @@
             autoReviewRunFullFlow();
         });
         document.body.appendChild(btn);
+        flmEnsureSkipButton();
     }
 
     function findQuestionCard(review) {
@@ -2352,6 +2710,8 @@
             photoEditEnsureShortcutButton();
             const btn = document.getElementById('sj-auto-review-btn');
             if (btn) btn.remove();
+            const skipBtn = document.getElementById('sj-skip-order-btn');
+            if (skipBtn) skipBtn.remove();
             return;
         }
         photoEditEnsureShortcutButton();
@@ -2367,6 +2727,8 @@
             if (!document.getElementById('sj-auto-review-btn')) {
                 autoReviewCreatePanel();
             }
+            flmEnsureSkipButton();
+            flmStartPrefetchForCurrentOrder();
             autoReviewCollapseUnneeded();
             cloneQ5EvidenceToQ6();
             ensureQ6QuickFailButton();
