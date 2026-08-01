@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.3.3
+// @version      1.3.4
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -1585,7 +1585,8 @@
 
     function autoReviewGetNextOrderButton() {
         return Array.from(document.querySelectorAll('button')).find(
-            (b) => b.textContent.trim() === '审核下一单'
+            (b) => b.textContent.trim() === '审核下一单' &&
+                !b.disabled && flmIsVisible(b)
         );
     }
 
@@ -1743,6 +1744,8 @@
     const FLM_PREFETCH_ATTEMPT_TTL_MS = 10 * 60 * 1000;
     const FLM_PREFETCH_RETRY_DELAY_MS = 2000;
     const FLM_AUDIT_JUMP_ARM_TTL_MS = 2 * 60 * 1000;
+    const FLM_PENDING_NAV_KEY = 'flm_pending_order_navigation_v1';
+    const FLM_PENDING_NAV_TTL_MS = 20 * 1000;
     let flmPrefetchInFlight = false;
     let flmPrefetchJumping = false;
     let flmSkipRunning = false;
@@ -1753,6 +1756,7 @@
     let flmWarmFramePollTimer = null;
     let flmWarmScheduleOrderId = '';
     let flmPrerenderOrderId = '';
+    let flmAuditSubmitConfirmation = null;
 
     function flmGetCurrentOrderId() {
         const match = location.pathname.match(/\/order\/review\/(\d+)/);
@@ -1944,32 +1948,71 @@
         orderId = String(orderId || '');
         if (!/^\d+$/.test(orderId)) return false;
         const target = '/order/review/' + orderId;
+        const fromOrderId = flmGetCurrentOrderId() || '';
         try {
-            // Speculation Rules 的预渲染必须通过真正的文档导航激活，Vue Router 不会激活它。
-            if (flmPrerenderOrderId === orderId) {
-                location.replace(target);
-                return true;
-            }
-            const router = flmFindVueRouter();
-            if (router) {
-                const result = router.replace(target);
-                if (result && typeof result.catch === 'function') {
-                    result.catch((error) => {
-                        if (!error || error.name !== 'NavigationDuplicated') location.replace(target);
-                    });
-                }
-                // Vue Router 正常情况下会立即改地址；若路由未响应则快速回退整页导航。
-                setTimeout(() => {
-                    if (location.pathname !== target) location.replace(target);
-                }, 500);
-                return true;
-            }
+            // 审核完成后网站还会继续执行弹窗和路由回调。记录目标订单，防止这些回调把页面拉回原单。
+            sessionStorage.setItem(FLM_PENDING_NAV_KEY, JSON.stringify({
+                fromOrderId,
+                targetOrderId: orderId,
+                createdAt: Date.now(),
+                attempts: 0
+            }));
+
+            // 始终使用真正的文档导航：既能激活 Speculation Rules 预渲染，也不会被当前 Vue
+            // 组件仍在运行的审核回调通过 router.replace 覆盖。
             location.replace(target);
+
+            // 极慢网络下旧文档可能还存活一段时间；若地址仍未变化，再补发一次相同导航。
+            setTimeout(() => {
+                if (flmGetCurrentOrderId() !== fromOrderId) return;
+                try {
+                    const raw = sessionStorage.getItem(FLM_PENDING_NAV_KEY);
+                    const pending = raw ? JSON.parse(raw) : null;
+                    if (!pending || pending.targetOrderId !== orderId) return;
+                    pending.attempts = Number(pending.attempts || 0) + 1;
+                    sessionStorage.setItem(FLM_PENDING_NAV_KEY, JSON.stringify(pending));
+                    location.replace(target);
+                } catch (error) {}
+            }, 900);
             return true;
         } catch (error) {
             location.replace(target);
             return true;
         }
+    }
+
+    function flmRecoverPendingNavigation() {
+        let pending = null;
+        try {
+            const raw = sessionStorage.getItem(FLM_PENDING_NAV_KEY);
+            pending = raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
+            return false;
+        }
+        if (!pending) return false;
+
+        const currentOrderId = flmGetCurrentOrderId() || '';
+        const targetOrderId = String(pending.targetOrderId || '');
+        const fromOrderId = String(pending.fromOrderId || '');
+        const age = Date.now() - Number(pending.createdAt || 0);
+        if (!/^\d+$/.test(targetOrderId) || age < 0 || age > FLM_PENDING_NAV_TTL_MS) {
+            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
+            return false;
+        }
+        if (currentOrderId === targetOrderId) {
+            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
+            return false;
+        }
+        if (currentOrderId !== fromOrderId || Number(pending.attempts || 0) >= 2) {
+            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
+            return false;
+        }
+
+        pending.attempts = Number(pending.attempts || 0) + 1;
+        sessionStorage.setItem(FLM_PENDING_NAV_KEY, JSON.stringify(pending));
+        setTimeout(() => location.replace('/order/review/' + targetOrderId), 60);
+        return true;
     }
 
     function flmFinalizePrefetchSlot(currentOrderId) {
@@ -2127,7 +2170,13 @@
             return false;
         }
         flmAuditJumpArm = null;
-        return flmConsumeReadySlot(arm.currentOrderId, '审核接口已确认成功');
+        // 不在 XHR/fetch 的 load 回调中立刻导航。网站自己的成功回调尚未执行完，太早导航会
+        // 被“订单已退回/审核成功”弹窗后的路由刷新覆盖，最终重新落回原订单。
+        flmAuditSubmitConfirmation = {
+            currentOrderId: arm.currentOrderId,
+            confirmedAt: Date.now()
+        };
+        return true;
     }
 
     function flmInitFastAuditInterceptor() {
@@ -2572,28 +2621,36 @@
             autoReviewClickEl(confirmBtn);
 
             if (fastJumpArmed) {
-                autoReviewToast('确认已点击，审核接口成功后立即进入预存下一单...');
+                autoReviewToast('确认已点击，提交成功后直接进入预存下一单...');
             }
 
-            // 快速路径由审核接口响应直接触发；这里只监听网站成功弹窗作为安全兜底。
+            // 通过和退回共用同一条快速路径：接口确认成功后直接消费预存槽。
+            // 仅留出极短时间让网站自身的成功回调执行完，避免其随后把路由覆盖回原订单。
             let nextBtn = null;
-            for (let i = 0; i < 120; i++) { // 最长兜底 12 秒，但正常会由接口响应提前跳走
+            let serverConfirmed = false;
+            for (let i = 0; i < 480; i++) { // 25ms 轮询，最长安全兜底 12 秒
                 if (flmGetCurrentOrderId() !== submittedOrderId || flmPrefetchJumping) return;
                 nextBtn = autoReviewGetNextOrderButton();
-                if (nextBtn) break;
-                await autoReviewSleep(100);
+                const confirmation = flmAuditSubmitConfirmation;
+                serverConfirmed = Boolean(confirmation &&
+                    confirmation.currentOrderId === submittedOrderId &&
+                    Date.now() - confirmation.confirmedAt >= 180);
+                if (nextBtn || serverConfirmed) break;
+                await autoReviewSleep(25);
             }
 
             nextBtn = autoReviewGetNextOrderButton();
-            if (nextBtn) {
+            if (nextBtn || serverConfirmed) {
                 flmAuditJumpArm = null;
-                // 若接口拦截因浏览器隔离未命中，成功弹窗出现后立即消费预存槽。
-                if (!flmConsumeReadySlot(submittedOrderId, '审核成功弹窗已出现')) {
+                flmAuditSubmitConfirmation = null;
+                if (!flmConsumeReadySlot(submittedOrderId,
+                    serverConfirmed ? '审核接口已确认成功' : '审核成功弹窗已出现')) {
                     autoReviewToast('审核已提交，缓存订单不可用，改走网站原生下一单...');
-                    autoReviewClickEl(nextBtn);
+                    if (nextBtn) autoReviewClickEl(nextBtn);
                 }
             } else {
                 flmAuditJumpArm = null;
+                flmAuditSubmitConfirmation = null;
                 autoReviewToast('12秒内未确认审核成功，插件没有盲目跳转，请检查网络或手动确认', true);
             }
         } catch (err) {
@@ -5637,6 +5694,8 @@
     // Speculation Rules 会在后台创建一个顶层预渲染文档。预渲染期间只能预热页面和图片，
     // 不能启动插件主体，否则会提前执行“预取下一单”，造成无意中多领取一个订单。
     const startActiveDocumentHelper = () => {
+        // 如果网站审核回调曾把导航覆盖回原订单，优先恢复刚才的预存订单跳转。
+        if (flmRecoverPendingNavigation()) return;
         flmInitFastAuditInterceptor();
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', startHelper, { once: true });
