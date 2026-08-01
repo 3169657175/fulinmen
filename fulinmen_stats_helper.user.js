@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.4.4
+// @version      1.4.5
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -5466,6 +5466,13 @@
         .sj-local-oil-badge.maybe { color:#fde68a; background:rgba(146,64,14,.55); }
         .sj-local-oil-badge.missing { color:#fca5a5; background:rgba(127,29,29,.55); }
         .sj-local-oil-badge.weak { color:#fdba74; background:rgba(124,45,18,.52); }
+        .sj-local-oil-inline { margin-left:auto; flex:0 0 auto; border-radius:999px; padding:3px 7px; font-size:10px; line-height:1.25; font-weight:800; white-space:nowrap; pointer-events:none; font-variant-numeric:tabular-nums; }
+        .sj-local-oil-inline.high { color:#86efac; background:rgba(22,101,52,.62); border:1px solid rgba(34,197,94,.48); }
+        .sj-local-oil-inline.maybe { color:#fde68a; background:rgba(146,64,14,.56); border:1px solid rgba(245,158,11,.46); }
+        .sj-local-oil-inline.missing { color:#fecaca; background:rgba(127,29,29,.62); border:1px solid rgba(248,113,113,.52); }
+        .sj-local-oil-inline.weak { color:#fdba74; background:rgba(124,45,18,.58); border:1px solid rgba(251,146,60,.45); }
+        .sj-local-oil-inline.low { color:#94a3b8; background:rgba(30,41,59,.62); border:1px solid rgba(148,163,184,.24); }
+        .sj-ws-actions { display:flex; align-items:center; justify-content:flex-end; gap:5px; min-width:0; }
         @media (max-width: 1200px) { .sj-local-oil-grid { grid-template-columns:1fr; } }
     `);
 
@@ -6028,7 +6035,8 @@
             return;
         }
         const key = flmLocalOilResultKey(qNum, sources);
-        if (!force && flmLocalOilReadCachedResult(key)) {
+        const cachedResult = flmLocalOilReadCachedResult(key);
+        if (!force && cachedResult && cachedResult.status === 'ready') {
             auditHelperUpdateWorkspace();
             return;
         }
@@ -6135,71 +6143,17 @@
         button.type = 'button';
         button.className = 'sj-local-oil-btn';
         button.disabled = sources.length === 0 || Boolean(flmLocalOilRunningKey);
-        button.textContent = result && result.status === 'ready' ? '↻ 重新本地识油' :
-            result && result.status === 'running' ? '识别中…' : `🧭 本地识油 (${sources.length}图)`;
-        button.title = `${qNum} 只分析本题左侧“照片证据”，不会读取右侧审核参考，也不会上传图片。`;
+        button.textContent = result && result.status === 'ready' ? `↻ 重识油${result.elapsedSeconds ? ` ${result.elapsedSeconds}s` : ''}` :
+            result && result.status === 'running' ? '识别中…' :
+                result && result.status === 'error' ? '⚠ 重试识油' : `🧭 本地识油 (${sources.length}图)`;
+        button.title = result && result.status === 'error' ? `上次失败：${result.message || '未知原因'}；点击重试。` :
+            `${qNum} 只分析本题左侧“照片证据”；结果会直接标在 Q13 对应选项上。`;
         button.addEventListener('click', (event) => {
             event.stopPropagation();
             event.preventDefault();
             flmLocalOilRun(qNum, Boolean(result && result.status === 'ready'));
         });
         title.appendChild(button);
-
-        if (!result) return;
-        const panel = document.createElement('div');
-        panel.className = 'sj-local-oil-panel';
-        if (result.status === 'running' || result.status === 'error') {
-            panel.innerHTML = `<div class="sj-local-oil-head"><strong>${result.status === 'error' ? '识别失败' : '本地扫描中'}</strong></div><div class="sj-local-oil-note">${result.message || ''}</div>`;
-            ws.appendChild(panel);
-            return;
-        }
-
-        const q13Card = flmLocalOilGetQuestionCard('Q13');
-        const optionStates = {};
-        if (q13Card) {
-            q13Card.querySelectorAll('.question--option, .question-option, .question.option, .option').forEach((option) => {
-                const text = option.textContent.trim();
-                const category = flmLocalOilFindCategoryForOption(text);
-                if (category) optionStates[category] = {
-                    checked: auditHelperIsOptionChecked(option),
-                    option
-                };
-            });
-        }
-        panel.innerHTML = `<div class="sj-local-oil-head"><strong>${qNum} 本地包装匹配</strong><span>${result.elapsedSeconds ? `${result.elapsedSeconds}秒 · ` : ''}${result.analyzedImages}/${result.totalEvidenceImages || result.analyzedImages} 张</span></div><div class="sj-local-oil-note">极速模式均匀抽样，结果只作候选提示；右侧审核参考没有参与。</div>`;
-        const grid = document.createElement('div');
-        grid.className = 'sj-local-oil-grid';
-        result.categories.forEach((item) => {
-            const row = document.createElement('div');
-            row.className = `sj-local-oil-item ${item.level}`;
-            const optionState = optionStates[item.category] || null;
-            const checked = Boolean(optionState && optionState.checked);
-            const mismatch = item.level !== 'low' && !checked;
-            const selectedWeak = checked && item.level === 'low';
-            row.innerHTML = `<span>${item.label}</span><span class="sj-local-oil-score">${Math.round(item.score * 100)}</span>`;
-            const badge = document.createElement('span');
-            badge.className = `sj-local-oil-badge ${mismatch ? 'missing' : selectedWeak ? 'weak' : item.level}`;
-            badge.textContent = mismatch ? '可能漏选·点此勾选' : selectedWeak ? '已选·当前低匹配' : checked ? '已选择' : item.level === 'high' ? '较明显' : item.level === 'maybe' ? '疑似' : '低匹配';
-            badge.title = item.bestReferenceName ? `最接近：${item.bestReferenceName}` : '';
-            if (mismatch && optionState && optionState.option) {
-                badge.style.cursor = 'pointer';
-                badge.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    const activeDialog = findTargetZoomDialog();
-                    if (!activeDialog) return;
-                    const optionTextEl = optionState.option.querySelector('.option-title, span') || optionState.option;
-                    auditHelperVerifiedQ13Options.add(optionState.option.dataset.sjOriginalText || optionTextEl.innerHTML.trim());
-                    auditHelperClickOption(optionState.option, activeDialog);
-                    setTimeout(auditHelperUpdateWorkspace, 100);
-                    setTimeout(auditHelperUpdateWorkspace, 260);
-                });
-            }
-            row.appendChild(badge);
-            grid.appendChild(row);
-        });
-        panel.appendChild(grid);
-        ws.appendChild(panel);
     }
 
     function auditHelperUpdateWorkspace() {
@@ -6286,7 +6240,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.4.4)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.4.5)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
 
@@ -6338,6 +6292,12 @@
         const options = targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option');
         const originalOptions = Array.from(options).filter(el => 
             el.classList.contains('option') || el.classList.contains('question-option') || el.classList.contains('question--option')
+        );
+        const localOilResult = activeWSTab === 'Q13' ? flmLocalOilGetCurrentResult(qNum) : null;
+        const localOilByCategory = new Map(
+            localOilResult && localOilResult.status === 'ready' && Array.isArray(localOilResult.categories)
+                ? localOilResult.categories.map((item) => [item.category, item])
+                : []
         );
 
         originalOptions.forEach((opt, index) => {
@@ -6394,6 +6354,24 @@
 
             row.appendChild(icon);
             row.appendChild(label);
+            const rowActions = document.createElement('div');
+            rowActions.className = 'sj-ws-actions';
+
+            if (activeWSTab === 'Q13') {
+                const oilCategory = flmLocalOilFindCategoryForOption(originalText);
+                const oilMatch = oilCategory ? localOilByCategory.get(oilCategory) : null;
+                if (oilMatch) {
+                    const score = Math.round(oilMatch.score * 100);
+                    const possibleMissing = !isChecked && oilMatch.level !== 'low';
+                    const selectedWeak = isChecked && oilMatch.level === 'low';
+                    const status = document.createElement('span');
+                    status.className = `sj-local-oil-inline ${possibleMissing ? 'missing' : selectedWeak ? 'weak' : oilMatch.level}`;
+                    status.textContent = possibleMissing ? `漏选? ${score}` : selectedWeak ? `弱匹配 ${score}` :
+                        isChecked ? `匹配 ${score}` : oilMatch.level === 'high' ? `明显 ${score}` : oilMatch.level === 'maybe' ? `疑似 ${score}` : `低 ${score}`;
+                    status.title = `包装匹配分 ${score}，不是准确率。${oilMatch.bestReferenceName ? ` 最接近：${oilMatch.bestReferenceName}` : ''}`;
+                    rowActions.appendChild(status);
+                }
+            }
 
             // 只有当网页上勾选了此选项时，才显示核对进度按钮，极大地净化界面
             if (activeWSTab === 'Q13' && isChecked) {
@@ -6412,8 +6390,10 @@
                     }
                     auditHelperUpdateWorkspace();
                 });
-                row.appendChild(verifyBtn);
+                rowActions.appendChild(verifyBtn);
             }
+
+            if (rowActions.childElementCount > 0) row.appendChild(rowActions);
 
             row.addEventListener('click', (e) => {
                 e.stopPropagation();
