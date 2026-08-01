@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.4.5
+// @version      1.5.0
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -5379,7 +5379,7 @@
     // Q7/Q10 福临门本地识油助手（无大模型、无训练、无图片上传）
     // 只读取当前题目卡左侧“照片证据”，绝不读取右侧“审核参考”或说明示例图。
     // ==========================================
-    const FLM_LOCAL_OIL_REF_VERSION = 'company-ppt-20260801-fast-v3';
+    const FLM_LOCAL_OIL_REF_VERSION = 'company-ppt-20260801-two-stage-v4';
     const FLM_LOCAL_OIL_REF_CACHE_KEY = 'flm_local_oil_reference_cache_' + FLM_LOCAL_OIL_REF_VERSION;
     const FLM_LOCAL_OIL_RESULT_PREFIX = 'flm_local_oil_result_v1_';
     const FLM_LOCAL_OIL_FEATURE_WIDTH = 8;
@@ -5398,6 +5398,10 @@
         blend: { label: '福临门调和油', words: ['调和'] },
         flax: { label: '福临门亚麻籽油或胡麻油', words: ['亚麻', '胡麻'] },
         olive: { label: '福临门橄榄油或安达露西橄榄油', words: ['橄榄', '安达露西'] }
+    };
+    const FLM_LOCAL_OIL_SHORT_LABELS = {
+        sunflower: '葵花籽油', corn: '玉米油', peanut: '花生油', soybean: '大豆油',
+        rapeseed: '菜籽油', blend: '调和油', flax: '亚麻/胡麻油', olive: '橄榄油'
     };
     const FLM_LOCAL_OIL_REFERENCES = [
         ['peanut_488', 'peanut', '福临门压榨一级花生油', '1901740890456211456'],
@@ -5472,7 +5476,13 @@
         .sj-local-oil-inline.missing { color:#fecaca; background:rgba(127,29,29,.62); border:1px solid rgba(248,113,113,.52); }
         .sj-local-oil-inline.weak { color:#fdba74; background:rgba(124,45,18,.58); border:1px solid rgba(251,146,60,.45); }
         .sj-local-oil-inline.low { color:#94a3b8; background:rgba(30,41,59,.62); border:1px solid rgba(148,163,184,.24); }
+        .sj-local-oil-inline.absent { color:#64748b; background:rgba(15,23,42,.56); border:1px dashed rgba(100,116,139,.36); }
         .sj-ws-actions { display:flex; align-items:center; justify-content:flex-end; gap:5px; min-width:0; }
+        #sj-local-oil-image-overlay { position:fixed; z-index:199999; pointer-events:none; overflow:visible; }
+        .sj-local-oil-box { position:absolute; box-sizing:border-box; border:3px solid #22c55e; border-radius:8px; background:rgba(34,197,94,.055); box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 0 14px rgba(34,197,94,.32); }
+        .sj-local-oil-box.maybe { border-color:#f59e0b; background:rgba(245,158,11,.055); box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 0 14px rgba(245,158,11,.3); }
+        .sj-local-oil-box-label { position:absolute; left:-3px; top:-25px; padding:3px 7px; border-radius:6px 6px 6px 0; color:#fff; background:#15803d; font-size:12px; line-height:18px; font-weight:900; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.6); }
+        .sj-local-oil-box.maybe .sj-local-oil-box-label { background:#b45309; }
         @media (max-width: 1200px) { .sj-local-oil-grid { grid-template-columns:1fr; } }
     `);
 
@@ -5960,14 +5970,61 @@
             }
         }
 
+        // 第二阶段：只精查第一阶段为每类找到的少量候选框，但恢复使用全部 68 个公司包装特征。
+        // 同时比较“本类最佳”与“其他类最佳”的差值，避免所有黄色/红色包装都得到相近高分。
+        const cropFeatureCache = new Map();
+        const getCropFeatures = (crop) => {
+            const key = `${crop.x},${crop.y},${crop.width},${crop.height}`;
+            if (cropFeatureCache.has(key)) return cropFeatureCache.get(key);
+            const feature = flmLocalOilFingerprint(sceneCanvas, crop, scratch);
+            const labelFeature = flmLocalOilFingerprint(sceneCanvas, {
+                x: crop.x + crop.width * 0.08,
+                y: crop.y + crop.height * 0.18,
+                width: crop.width * 0.84,
+                height: crop.height * 0.5
+            }, scratch);
+            const value = { feature, labelFeature };
+            cropFeatureCache.set(key, value);
+            return value;
+        };
         const categoryScores = {};
-        references.forEach((reference) => {
-            const match = bestByReference.get(reference.id);
-            if (!categoryScores[reference.category]) categoryScores[reference.category] = [];
-            categoryScores[reference.category].push({ ...match, referenceId: reference.id, referenceName: reference.name });
-        });
-        Object.keys(categoryScores).forEach((category) => {
-            categoryScores[category].sort((a, b) => b.score - a.score);
+        Object.keys(FLM_LOCAL_OIL_CATEGORY_META).forEach((category) => {
+            const candidateCrops = references
+                .filter((reference) => reference.category === category)
+                .map((reference) => bestByReference.get(reference.id)?.crop)
+                .filter(Boolean)
+                .filter((crop, index, list) => list.findIndex((item) => item.x === crop.x && item.y === crop.y && item.width === crop.width && item.height === crop.height) === index);
+            let bestCandidate = null;
+            candidateCrops.forEach((crop) => {
+                const cropFeatures = getCropFeatures(crop);
+                const bestPerCategory = {};
+                const bestNamePerCategory = {};
+                allReferences.forEach((reference) => {
+                    if (Math.abs(Math.log((crop.height / crop.width) / Math.max(0.3, reference.aspect))) > 0.75) return;
+                    const similarity = flmLocalOilFeatureSimilarity(cropFeatures.feature, reference.feature) * 0.28 +
+                        flmLocalOilFeatureSimilarity(cropFeatures.labelFeature, reference.labelFeature) * 0.72;
+                    if (similarity > (bestPerCategory[reference.category] || 0)) {
+                        bestPerCategory[reference.category] = similarity;
+                        bestNamePerCategory[reference.category] = reference.name;
+                    }
+                });
+                const ownScore = bestPerCategory[category] || 0;
+                const competitorScore = Math.max(0, ...Object.entries(bestPerCategory)
+                    .filter(([otherCategory]) => otherCategory !== category)
+                    .map(([, score]) => score));
+                const margin = ownScore - competitorScore;
+                const discriminativeScore = Math.max(0, Math.min(0.99, ownScore + margin * 1.35));
+                const candidate = {
+                    score: discriminativeScore,
+                    rawScore: ownScore,
+                    competitorScore,
+                    margin,
+                    crop,
+                    referenceName: bestNamePerCategory[category] || ''
+                };
+                if (!bestCandidate || candidate.score > bestCandidate.score) bestCandidate = candidate;
+            });
+            categoryScores[category] = bestCandidate ? [bestCandidate] : [];
         });
         return categoryScores;
     }
@@ -5975,22 +6032,40 @@
     function flmLocalOilMergeImageScores(perImageScores) {
         return Object.keys(FLM_LOCAL_OIL_CATEGORY_META).map((category) => {
             const evidence = [];
-            perImageScores.forEach((imageScores, imageIndex) => {
+            perImageScores.forEach((imageEntry, imageIndex) => {
+                const imageScores = imageEntry.scores || imageEntry;
                 const matches = imageScores[category] || [];
-                if (matches[0]) evidence.push({ ...matches[0], imageIndex });
+                if (matches[0]) evidence.push({
+                    ...matches[0],
+                    imageIndex,
+                    source: imageEntry.source || '',
+                    canvasWidth: imageEntry.canvasWidth || 0,
+                    canvasHeight: imageEntry.canvasHeight || 0
+                });
             });
             evidence.sort((a, b) => b.score - a.score);
             const best = evidence[0] ? evidence[0].score : 0;
             const secondImage = evidence[1] ? evidence[1].score : 0;
-            const supportImages = evidence.filter((item) => item.score >= 0.78).length;
-            const combined = Math.min(0.98, best * 0.82 + secondImage * 0.18 + Math.min(0.05, Math.max(0, supportImages - 1) * 0.025));
+            const bestMargin = evidence[0] ? evidence[0].margin : -1;
+            const supportImages = evidence.filter((item) => item.score >= 0.78 && item.margin >= -0.005).length;
+            const combined = Math.min(0.99, best * 0.84 + secondImage * 0.16 + Math.min(0.04, Math.max(0, supportImages - 1) * 0.02));
+            const level = combined >= 0.86 && bestMargin >= 0.018 && (supportImages >= 2 || best >= 0.89) ? 'high' :
+                combined >= 0.78 && bestMargin >= -0.008 ? 'maybe' :
+                    combined < 0.7 || bestMargin < -0.045 ? 'absent' : 'low';
             return {
                 category,
                 label: FLM_LOCAL_OIL_CATEGORY_META[category].label,
                 score: combined,
                 supportImages,
+                bestMargin,
                 bestReferenceName: evidence[0] ? evidence[0].referenceName : '',
-                level: combined >= 0.84 && (supportImages >= 2 || best >= 0.89) ? 'high' : combined >= 0.76 ? 'maybe' : 'low'
+                detection: evidence[0] && evidence[0].crop ? {
+                    source: evidence[0].source,
+                    crop: evidence[0].crop,
+                    canvasWidth: evidence[0].canvasWidth,
+                    canvasHeight: evidence[0].canvasHeight
+                } : null,
+                level
             };
         }).sort((a, b) => b.score - a.score);
     }
@@ -6081,7 +6156,13 @@
                 const loaded = loadedCanvases[i];
                 setProgress(`正在极速扫描 ${qNum} 照片 ${i + 1}/${loadedCanvases.length}…`);
                 try {
-                    perImageScores.push(await flmLocalOilAnalyzeCanvas(loaded.canvas, references, performance.now() + perImageBudget));
+                    const scores = await flmLocalOilAnalyzeCanvas(loaded.canvas, references, performance.now() + perImageBudget);
+                    perImageScores.push({
+                        scores,
+                        source: loaded.source,
+                        canvasWidth: loaded.canvas.width,
+                        canvasHeight: loaded.canvas.height
+                    });
                     await flmLocalOilYieldToBrowser();
                 } catch (error) {
                     imageErrors.push(error?.message || String(error));
@@ -6092,6 +6173,10 @@
                 const firstError = imageErrors.find(Boolean) || '未知原因';
                 throw new Error(`本题 ${sources.length} 张照片均无法读取：${firstError}`);
             }
+            const categories = flmLocalOilMergeImageScores(perImageScores);
+            categories.forEach((item) => {
+                if (item.detection?.source) item.detection.imageNumber = sources.indexOf(item.detection.source) + 1;
+            });
             const result = {
                 key,
                 qNum,
@@ -6101,7 +6186,7 @@
                 analyzedImages: perImageScores.length,
                 totalEvidenceImages: sources.length,
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10,
-                categories: flmLocalOilMergeImageScores(perImageScores)
+                categories
             };
             flmLocalOilStoreResult(result);
             autoReviewToast(`${qNum} 本地识油完成：${result.elapsedSeconds} 秒，分析 ${perImageScores.length}/${sources.length} 张。`);
@@ -6125,6 +6210,88 @@
         const sources = flmLocalOilGetOwnEvidenceSources(qNum);
         if (sources.length === 0) return null;
         return flmLocalOilReadCachedResult(flmLocalOilResultKey(qNum, sources));
+    }
+
+    function flmLocalOilRemoveImageOverlay() {
+        document.getElementById('sj-local-oil-image-overlay')?.remove();
+    }
+
+    function flmLocalOilGetImageUrls(img) {
+        return Array.from(new Set([
+            img?.getAttribute?.('data-original'),
+            img?.getAttribute?.('data-src'),
+            img?.getAttribute?.('alt'),
+            img?.currentSrc,
+            img?.getAttribute?.('src')
+        ].map(flmLocalOilNormalizeImageUrl).filter(Boolean)));
+    }
+
+    function flmLocalOilFindMainViewerImage(dialog) {
+        if (!dialog) return null;
+        return Array.from(dialog.querySelectorAll('img'))
+            .filter((img) => !img.closest('#sj-zoom-workspace'))
+            .map((img) => ({ img, rect: img.getBoundingClientRect() }))
+            .filter(({ img, rect }) => img.complete && img.naturalWidth > 0 && rect.width > 180 && rect.height > 180 && getComputedStyle(img).visibility !== 'hidden')
+            .sort((a, b) => b.rect.width * b.rect.height - a.rect.width * a.rect.height)[0]?.img || null;
+    }
+
+    function flmLocalOilGetRenderedImageRect(img) {
+        const rect = img.getBoundingClientRect();
+        const naturalWidth = img.naturalWidth || rect.width;
+        const naturalHeight = img.naturalHeight || rect.height;
+        const style = getComputedStyle(img);
+        if (style.objectFit !== 'contain') return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        const scale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
+        const width = naturalWidth * scale;
+        const height = naturalHeight * scale;
+        return { left: rect.left + (rect.width - width) / 2, top: rect.top + (rect.height - height) / 2, width, height };
+    }
+
+    function flmLocalOilRenderImageOverlay(dialog, qNum) {
+        flmLocalOilRemoveImageOverlay();
+        if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) return;
+        const result = flmLocalOilGetCurrentResult(qNum);
+        if (!result || result.status !== 'ready' || !Array.isArray(result.categories)) return;
+        const mainImg = flmLocalOilFindMainViewerImage(dialog);
+        if (!mainImg) return;
+        if (!mainImg.complete) {
+            mainImg.addEventListener('load', () => flmLocalOilRenderImageOverlay(dialog, qNum), { once: true });
+            return;
+        }
+        const currentUrls = new Set(flmLocalOilGetImageUrls(mainImg));
+        const detections = result.categories.filter((item) =>
+            (item.level === 'high' || item.level === 'maybe') && item.detection?.crop &&
+            item.detection.canvasWidth > 0 && item.detection.canvasHeight > 0 && currentUrls.has(flmLocalOilNormalizeImageUrl(item.detection.source))
+        );
+        if (detections.length === 0) return;
+
+        const imageRect = flmLocalOilGetRenderedImageRect(mainImg);
+        const overlay = document.createElement('div');
+        overlay.id = 'sj-local-oil-image-overlay';
+        Object.assign(overlay.style, {
+            left: `${imageRect.left}px`, top: `${imageRect.top}px`,
+            width: `${imageRect.width}px`, height: `${imageRect.height}px`
+        });
+        detections.forEach((item) => {
+            const detection = item.detection;
+            const crop = detection.crop;
+            const box = document.createElement('div');
+            box.className = `sj-local-oil-box ${item.level}`;
+            const left = Math.max(0, Math.min(1, crop.x / detection.canvasWidth));
+            const top = Math.max(0, Math.min(1, crop.y / detection.canvasHeight));
+            const width = Math.max(0.035, Math.min(1 - left, crop.width / detection.canvasWidth));
+            const height = Math.max(0.05, Math.min(1 - top, crop.height / detection.canvasHeight));
+            Object.assign(box.style, {
+                left: `${left * 100}%`, top: `${top * 100}%`,
+                width: `${width * 100}%`, height: `${height * 100}%`
+            });
+            const label = document.createElement('span');
+            label.className = 'sj-local-oil-box-label';
+            label.textContent = `${FLM_LOCAL_OIL_SHORT_LABELS[item.category] || item.label} ${Math.round(item.score * 100)}`;
+            box.appendChild(label);
+            overlay.appendChild(box);
+        });
+        document.body.appendChild(overlay);
     }
 
     function flmLocalOilFindCategoryForOption(optionText) {
@@ -6159,6 +6326,7 @@
     function auditHelperUpdateWorkspace() {
         const activeDialog = findTargetZoomDialog();
         if (!activeDialog) {
+            flmLocalOilRemoveImageOverlay();
             const ws = document.getElementById('sj-zoom-workspace');
             if (ws) ws.remove();
             activeWSDialogQNum = null;
@@ -6168,6 +6336,7 @@
 
         const qNum = getActiveDialogQuestionNumber(activeDialog);
         if (!qNum) {
+            flmLocalOilRemoveImageOverlay();
             const ws = document.getElementById('sj-zoom-workspace');
             if (ws) ws.remove();
             return;
@@ -6240,9 +6409,10 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.4.5)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.5.0)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
+        requestAnimationFrame(() => flmLocalOilRenderImageOverlay(activeDialog, qNum));
 
         // 2. 动态选项卡 Tab 头部
         const tabsContainer = document.createElement('div');
@@ -6362,13 +6532,15 @@
                 const oilMatch = oilCategory ? localOilByCategory.get(oilCategory) : null;
                 if (oilMatch) {
                     const score = Math.round(oilMatch.score * 100);
-                    const possibleMissing = !isChecked && oilMatch.level !== 'low';
-                    const selectedWeak = isChecked && oilMatch.level === 'low';
+                    const possibleMissing = !isChecked && (oilMatch.level === 'high' || oilMatch.level === 'maybe');
+                    const selectedWeak = isChecked && (oilMatch.level === 'low' || oilMatch.level === 'absent');
+                    const imageHint = (oilMatch.level === 'high' || oilMatch.level === 'maybe') && oilMatch.detection?.imageNumber > 0 ? `·图${oilMatch.detection.imageNumber}` : '';
                     const status = document.createElement('span');
                     status.className = `sj-local-oil-inline ${possibleMissing ? 'missing' : selectedWeak ? 'weak' : oilMatch.level}`;
-                    status.textContent = possibleMissing ? `漏选? ${score}` : selectedWeak ? `弱匹配 ${score}` :
-                        isChecked ? `匹配 ${score}` : oilMatch.level === 'high' ? `明显 ${score}` : oilMatch.level === 'maybe' ? `疑似 ${score}` : `低 ${score}`;
-                    status.title = `包装匹配分 ${score}，不是准确率。${oilMatch.bestReferenceName ? ` 最接近：${oilMatch.bestReferenceName}` : ''}`;
+                    status.textContent = possibleMissing ? `漏选? ${score}${imageHint}` : selectedWeak ? `图中未确认 ${score}` :
+                        isChecked ? `匹配 ${score}${imageHint}` : oilMatch.level === 'high' ? `明显 ${score}${imageHint}` : oilMatch.level === 'maybe' ? `疑似 ${score}${imageHint}` :
+                            oilMatch.level === 'absent' ? `未发现 ${score}` : `低 ${score}`;
+                    status.title = `包装匹配分 ${score}，不是准确率。${oilMatch.detection?.imageNumber > 0 ? `最佳候选在第 ${oilMatch.detection.imageNumber} 张。` : ''}${oilMatch.bestReferenceName ? ` 最接近：${oilMatch.bestReferenceName}` : ''}`;
                     rowActions.appendChild(status);
                 }
             }
