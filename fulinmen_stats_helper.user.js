@@ -1,18 +1,22 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.3.2
+// @version      1.3.3
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js
 // @require      https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js
 // @grant        GM_addStyle
-// @run-at       document-end
+// @run-at       document-start
 // ==/UserScript==
 
 (/* @global echarts */ function() {
     'use strict';
+
+    // 后台预热 iframe 只负责让网站提前请求下一单数据和图片，不运行插件主体。
+    const FLM_IS_WARM_FRAME = window.self !== window.top &&
+        new URLSearchParams(location.search).get('flm_warm') === '1';
 
     // 判断是否为初审工单 (v3.6)
     // 接口字段 review 代表当前工单的审核轮次：0 表示初审；>=1 表示复审单。
@@ -1586,9 +1590,11 @@
     }
 
     // ==========================================
-    // 页面与图片加载优化：复用脉动插件的 OSS 缩图思路
+    // 页面与图片加载优化：关键图片优先、非关键图片延迟，并使用 OSS 预览图减少传输量
     // ==========================================
     let flmImageOptimizerInitialized = false;
+    let flmImagePriorityOrderId = '';
+    let flmHighPriorityImageCount = 0;
 
     function flmOptimizeImageUrlForPreview(url, width = 1000) {
         if (!url || typeof url !== 'string' || url.startsWith('data:') || url.startsWith('blob:')) return url;
@@ -1622,12 +1628,25 @@
     function flmTuneImageElement(img) {
         if (!img || img.nodeType !== Node.ELEMENT_NODE || img.tagName !== 'IMG') return;
         try {
+            const currentOrderId = flmGetCurrentOrderId() || '';
+            if (flmImagePriorityOrderId !== currentOrderId) {
+                flmImagePriorityOrderId = currentOrderId;
+                flmHighPriorityImageCount = 0;
+            }
             img.decoding = 'async';
             const rect = img.getBoundingClientRect();
             const nearViewport = rect.top < window.innerHeight * 1.5 && rect.bottom > -200;
             if (nearViewport) {
                 img.loading = 'eager';
-                if ('fetchPriority' in img) img.fetchPriority = 'high';
+                // 只把最先出现的三张图片设为高优先级，避免几十张图同时抢占详情接口带宽。
+                if ('fetchPriority' in img && !img.dataset.flmPriorityAssigned) {
+                    img.fetchPriority = flmHighPriorityImageCount < 3 ? 'high' : 'auto';
+                    flmHighPriorityImageCount += 1;
+                    img.dataset.flmPriorityAssigned = '1';
+                }
+            } else {
+                img.loading = 'lazy';
+                if ('fetchPriority' in img) img.fetchPriority = 'low';
             }
             const currentSrc = img.getAttribute('src');
             const optimizedSrc = flmOptimizeImageUrlForPreview(currentSrc, 1000);
@@ -1636,7 +1655,10 @@
     }
 
     function flmInjectResourceHints() {
-        if (!document.head) return;
+        if (!document.head) {
+            document.addEventListener('DOMContentLoaded', flmInjectResourceHints, { once: true });
+            return;
+        }
         ['https://sjimgpub.slicejobs.com', 'https://sjaudiopub.slicejobs.com'].forEach((href) => {
             if (document.querySelector(`link[rel="preconnect"][href="${href}"]`)) return;
             const link = document.createElement('link');
@@ -1650,7 +1672,6 @@
     function flmInitImageOptimizer() {
         if (flmImageOptimizerInitialized) return;
         flmImageOptimizerInitialized = true;
-        flmInjectResourceHints();
 
         const srcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
         if (srcDescriptor && srcDescriptor.get && srcDescriptor.set && !srcDescriptor.set.__flmOptimized) {
@@ -1679,26 +1700,33 @@
             Element.prototype.setAttribute = optimizedSetAttribute;
         }
 
-        document.querySelectorAll('img').forEach(flmTuneImageElement);
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes') {
-                    flmTuneImageElement(mutation.target);
-                    return;
-                }
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType !== Node.ELEMENT_NODE) return;
-                    if (node.tagName === 'IMG') flmTuneImageElement(node);
-                    node.querySelectorAll && node.querySelectorAll('img').forEach(flmTuneImageElement);
+        const startDomObserver = () => {
+            flmInjectResourceHints();
+            document.querySelectorAll('img').forEach(flmTuneImageElement);
+            if (!document.documentElement) return;
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes') {
+                        flmTuneImageElement(mutation.target);
+                        return;
+                    }
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType !== Node.ELEMENT_NODE) return;
+                        if (node.tagName === 'IMG') flmTuneImageElement(node);
+                        node.querySelectorAll && node.querySelectorAll('img').forEach(flmTuneImageElement);
+                    });
                 });
             });
-        });
-        observer.observe(document.documentElement, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['src']
-        });
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['src']
+            });
+        };
+
+        if (document.documentElement) startDomObserver();
+        else document.addEventListener('DOMContentLoaded', startDomObserver, { once: true });
     }
 
     // ==========================================
@@ -1721,6 +1749,10 @@
     let flmPrefetchRetryTimer = null;
     let flmAuditJumpArm = null;
     let flmAuditInterceptorInitialized = false;
+    let flmWarmFrameOrderId = '';
+    let flmWarmFramePollTimer = null;
+    let flmWarmScheduleOrderId = '';
+    let flmPrerenderOrderId = '';
 
     function flmGetCurrentOrderId() {
         const match = location.pathname.match(/\/order\/review\/(\d+)/);
@@ -1755,17 +1787,139 @@
     }
 
     function flmWarmNextOrderRoute(orderId) {
-        if (!document.head || !/^\d+$/.test(String(orderId || ''))) return;
-        const target = '/order/review/' + orderId;
-        let link = document.getElementById('flm-next-order-prefetch');
-        if (!link) {
-            link = document.createElement('link');
-            link.id = 'flm-next-order-prefetch';
-            link.rel = 'prefetch';
-            link.as = 'document';
-            document.head.appendChild(link);
+        orderId = String(orderId || '');
+        if (window.self !== window.top || !/^\d+$/.test(orderId)) return;
+        // Chromium 优先使用完整预渲染：详情接口、页面组件和图片都会在后台准备好。
+        if (flmInstallSpeculationPrerender(orderId)) return;
+        if (!document.body || flmWarmFrameOrderId === orderId || flmWarmScheduleOrderId === orderId) return;
+        flmWarmScheduleOrderId = orderId;
+
+        const startWhenCurrentPageIsIdle = (attempt = 0) => {
+            if (flmGetCurrentOrderId() === orderId || flmWarmFrameOrderId === orderId) return;
+            const slot = flmReadPrefetchSlot();
+            if (!slot || slot.state !== 'ready' || slot.nextOrderId !== orderId) return;
+            const visibleLoadingMask = Array.from(document.querySelectorAll('.el-loading-mask')).some((mask) => {
+                const style = getComputedStyle(mask);
+                return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+            });
+            if (visibleLoadingMask && attempt < 30) {
+                setTimeout(() => startWhenCurrentPageIsIdle(attempt + 1), 300);
+                return;
+            }
+            flmCreateWarmOrderFrame(orderId);
+        };
+
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(() => startWhenCurrentPageIsIdle(), { timeout: 1800 });
+        } else {
+            setTimeout(() => startWhenCurrentPageIsIdle(), 800);
         }
-        if (link.getAttribute('href') !== target) link.setAttribute('href', target);
+    }
+
+    function flmInstallSpeculationPrerender(orderId) {
+        const supportsSpeculationRules = typeof HTMLScriptElement !== 'undefined' &&
+            typeof HTMLScriptElement.supports === 'function' &&
+            HTMLScriptElement.supports('speculationrules');
+        if (!supportsSpeculationRules || !document.head || flmGetCurrentOrderId() === orderId) return false;
+        if (flmPrerenderOrderId === orderId && document.getElementById('flm-next-order-speculation')) return true;
+
+        const oldRule = document.getElementById('flm-next-order-speculation');
+        if (oldRule) oldRule.remove();
+        const target = '/order/review/' + orderId;
+        const rule = document.createElement('script');
+        rule.id = 'flm-next-order-speculation';
+        rule.type = 'speculationrules';
+        rule.textContent = JSON.stringify({
+            prerender: [{ source: 'list', urls: [target], eagerness: 'immediate' }]
+        });
+        document.head.appendChild(rule);
+        flmPrerenderOrderId = orderId;
+        flmWarmScheduleOrderId = '';
+        console.log(`[福临门预热] 已提交浏览器完整预渲染订单 ${orderId}。`);
+        return true;
+    }
+
+    function flmDestroyWarmOrderFrame() {
+        if (flmWarmFramePollTimer) {
+            clearInterval(flmWarmFramePollTimer);
+            flmWarmFramePollTimer = null;
+        }
+        const oldFrame = document.getElementById('flm-next-order-warm-frame');
+        if (oldFrame) oldFrame.remove();
+        flmWarmFrameOrderId = '';
+        flmWarmScheduleOrderId = '';
+        const rule = document.getElementById('flm-next-order-speculation');
+        if (rule) rule.remove();
+        flmPrerenderOrderId = '';
+    }
+
+    function flmCreateWarmOrderFrame(orderId) {
+        flmDestroyWarmOrderFrame();
+        if (!document.body || flmGetCurrentOrderId() === orderId) return;
+
+        const frame = document.createElement('iframe');
+        frame.id = 'flm-next-order-warm-frame';
+        frame.setAttribute('aria-hidden', 'true');
+        frame.tabIndex = -1;
+        // 保留真实视口尺寸并移出屏幕，确保网站的懒加载逻辑会请求详情图片。
+        frame.style.cssText = [
+            'position:fixed', 'left:-20000px', 'top:0', 'width:1366px', 'height:900px',
+            'opacity:0.01', 'pointer-events:none', 'border:0', 'z-index:-2147483648'
+        ].join(';');
+        flmWarmFrameOrderId = orderId;
+        flmWarmScheduleOrderId = '';
+        frame.src = `/order/review/${orderId}?flm_warm=1`;
+        document.body.appendChild(frame);
+
+        const startedAt = Date.now();
+        flmWarmFramePollTimer = setInterval(() => {
+            if (!frame.isConnected || flmWarmFrameOrderId !== orderId) {
+                flmDestroyWarmOrderFrame();
+                return;
+            }
+            try {
+                const frameDocument = frame.contentDocument;
+                const frameWindow = frame.contentWindow;
+                if (!frameDocument || !frameWindow ||
+                    !frameWindow.location.pathname.includes('/order/review/' + orderId)) return;
+
+                const images = Array.from(frameDocument.images || []);
+                images.forEach((img, index) => {
+                    const src = img.getAttribute('src');
+                    const optimized = flmOptimizeImageUrlForPreview(src, 1000);
+                    if (optimized && optimized !== src) img.setAttribute('src', optimized);
+                    img.decoding = 'async';
+                    img.loading = 'eager';
+                    if ('fetchPriority' in img) img.fetchPriority = index < 2 ? 'high' : 'low';
+                });
+
+                const hasReviewContent = Boolean(frameDocument.querySelector('.answer--review'));
+                const hasVisibleMask = Array.from(frameDocument.querySelectorAll('.el-loading-mask')).some((mask) => {
+                    const style = frameWindow.getComputedStyle(mask);
+                    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+                });
+                const loadedImages = images.filter((img) => img.complete && img.naturalWidth > 0).length;
+                const detailReady = hasReviewContent && !hasVisibleMask;
+                const timedOut = Date.now() - startedAt > 45000;
+                if (detailReady || timedOut) {
+                    const currentSlot = flmReadPrefetchSlot();
+                    if (currentSlot && currentSlot.state === 'ready' && currentSlot.nextOrderId === orderId) {
+                        flmWritePrefetchSlot({
+                            ...currentSlot,
+                            warmState: detailReady ? 'ready' : 'partial',
+                            warmedAt: Date.now(),
+                            warmedImages: loadedImages,
+                            discoveredImages: images.length
+                        });
+                    }
+                    clearInterval(flmWarmFramePollTimer);
+                    flmWarmFramePollTimer = null;
+                    console.log(`[福临门预热] 订单 ${orderId}：${detailReady ? '详情已就绪' : '部分完成'}，图片 ${loadedImages}/${images.length}。`);
+                }
+            } catch (error) {
+                // 同源页面导航和初始化期间可能暂时不可访问，下一轮继续。
+            }
+        }, 200);
     }
 
     function flmFindVueRouter() {
@@ -1791,6 +1945,11 @@
         if (!/^\d+$/.test(orderId)) return false;
         const target = '/order/review/' + orderId;
         try {
+            // Speculation Rules 的预渲染必须通过真正的文档导航激活，Vue Router 不会激活它。
+            if (flmPrerenderOrderId === orderId) {
+                location.replace(target);
+                return true;
+            }
             const router = flmFindVueRouter();
             if (router) {
                 const result = router.replace(target);
@@ -1818,6 +1977,7 @@
         if (!slot) return null;
         if (slot.nextOrderId === String(currentOrderId) &&
             (slot.state === 'consuming' || slot.state === 'ready')) {
+            flmDestroyWarmOrderFrame();
             localStorage.removeItem(FLM_PREFETCH_SLOT_KEY);
             flmPrefetchJumping = false;
             console.log(`[福临门预取] 已进入缓存订单 ${currentOrderId}，单槽已清空。`);
@@ -5470,9 +5630,25 @@
         });
     };
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startHelper, { once: true });
-    } else {
-        startHelper();
+    // document-start 阶段先安装图片拦截，避免网站已经发出原图请求后才开始优化。
+    flmInitImageOptimizer();
+    if (FLM_IS_WARM_FRAME) return;
+
+    // Speculation Rules 会在后台创建一个顶层预渲染文档。预渲染期间只能预热页面和图片，
+    // 不能启动插件主体，否则会提前执行“预取下一单”，造成无意中多领取一个订单。
+    const startActiveDocumentHelper = () => {
+        flmInitFastAuditInterceptor();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startHelper, { once: true });
+        } else {
+            startHelper();
+        }
+    };
+
+    if (document.prerendering) {
+        document.addEventListener('prerenderingchange', startActiveDocumentHelper, { once: true });
+        return;
     }
+
+    startActiveDocumentHelper();
 })();
