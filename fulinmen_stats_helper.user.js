@@ -1,20 +1,2904 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.5.0
+// @version      1.7.1
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js
 // @require      https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js
+// @resource     FLM_OCR_DET https://media.githubusercontent.com/media/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main/detection/ort/PP-OCRv6_tiny_det.ort
+// @resource     FLM_OCR_REC https://media.githubusercontent.com/media/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main/recognition/ort/PP-OCRv6_tiny_rec.ort
+// @resource     FLM_OCR_DICT https://raw.githubusercontent.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main/recognition/ppocrv6_tiny_dict.txt
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getResourceURL
+// @grant        GM_getResourceText
 // @connect      productandservice.cofco.com
 // @connect      sjimgpub.slicejobs.com
 // @connect      *.slicejobs.com
 // @connect      *.aliyuncs.com
 // @run-at       document-start
 // ==/UserScript==
+/* FLM_PADDLE_OCR_BUNDLE_START */
+(()=>{var e_=Object.defineProperty;var Ct=(e=>typeof require<"u"?require:typeof Proxy<"u"?new Proxy(e,{get:(t,r)=>(typeof require<"u"?require:t)[r]}):e)(function(e){if(typeof require<"u")return require.apply(this,arguments);throw Error('Dynamic require of "'+e+'" is not supported')});var Go=(e,t,r)=>()=>{if(r)throw r[0];try{return e&&(t=e(e=0)),t}catch(i){throw r=[i],i}};var ji=(e,t)=>{for(var r in t)e_(e,r,{get:t[r],enumerable:!0})};var Nm={};ji(Nm,{BLANK_INDEX:()=>Am,MIN_CROP_WIDTH:()=>ir,UNK_TOKEN:()=>Rm,ctcGreedyDecode:()=>Dm,decodeResults:()=>Ga,injectGapSpaces:()=>Bm,refineDecodedChars:()=>Mm});function Om(e){return new RegExp("\\p{L}","u").test(e)?0:new RegExp("\\p{N}","u").test(e)?1:2}function Bm(e,t){if(e.length<4)return;let r=[];for(let s=1;s<t.length;s++)r.push((t[s]??0)-(t[s-1]??0));let i=[...r].sort((s,o)=>s-o),n=i[Math.floor(i.length/2)]??0;if(n<=0)return;let a=i.find(s=>s>0)??0;if(!(a<=0))for(let s=e.length-1;s>=1;s--){let o=t[s-1]??0,l=t[s]??0,d=Om(e[s]??"")===Om(e[s-1]??"")?tb:eb;l-o>n+d*a&&e[s]!==" "&&e[s-1]!==" "&&e[s]!==e[s-1]&&(e.splice(s,0," "),t.splice(s,0,(o+l)/2))}}function Mm(e,t){for(let r=e.length-1;r>=1;r--)e[r]===" "&&e[r-1]===" "&&(e.splice(r,1),t.splice(r,1));if(!ib.test(e.join("")))for(let r=0;r<e.length;r++){let i=e[r]?.codePointAt(0)??0;i>=65281&&i<=65374?e[r]=String.fromCodePoint(i-rb):i===12288&&(e[r]=" ")}}function Dm(e,t,r,i){let n=i.length,a=n-1,s=[],o=-1,l=0,d=0,c=[];for(let m=0;m<t;m++){let y=m*r,_=e[y]??-1/0,w=0;for(let S=1;S<r;S++){let x=e[y+S]??-1/0;x>_&&(_=x,w=S)}if(w===Am||w===o){o=w;continue}if(w>=0&&w<n){let S=i[w]??"";w===a?S!==Rm&&(s.push(" "),l+=_,d++,c.push((m+.5)/t)):(s.push(S),l+=_,d++,c.push((m+.5)/t))}o=w}Bm(s,c),Mm(s,c);let h=d>0?l/d:0;return{text:s.join(""),confidence:h,positions:c}}function Ga(e,t,r,i=!1){let n=e.data,a=e.dims,s=a[1],o=a[2]??r;if(!t)return{text:"",confidence:0,positions:[]};let l=t;return t.length===o-1?l=["",...t]:o!==t.length&&i&&console.warn(`Warning: Model output classes (${o}) does not match dictionary length (${t.length}).
+ Consider using our model & dictionary catalogue at https://github.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models.`),Dm(n,s,o,l)}var Am,Rm,ir,eb,tb,rb,ib,zr=Go(()=>{Am=0,Rm="<unk>",ir=8,eb=1.5,tb=2.5;rb=65248,ib=/[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/});var Lm={};ji(Lm,{createImageTensor:()=>Pm,createImageTensorFromCanvas:()=>Ha,preprocessImage:()=>Fa});async function Fa(e,t,r,i){let n=e.width,a=e.height;if(a===0||n===0)throw new Error(`Crop dimensions are zero: ${n}x${a}`);let s=n/a,o=Math.max(ir,Math.round(t*s));if(r){let c=new r.ImageProcessor(e);try{return c.resize({width:o,height:t}),{imageTensor:Ha(c.toCanvas(),o,t),tensorWidth:o,tensorHeight:t}}finally{c.destroy()}}let l=i(e).resize({width:o,height:t});return{imageTensor:Pm(l,o,t),tensorWidth:o,tensorHeight:t}}function Pm(e,t,r){let i=e.toCanvas();return Ha(i,t,r)}function Ha(e,t,r){let a=e.getContext("2d").getImageData(0,0,t,r).data,s=r*t,o=new Float32Array(3*s),l=1/127.5;for(let d=0,c=0;d<s;d++,c+=4)o[d]=(a[c]??0)*l-1;return o.copyWithin(s,0,s),o.copyWithin(s*2,0,s),o}var ja=Go(()=>{zr()});var Gt={};ji(Gt,{InferenceSession:()=>la,TRACE:()=>Tr,TRACE_EVENT_BEGIN:()=>bt,TRACE_EVENT_END:()=>wt,TRACE_FUNC_BEGIN:()=>et,TRACE_FUNC_END:()=>Ve,Tensor:()=>Je,default:()=>wy,env:()=>fe,registerBackend:()=>Pt});var Ye={};var oa=Object.defineProperty,t_=Object.getOwnPropertyDescriptor,r_=Object.getOwnPropertyNames,i_=Object.prototype.hasOwnProperty,n_=(e=>typeof Ct<"u"?Ct:typeof Proxy<"u"?new Proxy(e,{get:(t,r)=>(typeof Ct<"u"?Ct:t)[r]}):e)(function(e){if(typeof Ct<"u")return Ct.apply(this,arguments);throw Error('Dynamic require of "'+e+'" is not supported')}),L=(e,t)=>()=>(e&&(t=e(e=0)),t),Qt=(e,t)=>{for(var r in t)oa(e,r,{get:t[r],enumerable:!0})},a_=(e,t,r,i)=>{if(t&&typeof t=="object"||typeof t=="function")for(let n of r_(t))!i_.call(e,n)&&n!==r&&oa(e,n,{get:()=>t[n],enumerable:!(i=t_(t,n))||i.enumerable});return e},Sr=e=>a_(oa({},"__esModule",{value:!0}),e),lr,gt,Pt,Fo,Sp,Tp=L(()=>{"use strict";lr=new Map,gt=[],Pt=(e,t,r)=>{if(t&&typeof t.init=="function"&&typeof t.createInferenceSessionHandler=="function"){let i=lr.get(e);if(i===void 0)lr.set(e,{backend:t,priority:r});else{if(i.priority>r)return;if(i.priority===r&&i.backend!==t)throw new Error(`cannot register backend "${e}" using priority ${r}`)}if(r>=0){let n=gt.indexOf(e);n!==-1&&gt.splice(n,1);for(let a=0;a<gt.length;a++)if(lr.get(gt[a]).priority<=r){gt.splice(a,0,e);return}gt.push(e)}return}throw new TypeError("not a valid backend")},Fo=async e=>{let t=lr.get(e);if(!t)return"backend not found.";if(t.initialized)return t.backend;if(t.aborted)return t.error;{let r=!!t.initPromise;try{return r||(t.initPromise=t.backend.init(e)),await t.initPromise,t.initialized=!0,t.backend}catch(i){return r||(t.error=`${i}`,t.aborted=!0),t.error}finally{delete t.initPromise}}},Sp=async e=>{let t=e.executionProviders||[],r=t.map(l=>typeof l=="string"?l:l.name),i=r.length===0?gt:r,n,a=[],s=new Set;for(let l of i){let d=await Fo(l);typeof d=="string"?a.push({name:l,err:d}):(n||(n=d),n===d&&s.add(l))}if(!n)throw new Error(`no available backend found. ERR: ${a.map(l=>`[${l.name}] ${l.err}`).join(", ")}`);for(let{name:l,err:d}of a)r.includes(l)&&console.warn(`removing requested execution provider "${l}" from session options because it is not available: ${d}`);let o=t.filter(l=>s.has(typeof l=="string"?l:l.name));return[n,new Proxy(e,{get:(l,d)=>d==="executionProviders"?o:Reflect.get(l,d)})]}}),s_=L(()=>{"use strict";Tp()}),Ep,o_=L(()=>{"use strict";Ep="1.27.0"}),Ki,Oe,Ip=L(()=>{"use strict";o_(),Ki="warning",Oe={wasm:{},webgl:{},webgpu:{},versions:{common:Ep},set logLevel(e){if(e!==void 0){if(typeof e!="string"||["verbose","info","warning","error","fatal"].indexOf(e)===-1)throw new Error(`Unsupported logging level: ${e}`);Ki=e}},get logLevel(){return Ki}},Object.defineProperty(Oe,"logLevel",{enumerable:!0})}),fe,u_=L(()=>{"use strict";Ip(),fe=Oe}),kp,Cp,l_=L(()=>{"use strict";kp=(e,t)=>{let r=typeof document<"u"?document.createElement("canvas"):new OffscreenCanvas(1,1);r.width=e.dims[3],r.height=e.dims[2];let i=r.getContext("2d");if(i!=null){let n,a;t?.tensorLayout!==void 0&&t.tensorLayout==="NHWC"?(n=e.dims[2],a=e.dims[3]):(n=e.dims[3],a=e.dims[2]);let s=t?.format!==void 0?t.format:"RGB",o=t?.norm,l,d;o===void 0||o.mean===void 0?l=[255,255,255,255]:typeof o.mean=="number"?l=[o.mean,o.mean,o.mean,o.mean]:(l=[o.mean[0],o.mean[1],o.mean[2],0],o.mean[3]!==void 0&&(l[3]=o.mean[3])),o===void 0||o.bias===void 0?d=[0,0,0,0]:typeof o.bias=="number"?d=[o.bias,o.bias,o.bias,o.bias]:(d=[o.bias[0],o.bias[1],o.bias[2],0],o.bias[3]!==void 0&&(d[3]=o.bias[3]));let c=a*n,h=0,m=c,y=c*2,_=-1;s==="RGBA"?(h=0,m=c,y=c*2,_=c*3):s==="RGB"?(h=0,m=c,y=c*2):s==="RBG"&&(h=0,y=c,m=c*2);for(let w=0;w<a;w++)for(let S=0;S<n;S++){let x=(e.data[h++]-d[0])*l[0],b=(e.data[m++]-d[1])*l[1],E=(e.data[y++]-d[2])*l[2],T=_===-1?255:(e.data[_++]-d[3])*l[3];i.fillStyle="rgba("+x+","+b+","+E+","+T+")",i.fillRect(S,w,1,1)}if("toDataURL"in r)return r.toDataURL();throw new Error("toDataURL is not supported")}else throw new Error("Can not access image data")},Cp=(e,t)=>{let r=typeof document<"u"?document.createElement("canvas").getContext("2d"):new OffscreenCanvas(1,1).getContext("2d"),i;if(r!=null){let n,a,s;t?.tensorLayout!==void 0&&t.tensorLayout==="NHWC"?(n=e.dims[2],a=e.dims[1],s=e.dims[3]):(n=e.dims[3],a=e.dims[2],s=e.dims[1]);let o=t!==void 0&&t.format!==void 0?t.format:"RGB",l=t?.norm,d,c;l===void 0||l.mean===void 0?d=[255,255,255,255]:typeof l.mean=="number"?d=[l.mean,l.mean,l.mean,l.mean]:(d=[l.mean[0],l.mean[1],l.mean[2],255],l.mean[3]!==void 0&&(d[3]=l.mean[3])),l===void 0||l.bias===void 0?c=[0,0,0,0]:typeof l.bias=="number"?c=[l.bias,l.bias,l.bias,l.bias]:(c=[l.bias[0],l.bias[1],l.bias[2],0],l.bias[3]!==void 0&&(c[3]=l.bias[3]));let h=a*n;if(t!==void 0&&(t.format!==void 0&&s===4&&t.format!=="RGBA"||s===3&&t.format!=="RGB"&&t.format!=="BGR"))throw new Error("Tensor format doesn't match input tensor dims");let m=4,y=0,_=1,w=2,S=3,x=0,b=h,E=h*2,T=-1;o==="RGBA"?(x=0,b=h,E=h*2,T=h*3):o==="RGB"?(x=0,b=h,E=h*2):o==="RBG"&&(x=0,E=h,b=h*2),i=r.createImageData(n,a);for(let k=0;k<a*n;y+=m,_+=m,w+=m,S+=m,k++)i.data[y]=(e.data[x++]-c[0])*d[0],i.data[_]=(e.data[b++]-c[1])*d[1],i.data[w]=(e.data[E++]-c[2])*d[2],i.data[S]=T===-1?255:(e.data[T++]-c[3])*d[3]}else throw new Error("Can not access image data");return i}}),Fr,zp,Op,Ap,Rp,Bp,d_=L(()=>{"use strict";ua(),Fr=(e,t)=>{if(e===void 0)throw new Error("Image buffer must be defined");if(t.height===void 0||t.width===void 0)throw new Error("Image height and width must be defined");if(t.tensorLayout==="NHWC")throw new Error("NHWC Tensor layout is not supported yet");let{height:r,width:i}=t,n=t.norm??{mean:255,bias:0},a,s;typeof n.mean=="number"?a=[n.mean,n.mean,n.mean,n.mean]:a=[n.mean[0],n.mean[1],n.mean[2],n.mean[3]??255],typeof n.bias=="number"?s=[n.bias,n.bias,n.bias,n.bias]:s=[n.bias[0],n.bias[1],n.bias[2],n.bias[3]??0];let o=t.format!==void 0?t.format:"RGBA",l=t.tensorFormat!==void 0&&t.tensorFormat!==void 0?t.tensorFormat:"RGB",d=r*i,c=l==="RGBA"?new Float32Array(d*4):new Float32Array(d*3),h=4,m=0,y=1,_=2,w=3,S=0,x=d,b=d*2,E=-1;o==="RGB"&&(h=3,m=0,y=1,_=2,w=-1),l==="RGBA"?E=d*3:l==="RBG"?(S=0,b=d,x=d*2):l==="BGR"&&(b=0,x=d,S=d*2);for(let T=0;T<d;T++,m+=h,_+=h,y+=h,w+=h)c[S++]=(e[m]+s[0])/a[0],c[x++]=(e[y]+s[1])/a[1],c[b++]=(e[_]+s[2])/a[2],E!==-1&&w!==-1&&(c[E++]=(e[w]+s[3])/a[3]);return l==="RGBA"?new Pe("float32",c,[1,4,r,i]):new Pe("float32",c,[1,3,r,i])},zp=async(e,t)=>{let r=typeof HTMLImageElement<"u"&&e instanceof HTMLImageElement,i=typeof ImageData<"u"&&e instanceof ImageData,n=typeof ImageBitmap<"u"&&e instanceof ImageBitmap,a=typeof e=="string",s,o=t??{},l=()=>{if(typeof document<"u")return document.createElement("canvas");if(typeof OffscreenCanvas<"u")return new OffscreenCanvas(1,1);throw new Error("Canvas is not supported")},d=c=>typeof HTMLCanvasElement<"u"&&c instanceof HTMLCanvasElement||c instanceof OffscreenCanvas?c.getContext("2d"):null;if(r){let c=l();c.width=e.width,c.height=e.height;let h=d(c);if(h!=null){let m=e.height,y=e.width;if(t!==void 0&&t.resizedHeight!==void 0&&t.resizedWidth!==void 0&&(m=t.resizedHeight,y=t.resizedWidth),t!==void 0){if(o=t,t.tensorFormat!==void 0)throw new Error("Image input config format must be RGBA for HTMLImageElement");o.tensorFormat="RGBA",o.height=m,o.width=y}else o.tensorFormat="RGBA",o.height=m,o.width=y;h.drawImage(e,0,0),s=h.getImageData(0,0,y,m).data}else throw new Error("Can not access image data")}else if(i){let c,h;if(t!==void 0&&t.resizedWidth!==void 0&&t.resizedHeight!==void 0?(c=t.resizedHeight,h=t.resizedWidth):(c=e.height,h=e.width),t!==void 0&&(o=t),o.format="RGBA",o.height=c,o.width=h,t!==void 0){let m=l();m.width=h,m.height=c;let y=d(m);if(y!=null)y.putImageData(e,0,0),s=y.getImageData(0,0,h,c).data;else throw new Error("Can not access image data")}else s=e.data}else if(n){if(t===void 0)throw new Error("Please provide image config with format for Imagebitmap");let c=l();c.width=e.width,c.height=e.height;let h=d(c);if(h!=null){let m=e.height,y=e.width;return h.drawImage(e,0,0,y,m),s=h.getImageData(0,0,y,m).data,o.height=m,o.width=y,Fr(s,o)}else throw new Error("Can not access image data")}else{if(a)return new Promise((c,h)=>{let m=l(),y=d(m);if(!e||!y)return h();let _=new Image;_.crossOrigin="Anonymous",_.src=e,_.onload=()=>{m.width=_.width,m.height=_.height,y.drawImage(_,0,0,m.width,m.height);let w=y.getImageData(0,0,m.width,m.height);o.height=m.height,o.width=m.width,c(Fr(w.data,o))}});throw new Error("Input data provided is not supported - aborted tensor creation")}if(s!==void 0)return Fr(s,o);throw new Error("Input data provided is not supported - aborted tensor creation")},Op=(e,t)=>{let{width:r,height:i,download:n,dispose:a}=t,s=[1,i,r,4];return new Pe({location:"texture",type:"float32",texture:e,dims:s,download:n,dispose:a})},Ap=(e,t)=>{let{dataType:r,dims:i,download:n,dispose:a}=t;return new Pe({location:"gpu-buffer",type:r??"float32",gpuBuffer:e,dims:i,download:n,dispose:a})},Rp=(e,t)=>{let{dataType:r,dims:i,download:n,dispose:a}=t;return new Pe({location:"ml-tensor",type:r??"float32",mlTensor:e,dims:i,download:n,dispose:a})},Bp=(e,t,r)=>new Pe({location:"cpu-pinned",type:e,data:t,dims:r??[t.length]})}),Mt,br,Xi,Mp,p_=L(()=>{"use strict";Mt=new Map([["float32",Float32Array],["uint8",Uint8Array],["int8",Int8Array],["uint16",Uint16Array],["int16",Int16Array],["int32",Int32Array],["bool",Uint8Array],["float64",Float64Array],["uint32",Uint32Array],["int4",Uint8Array],["uint4",Uint8Array]]),br=new Map([[Float32Array,"float32"],[Uint8Array,"uint8"],[Int8Array,"int8"],[Uint16Array,"uint16"],[Int16Array,"int16"],[Int32Array,"int32"],[Float64Array,"float64"],[Uint32Array,"uint32"]]),Xi=!1,Mp=()=>{if(!Xi){Xi=!0;let e=typeof BigInt64Array<"u"&&BigInt64Array.from,t=typeof BigUint64Array<"u"&&BigUint64Array.from,r=globalThis.Float16Array,i=typeof r<"u"&&r.from;e&&(Mt.set("int64",BigInt64Array),br.set(BigInt64Array,"int64")),t&&(Mt.set("uint64",BigUint64Array),br.set(BigUint64Array,"uint64")),i?(Mt.set("float16",r),br.set(r,"float16")):Mt.set("float16",Uint16Array)}}}),Dp,Np,c_=L(()=>{"use strict";ua(),Dp=e=>{let t=1;for(let r=0;r<e.length;r++){let i=e[r];if(typeof i!="number"||!Number.isSafeInteger(i))throw new TypeError(`dims[${r}] must be an integer, got: ${i}`);if(i<0)throw new RangeError(`dims[${r}] must be a non-negative integer, got: ${i}`);t*=i}return t},Np=(e,t)=>{switch(e.location){case"cpu":return new Pe(e.type,e.data,t);case"cpu-pinned":return new Pe({location:"cpu-pinned",data:e.data,type:e.type,dims:t});case"texture":return new Pe({location:"texture",texture:e.texture,type:e.type,dims:t});case"gpu-buffer":return new Pe({location:"gpu-buffer",gpuBuffer:e.gpuBuffer,type:e.type,dims:t});case"ml-tensor":return new Pe({location:"ml-tensor",mlTensor:e.mlTensor,type:e.type,dims:t});default:throw new Error(`tensorReshape: tensor location ${e.location} is not supported`)}}}),Pe,ua=L(()=>{"use strict";l_(),d_(),p_(),c_(),Pe=class{constructor(e,t,r){Mp();let i,n;if(typeof e=="object"&&"location"in e)switch(this.dataLocation=e.location,i=e.type,n=e.dims,e.location){case"cpu-pinned":{let s=Mt.get(i);if(!s)throw new TypeError(`unsupported type "${i}" to create tensor from pinned buffer`);if(!(e.data instanceof s))throw new TypeError(`buffer should be of type ${s.name}`);this.cpuData=e.data;break}case"texture":{if(i!=="float32")throw new TypeError(`unsupported type "${i}" to create tensor from texture`);this.gpuTextureData=e.texture,this.downloader=e.download,this.disposer=e.dispose;break}case"gpu-buffer":{if(i!=="float32"&&i!=="float16"&&i!=="int32"&&i!=="int64"&&i!=="uint32"&&i!=="uint8"&&i!=="bool"&&i!=="uint4"&&i!=="int4")throw new TypeError(`unsupported type "${i}" to create tensor from gpu buffer`);this.gpuBufferData=e.gpuBuffer,this.downloader=e.download,this.disposer=e.dispose;break}case"ml-tensor":{if(i!=="float32"&&i!=="float16"&&i!=="int32"&&i!=="int64"&&i!=="uint32"&&i!=="uint64"&&i!=="int8"&&i!=="uint8"&&i!=="bool"&&i!=="uint4"&&i!=="int4")throw new TypeError(`unsupported type "${i}" to create tensor from MLTensor`);this.mlTensorData=e.mlTensor,this.downloader=e.download,this.disposer=e.dispose;break}default:throw new Error(`Tensor constructor: unsupported location '${this.dataLocation}'`)}else{let s,o;if(typeof e=="string")if(i=e,o=r,e==="string"){if(!Array.isArray(t))throw new TypeError("A string tensor's data must be a string array.");s=t}else{let l=Mt.get(e);if(l===void 0)throw new TypeError(`Unsupported tensor type: ${e}.`);if(Array.isArray(t)){if(e==="float16"&&l===Uint16Array||e==="uint4"||e==="int4")throw new TypeError(`Creating a ${e} tensor from number array is not supported. Please use ${l.name} as data.`);e==="uint64"||e==="int64"?s=l.from(t,BigInt):s=l.from(t)}else if(t instanceof l)s=t;else if(t instanceof Uint8ClampedArray)if(e==="uint8")s=Uint8Array.from(t);else throw new TypeError("A Uint8ClampedArray tensor's data must be type of uint8");else if(e==="float16"&&t instanceof Uint16Array&&l!==Uint16Array)s=new globalThis.Float16Array(t.buffer,t.byteOffset,t.length);else throw new TypeError(`A ${i} tensor's data must be type of ${l}`)}else if(o=t,Array.isArray(e)){if(e.length===0)throw new TypeError("Tensor type cannot be inferred from an empty array.");let l=typeof e[0];if(l==="string")i="string",s=e;else if(l==="boolean")i="bool",s=Uint8Array.from(e);else throw new TypeError(`Invalid element type of data array: ${l}.`)}else if(e instanceof Uint8ClampedArray)i="uint8",s=Uint8Array.from(e);else{let l=br.get(e.constructor);if(l===void 0)throw new TypeError(`Unsupported type for tensor data: ${e.constructor}.`);i=l,s=e}if(o===void 0)o=[s.length];else if(!Array.isArray(o))throw new TypeError("A tensor's dims must be a number array");n=o,this.cpuData=s,this.dataLocation="cpu"}let a=Dp(n);if(this.cpuData&&a!==this.cpuData.length&&!((i==="uint4"||i==="int4")&&Math.ceil(a/2)===this.cpuData.length))throw new Error(`Tensor's size(${a}) does not match data length(${this.cpuData.length}).`);this.type=i,this.dims=n,this.size=a}static async fromImage(e,t){return zp(e,t)}static fromTexture(e,t){return Op(e,t)}static fromGpuBuffer(e,t){return Ap(e,t)}static fromMLTensor(e,t){return Rp(e,t)}static fromPinnedBuffer(e,t,r){return Bp(e,t,r)}toDataURL(e){return kp(this,e)}toImageData(e){return Cp(this,e)}get data(){if(this.ensureValid(),!this.cpuData)throw new Error("The data is not on CPU. Use `getData()` to download GPU data to CPU, or use `texture` or `gpuBuffer` property to access the GPU data directly.");return this.cpuData}get location(){return this.dataLocation}get texture(){if(this.ensureValid(),!this.gpuTextureData)throw new Error("The data is not stored as a WebGL texture.");return this.gpuTextureData}get gpuBuffer(){if(this.ensureValid(),!this.gpuBufferData)throw new Error("The data is not stored as a WebGPU buffer.");return this.gpuBufferData}get mlTensor(){if(this.ensureValid(),!this.mlTensorData)throw new Error("The data is not stored as a WebNN MLTensor.");return this.mlTensorData}async getData(e){switch(this.ensureValid(),this.dataLocation){case"cpu":case"cpu-pinned":return this.data;case"texture":case"gpu-buffer":case"ml-tensor":{if(!this.downloader)throw new Error("The current tensor is not created with a specified data downloader.");if(this.isDownloading)throw new Error("The current tensor is being downloaded.");try{this.isDownloading=!0;let t=await this.downloader();return this.downloader=void 0,this.dataLocation="cpu",this.cpuData=t,e&&this.disposer&&(this.disposer(),this.disposer=void 0),t}finally{this.isDownloading=!1}}default:throw new Error(`cannot get data from location: ${this.dataLocation}`)}}dispose(){if(this.isDownloading)throw new Error("The current tensor is being downloaded.");this.disposer&&(this.disposer(),this.disposer=void 0),this.cpuData=void 0,this.gpuTextureData=void 0,this.gpuBufferData=void 0,this.mlTensorData=void 0,this.downloader=void 0,this.isDownloading=void 0,this.dataLocation="none"}ensureValid(){if(this.dataLocation==="none")throw new Error("The tensor is disposed.")}reshape(e){if(this.ensureValid(),this.downloader||this.disposer)throw new Error("Cannot reshape a tensor that owns GPU resource.");return Np(this,e)}}}),Je,Pp=L(()=>{"use strict";ua(),Je=Pe}),Tr,Zi,et,Ve,bt,wt,Lp=L(()=>{"use strict";Ip(),Tr=(e,t)=>{(typeof Oe.trace>"u"?!Oe.wasm.trace:!Oe.trace)||console.timeStamp(`${e}::ORT::${t}`)},Zi=(e,t)=>{let r=new Error().stack?.split(/\r\n|\r|\n/g)||[],i=!1;for(let n=0;n<r.length;n++){if(i&&!r[n].includes("TRACE_FUNC")){let a=`FUNC_${e}::${r[n].trim().split(" ")[1]}`;t&&(a+=`::${t}`),Tr("CPU",a);return}r[n].includes("TRACE_FUNC")&&(i=!0)}},et=e=>{(typeof Oe.trace>"u"?!Oe.wasm.trace:!Oe.trace)||Zi("BEGIN",e)},Ve=e=>{(typeof Oe.trace>"u"?!Oe.wasm.trace:!Oe.trace)||Zi("END",e)},bt=e=>{(typeof Oe.trace>"u"?!Oe.wasm.trace:!Oe.trace)||console.time(`ORT::${e}`)},wt=e=>{(typeof Oe.trace>"u"?!Oe.wasm.trace:!Oe.trace)||console.timeEnd(`ORT::${e}`)}}),Up,h_=L(()=>{"use strict";Tp(),Pp(),Lp(),Up=class Wp{constructor(t){this.handler=t}async run(t,r,i){et(),bt("InferenceSession.run");let n={},a={};if(typeof t!="object"||t===null||t instanceof Je||Array.isArray(t))throw new TypeError("'feeds' must be an object that use input names as keys and OnnxValue as corresponding values.");let s=!0;if(typeof r=="object"){if(r===null)throw new TypeError("Unexpected argument[1]: cannot be null.");if(r instanceof Je)throw new TypeError("'fetches' cannot be a Tensor");if(Array.isArray(r)){if(r.length===0)throw new TypeError("'fetches' cannot be an empty array.");s=!1;for(let d of r){if(typeof d!="string")throw new TypeError("'fetches' must be a string array or an object.");if(this.outputNames.indexOf(d)===-1)throw new RangeError(`'fetches' contains invalid output name: ${d}.`);n[d]=null}if(typeof i=="object"&&i!==null)a=i;else if(typeof i<"u")throw new TypeError("'options' must be an object.")}else{let d=!1,c=Object.getOwnPropertyNames(r);for(let h of this.outputNames)if(c.indexOf(h)!==-1){let m=r[h];(m===null||m instanceof Je)&&(d=!0,s=!1,n[h]=m)}if(d){if(typeof i=="object"&&i!==null)a=i;else if(typeof i<"u")throw new TypeError("'options' must be an object.")}else a=r}}else if(typeof r<"u")throw new TypeError("Unexpected argument[1]: must be 'fetches' or 'options'.");for(let d of this.inputNames)if(typeof t[d]>"u")throw new Error(`input '${d}' is missing in 'feeds'.`);if(s)for(let d of this.outputNames)n[d]=null;let o=await this.handler.run(t,n,a),l={};for(let d in o)if(Object.hasOwnProperty.call(o,d)){let c=o[d];c instanceof Je?l[d]=c:l[d]=new Je(c.type,c.data,c.dims)}return wt("InferenceSession.run"),Ve(),l}async release(){return this.handler.dispose()}static async create(t,r,i,n){et(),bt("InferenceSession.create");let a,s={};if(typeof t=="string"){if(a=t,typeof r=="object"&&r!==null)s=r;else if(typeof r<"u")throw new TypeError("'options' must be an object.")}else if(t instanceof Uint8Array){if(a=t,typeof r=="object"&&r!==null)s=r;else if(typeof r<"u")throw new TypeError("'options' must be an object.")}else if(t instanceof ArrayBuffer||typeof SharedArrayBuffer<"u"&&t instanceof SharedArrayBuffer){let c=t,h=0,m=t.byteLength;if(typeof r=="object"&&r!==null)s=r;else if(typeof r=="number"){if(h=r,!Number.isSafeInteger(h))throw new RangeError("'byteOffset' must be an integer.");if(h<0||h>=c.byteLength)throw new RangeError(`'byteOffset' is out of range [0, ${c.byteLength}).`);if(m=t.byteLength-h,typeof i=="number"){if(m=i,!Number.isSafeInteger(m))throw new RangeError("'byteLength' must be an integer.");if(m<=0||h+m>c.byteLength)throw new RangeError(`'byteLength' is out of range (0, ${c.byteLength-h}].`);if(typeof n=="object"&&n!==null)s=n;else if(typeof n<"u")throw new TypeError("'options' must be an object.")}else if(typeof i<"u")throw new TypeError("'byteLength' must be a number.")}else if(typeof r<"u")throw new TypeError("'options' must be an object.");a=new Uint8Array(c,h,m)}else throw new TypeError("Unexpected argument[0]: must be 'path' or 'buffer'.");let[o,l]=await Sp(s),d=await o.createInferenceSessionHandler(a,l);return wt("InferenceSession.create"),Ve(),new Wp(d)}startProfiling(){this.handler.startProfiling()}endProfiling(){this.handler.endProfiling()}get inputNames(){return this.handler.inputNames}get outputNames(){return this.handler.outputNames}get inputMetadata(){return this.handler.inputMetadata}get outputMetadata(){return this.handler.outputMetadata}}}),la,f_=L(()=>{"use strict";h_(),la=Up}),m_=L(()=>{"use strict"}),g_=L(()=>{"use strict"}),__=L(()=>{"use strict"}),y_=L(()=>{"use strict"}),qp={};Qt(qp,{InferenceSession:()=>la,TRACE:()=>Tr,TRACE_EVENT_BEGIN:()=>bt,TRACE_EVENT_END:()=>wt,TRACE_FUNC_BEGIN:()=>et,TRACE_FUNC_END:()=>Ve,Tensor:()=>Je,env:()=>fe,registerBackend:()=>Pt});var Ge=L(()=>{"use strict";s_(),u_(),f_(),Pp(),m_(),g_(),Lp(),__(),y_()}),da=L(()=>{"use strict"}),Vp={};Qt(Vp,{default:()=>Gp});var Qi,Yi,Gp,b_=L(()=>{"use strict";Zf(),qt(),pa(),Qi="ort-wasm-proxy-worker",Yi=globalThis.self?.name===Qi,Yi&&(self.onmessage=e=>{let{type:t,in:r}=e.data;try{switch(t){case"init-wasm":ca(r.wasm).then(()=>{Ca(r).then(()=>{postMessage({type:t})},i=>{postMessage({type:t,err:i})})},i=>{postMessage({type:t,err:i})});break;case"init-ep":{let{epName:i,env:n}=r;za(n,i).then(()=>{postMessage({type:t})},a=>{postMessage({type:t,err:a})});break}case"copy-from":{let{buffer:i}=r,n=ci(i);postMessage({type:t,out:n});break}case"create":{let{model:i,options:n}=r;Oa(i,n).then(a=>{postMessage({type:t,out:a})},a=>{postMessage({type:t,err:a})});break}case"release":Aa(r),postMessage({type:t});break;case"run":{let{sessionId:i,inputIndices:n,inputs:a,outputIndices:s,options:o}=r;Ra(i,n,a,s,new Array(s.length).fill(null),o).then(l=>{l.some(d=>d[3]!=="cpu")?postMessage({type:t,err:"Proxy does not support non-cpu tensor location."}):postMessage({type:t,out:l},Ma([...a,...l]))},l=>{postMessage({type:t,err:l})});break}case"end-profiling":Ba(r),postMessage({type:t});break;default:}}catch(i){postMessage({type:t,err:i})}}),Gp=Yi?null:e=>new Worker(e??Ne,{type:"module",name:Qi})}),Fp={};Qt(Fp,{default:()=>Hp});async function Ho(e={}){var t=e,r=!!globalThis.window,i=!!globalThis.WorkerGlobalScope,n=i&&self.name?.startsWith("em-pthread");t.mountExternalData=(u,p)=>{u.startsWith("./")&&(u=u.substring(2)),(t.Xc||(t.Xc=new Map)).set(u,p)},t.unmountExternalData=()=>{delete t.Xc},globalThis.SharedArrayBuffer??new WebAssembly.Memory({initial:0,maximum:0,shared:!0}).buffer.constructor;let a=u=>async(...p)=>{try{if(t.Yc)throw Error("Session already started");let g=t.Yc={Kd:p[0],errors:[]},f=await u(...p);if(t.Yc!==g)throw Error("Session mismatch");t.dd?.flush();let v=g.errors;if(0<v.length){let I=await Promise.all(v);if(I=I.filter(A=>A),0<I.length)throw Error(I.join(`
+`))}return f}finally{t.Yc=null}};t.jsepInit=(u,p)=>{if(u==="webgpu"){[t.dd,t.Ad,t.Ed,t.ed,t.Dd,t.$b,t.Fd,t.Hd,t.Bd,t.Cd,t.Gd]=p;let g=t.dd;t.jsepRegisterBuffer=(f,v,I,A)=>g.registerBuffer(f,v,I,A),t.jsepGetBuffer=f=>g.getBuffer(f),t.jsepCreateDownloader=(f,v,I)=>g.createDownloader(f,v,I),t.jsepOnCreateSession=f=>{g.onCreateSession(f)},t.jsepOnReleaseSession=f=>{g.onReleaseSession(f)},t.jsepOnRunStart=f=>g.onRunStart(f),t.Id=(f,v)=>{g.upload(f,v)}}else if(u==="webnn"){let g=p[0];[t.Sd,t.sd,t.webnnEnsureTensor,t.td,t.webnnDownloadTensor,t.Rd,t.webnnEnableTraceEvent]=p.slice(1),t.webnnReleaseTensorId=t.sd,t.webnnUploadTensor=t.td,t.webnnRegisterMLContext=t.Rd,t.webnnOnRunStart=f=>g.onRunStart(f),t.webnnOnRunEnd=g.onRunEnd.bind(g),t.webnnOnReleaseSession=f=>{g.onReleaseSession(f)},t.webnnCreateMLTensorDownloader=(f,v)=>g.createMLTensorDownloader(f,v),t.webnnRegisterMLTensor=(f,v,I,A)=>g.registerMLTensor(f,v,I,A),t.webnnCreateMLContext=f=>g.createMLContext(f),t.webnnRegisterMLConstant=(f,v,I,A,B,q)=>g.registerMLConstant(f,v,I,A,B,t.Xc,q),t.webnnRegisterGraphInput=g.registerGraphInput.bind(g),t.webnnIsGraphInput=g.isGraphInput.bind(g),t.webnnRegisterGraphOutput=g.registerGraphOutput.bind(g),t.webnnIsGraphOutput=g.isGraphOutput.bind(g),t.webnnCreateTemporaryTensor=g.createTemporaryTensor.bind(g),t.webnnIsGraphInputOutputTypeSupported=g.isGraphInputOutputTypeSupported.bind(g)}};let s=()=>{let u=p=>(...g)=>{let f=rt;return g=p(...g),rt!=f?new Promise((v,I)=>{Bi={resolve:v,reject:I}}):g};(()=>{for(let p of["_OrtAppendExecutionProvider","_OrtCreateSession","_OrtRun","_OrtRunWithBinding","_OrtBindInput"])t[p]=u(t[p])})(),a!==void 0&&(t._OrtRun=a(t._OrtRun),t._OrtRunWithBinding=a(t._OrtRunWithBinding)),s=void 0};t.asyncInit=()=>{s?.()};var o,l,d=(u,p)=>{throw p},c=Ye.url,h="";if(r||i){try{h=new URL(".",c).href}catch{}i&&(l=u=>{var p=new XMLHttpRequest;return p.open("GET",u,!1),p.responseType="arraybuffer",p.send(null),new Uint8Array(p.response)}),o=async u=>{if(z(u))return new Promise((g,f)=>{var v=new XMLHttpRequest;v.open("GET",u,!0),v.responseType="arraybuffer",v.onload=()=>{v.status==200||v.status==0&&v.response?g(v.response):f(v.status)},v.onerror=f,v.send(null)});var p=await fetch(u,{credentials:"same-origin"});if(p.ok)return p.arrayBuffer();throw Error(p.status+" : "+p.url)}}var m,y,_,w,S,x,b=console.log.bind(console),E=console.error.bind(console),T=b,k=E,C=!1,z=u=>u.startsWith("file://");function $(){ct.buffer!=F.buffer&&Q()}if(n){let u=function(p){try{var g=p.data,f=g.Sc;if(f==="load"){let v=[];self.onmessage=I=>v.push(I),x=()=>{postMessage({Sc:"loaded"});for(let I of v)u(I);self.onmessage=u};for(let I of g.xd)t[I]&&!t[I].proxy||(t[I]=(...A)=>{postMessage({Sc:"callHandler",wd:I,args:A})},I=="print"&&(T=t[I]),I=="printErr"&&(k=t[I]));ct=g.Od,Q(),y=g.Pd,Se(),Gr()}else if(f==="run"){(function(v){var I=($(),U)[v+52>>>2>>>0];v=($(),U)[v+56>>>2>>>0],Js(I,I-v),ue(I)})(g.Rc),Li(g.Rc,0,0,1,0,0),es(),Oi(g.Rc),W||(js(),W=!0);try{Gm(g.Md,g.bd)}catch(v){if(v!="unwind")throw v}}else g.target!=="setimmediate"&&(f==="checkMailbox"?W&&Nr():f&&(k(`worker: received unknown command ${f}`),k(g)))}catch(v){throw Ks(),v}};var D=u,W=!1;self.onunhandledrejection=p=>{throw p.reason||p},self.onmessage=u}var F,V,P,j,O,U,J,te,X,se,N,ee=!1;function Q(){var u=ct.buffer;t.HEAP8=F=new Int8Array(u),P=new Int16Array(u),t.HEAPU8=V=new Uint8Array(u),j=new Uint16Array(u),t.HEAP32=O=new Int32Array(u),t.HEAPU32=U=new Uint32Array(u),J=new Float32Array(u),te=new Float64Array(u),X=new BigInt64Array(u),se=new BigUint64Array(u)}function H(){ee=!0,n?x():st.sb()}function $e(u){throw k(u="Aborted("+u+")"),C=!0,u=new WebAssembly.RuntimeError(u+". Build with -sASSERTIONS for more info."),S?.(u),u}function Re(){return{a:{ma:m0,gb:f0,g:Fm,J:Hm,f:jm,o:Km,h:Xm,ha:Zm,b:Qm,T:Ym,Ha:ss,n:Jm,$:ds,Xa:ps,Da:cs,Fa:hs,Ya:fs,Va:ms,Oa:gs,Ua:_s,ka:ys,Ea:bs,Ba:ws,Wa:$s,Ca:vs,bb:eg,ea:rg,wa:ig,ua:ag,da:og,O:ug,H:lg,va:dg,_:_g,xa:yg,Ra:bg,za:$g,Ia:vg,sa:xg,fa:Sg,Qa:Oi,_a:Tg,R:Cg,r:Bg,c:Ci,hb:Mg,y:Dg,M:Ng,D:Pg,l:Lg,s:zs,ib:Ug,I:Wg,S:qg,j:Vg,u:Gg,q:Fg,k:Hg,La:jg,Ma:Kg,Na:Xg,Ja:Bs,Ka:Ms,ta:Ds,db:Qg,ab:e0,v:t0,aa:r0,ga:i0,$a:Yg,W:n0,Za:a0,Aa:s0,F:Zg,U:o0,la:qr,ya:l0,fb:u0,eb:d0,Sa:Us,Ta:Ws,Ga:Si,V:qs,ja:Vs,Pa:Gs,ia:Fs,kb:Q0,na:H0,lb:Z0,oa:F0,G:D0,e:b0,t:_0,w:g0,B:C0,mb:q0,K:R0,x:v0,pa:V0,Y:j0,ba:W0,nb:U0,ob:L0,P:z0,qa:P0,pb:N0,N:B0,Z:G0,d:y0,A:$0,m:w0,jb:Y0,p:S0,z:T0,C:x0,E:E0,L:O0,qb:M0,Q:K0,ca:A0,X:X0,rb:k0,ra:I0,i:c0,a:ct,cb:xi}}}async function Se(){function u(f,v){var I=st=f.exports;f={};for(let[A,B]of Object.entries(I))typeof B=="function"?(I=Eg(B),f[A]=I):f[A]=B;return st=f,st=(function(){var A=st,B=G=>oe=>G(oe)>>>0,q=G=>()=>G()>>>0;return(A=Object.assign({},A)).tb=B(A.tb),A.Xb=q(A.Xb),A.Zb=B(A.Zb),A.lc=B(A.lc),A.mc=q(A.mc),A.qc=B(A.qc),A})(),Ya.push(st._b),Hs=(f=st).tb,js=f.ub,t._OrtInit=f.vb,t._OrtGetLastError=f.wb,t._OrtCreateSessionOptions=f.xb,t._OrtAppendExecutionProvider=f.yb,t._OrtAddFreeDimensionOverride=f.zb,t._OrtAddSessionConfigEntry=f.Ab,t._OrtReleaseSessionOptions=f.Bb,t._OrtCreateSession=f.Cb,t._OrtReleaseSession=f.Db,t._OrtGetInputOutputCount=f.Eb,t._OrtGetInputOutputMetadata=f.Fb,t._OrtFree=f.Gb,t._OrtCreateTensor=f.Hb,t._OrtGetTensorData=f.Ib,t._OrtReleaseTensor=f.Jb,t._OrtCreateRunOptions=f.Kb,t._OrtAddRunConfigEntry=f.Lb,t._OrtReleaseRunOptions=f.Mb,t._OrtCreateBinding=f.Nb,t._OrtBindInput=f.Ob,t._OrtBindOutput=f.Pb,t._OrtClearBoundOutputs=f.Qb,t._OrtReleaseBinding=f.Rb,t._OrtRunWithBinding=f.Sb,t._OrtRun=f.Tb,t._OrtEndProfiling=f.Ub,t._JsepOutput=f.Vb,t._JsepGetNodeName=f.Wb,Vr=f.Xb,it=t._free=f.Yb,or=t._malloc=f.Zb,Li=f.ac,Ks=f.bc,Xs=f.cc,Zs=f.dc,Ui=f.ec,Qs=f.fc,Ys=f.gc,de=f.hc,ur=f.ic,Js=f.jc,ue=f.kc,Wi=f.lc,le=f.mc,eo=f.nc,qi=f.oc,to=f.pc,ro=f.qc,io=f.rc,Vi=f.sc,no=f.tc,ao=f.uc,so=f.vc,oo=f.wc,uo=f.xc,lo=f.yc,po=f.zc,co=f.Ac,ho=f.Bc,fo=f.Cc,mo=f.Dc,go=f.Ec,_o=f.Fc,yo=f.Gc,bo=f.Hc,wo=f.Ic,$o=f.Jc,vo=f.Kc,xo=f.Lc,So=f.Mc,To=f.Nc,Eo=f.Pc,Io=f.Qc,ko=f.$c,Co=f.ad,zo=f.fd,Oo=f.jd,Ao=f.kd,Ro=f.ld,Bo=f.md,Mo=f.nd,Do=f.od,No=f.pd,Po=f.qd,Lo=f.vd,Uo=f.Td,Wo=f.Ud,qo=f.Vd,Vo=f.Wd,y=v,st}var p,g=Re();return t.instantiateWasm?new Promise(f=>{t.instantiateWasm(g,(v,I)=>{f(u(v,I))})}):n?u(new WebAssembly.Instance(y,Re()),y):(N??=t.locateFile?t.locateFile?t.locateFile("ort-wasm-simd-threaded.jsep.wasm",h):h+"ort-wasm-simd-threaded.jsep.wasm":new URL("ort-wasm-simd-threaded.jsep.wasm",Ye.url).href,p=await(async function(f){var v=N;if(!m&&!z(v))try{var I=fetch(v,{credentials:"same-origin"});return await WebAssembly.instantiateStreaming(I,f)}catch(A){k(`wasm streaming compile failed: ${A}`),k("falling back to ArrayBuffer instantiation")}return(async function(A,B){try{var q=await(async function(G){if(!m)try{var oe=await o(G);return new Uint8Array(oe)}catch{}if(G==N&&m)G=new Uint8Array(m);else{if(!l)throw"both async and sync fetching of the wasm failed";G=l(G)}return G})(A);return await WebAssembly.instantiate(q,B)}catch(G){k(`failed to asynchronously prepare wasm: ${G}`),$e(G)}})(v,f)})(g),u(p.instance,p.module))}class ze{name="ExitStatus";constructor(p){this.message=`Program terminated with exit(${p})`,this.status=p}}var _e=u=>{u.terminate(),u.onmessage=()=>{}},Te=[],De=0,Tt=null,Ar=u=>{pt.length==0&&(rs(),ts(pt[0]));var p=pt.pop();if(!p)return 6;ar.push(p),Et[u.Rc]=p,p.Rc=u.Rc;var g={Sc:"run",Md:u.Ld,bd:u.bd,Rc:u.Rc};return p.postMessage(g,u.rd),0},dt=0,ve=(u,p,...g)=>{var f,v=16*g.length,I=le(),A=Wi(v),B=A>>>3;for(f of g)typeof f=="bigint"?(($(),X)[B++>>>0]=1n,($(),X)[B++>>>0]=f):(($(),X)[B++>>>0]=0n,($(),te)[B++>>>0]=f);return u=Xs(u,0,v,A,p),ue(I),u};function xi(u){if(n)return ve(0,1,u);if(_=u,!(0<dt)){for(var p of ar)_e(p);for(p of pt)_e(p);pt=[],ar=[],Et={},C=!0}d(0,new ze(u))}function Qa(u){if(n)return ve(1,0,u);Si(u)}var Si=u=>{if(_=u,n)throw Qa(u),"unwind";xi(u)},pt=[],ar=[],Ya=[],Et={},Ja=u=>{var p=u.Rc;delete Et[p],pt.push(u),ar.splice(ar.indexOf(u),1),u.Rc=0,Zs(p)};function es(){Ya.forEach(u=>u())}var ts=u=>new Promise(p=>{u.onmessage=v=>{var I=v.data;if(v=I.Sc,I.Zc&&I.Zc!=Vr()){var A=Et[I.Zc];A?A.postMessage(I,I.rd):k(`Internal error! Worker sent a message "${v}" to target pthread ${I.Zc}, but that thread no longer exists!`)}else v==="checkMailbox"?Nr():v==="spawnThread"?Ar(I):v==="cleanupThread"?Dr(()=>{Ja(Et[I.Nd])}):v==="loaded"?(u.loaded=!0,p(u)):I.target==="setimmediate"?u.postMessage(I):v==="uncaughtException"?u.onerror(I.error):v==="callHandler"?t[I.wd](...I.args):v&&k(`worker sent an unknown command ${v}`)},u.onerror=v=>{throw k(`worker sent an error! ${v.filename}:${v.lineno}: ${v.message}`),v};var g,f=[];for(g of[])t.propertyIsEnumerable(g)&&f.push(g);u.postMessage({Sc:"load",xd:f,Od:ct,Pd:y})});function rs(){var u=new Worker((()=>{let p=URL;return Ye.url>"file:"&&Ye.url<"file;"?new p("ort.bundle.min.mjs",Ye.url):new URL(Ye.url)})(),{type:"module",workerData:"em-pthread",name:"em-pthread"});pt.push(u)}var ct,Gm=(u,p)=>{dt=0,u=Vi(u,p),0<dt?_=u:Ui(u)},Rr=[],Br=0;function Fm(u){var p=new Ti(u>>>=0);return($(),F)[p.Tc+12>>>0]==0&&(is(p,!0),Br--),ns(p,!1),Rr.push(p),ro(u)}var Ft=0,Hm=()=>{de(0,0);var u=Rr.pop();eo(u.cd),Ft=0};function is(u,p){p=p?1:0,($(),F)[u.Tc+12>>>0]=p}function ns(u,p){p=p?1:0,($(),F)[u.Tc+13>>>0]=p}class Ti{constructor(p){this.cd=p,this.Tc=p-24}}var Ei=u=>{var p=Ft;if(!p)return ur(0),0;var g=new Ti(p);($(),U)[g.Tc+16>>>2>>>0]=p;var f=($(),U)[g.Tc+4>>>2>>>0];if(!f)return ur(0),p;for(var v of u){if(v===0||v===f)break;if(to(v,f,g.Tc+16))return ur(v),p}return ur(f),p};function jm(){return Ei([])}function Km(u){return Ei([u>>>0])}function Xm(u,p,g,f){return Ei([u>>>0,p>>>0,g>>>0,f>>>0])}var Zm=()=>{var u=Rr.pop();u||$e("no exception to throw");var p=u.cd;throw($(),F)[u.Tc+13>>>0]==0&&(Rr.push(u),ns(u,!0),is(u,!1),Br++),qi(p),Ft=p};function Qm(u,p,g){var f=new Ti(u>>>=0);throw p>>>=0,g>>>=0,($(),U)[f.Tc+16>>>2>>>0]=0,($(),U)[f.Tc+4>>>2>>>0]=p,($(),U)[f.Tc+8>>>2>>>0]=g,qi(u),Br++,Ft=u}var Ym=()=>Br;function as(u,p,g,f){return n?ve(2,1,u,p,g,f):ss(u,p,g,f)}function ss(u,p,g,f){if(u>>>=0,p>>>=0,g>>>=0,f>>>=0,!globalThis.SharedArrayBuffer)return 6;var v=[];return n&&v.length===0?as(u,p,g,f):(u={Ld:g,Rc:u,bd:f,rd:v},n?(u.Sc="spawnThread",postMessage(u,v),0):Ar(u))}function Jm(u){throw Ft||=u>>>0,Ft}var os=globalThis.TextDecoder&&new TextDecoder,us=(u,p,g,f)=>{if(g=p+g,f)return g;for(;u[p]&&!(p>=g);)++p;return p},ls=(u,p=0,g,f)=>{if(16<(g=us(u,p>>>=0,g,f))-p&&u.buffer&&os)return os.decode(u.buffer instanceof ArrayBuffer?u.subarray(p,g):u.slice(p,g));for(f="";p<g;){var v=u[p++];if(128&v){var I=63&u[p++];if((224&v)==192)f+=String.fromCharCode((31&v)<<6|I);else{var A=63&u[p++];65536>(v=(240&v)==224?(15&v)<<12|I<<6|A:(7&v)<<18|I<<12|A<<6|63&u[p++])?f+=String.fromCharCode(v):(v-=65536,f+=String.fromCharCode(55296|v>>10,56320|1023&v))}}else f+=String.fromCharCode(v)}return f},ke=(u,p,g)=>(u>>>=0)?ls(($(),V),u,p,g):"";function ds(u,p,g){return n?ve(3,1,u,p,g):0}function ps(u,p){if(n)return ve(4,1,u,p)}function cs(u,p){if(n)return ve(5,1,u,p)}function hs(u,p,g){if(n)return ve(6,1,u,p,g)}function fs(u,p,g){return n?ve(7,1,u,p,g):0}function ms(u,p){if(n)return ve(8,1,u,p)}function gs(u,p,g){if(n)return ve(9,1,u,p,g)}function _s(u,p,g,f){if(n)return ve(10,1,u,p,g,f)}function ys(u,p,g,f){if(n)return ve(11,1,u,p,g,f)}function bs(u,p,g,f){if(n)return ve(12,1,u,p,g,f)}function ws(u){if(n)return ve(13,1,u)}function $s(u,p){if(n)return ve(14,1,u,p)}function vs(u,p,g){if(n)return ve(15,1,u,p,g)}var eg=()=>$e(""),tt=u=>{u>>>=0;for(var p="";;){var g=($(),V)[u++>>>0];if(!g)return p;p+=String.fromCharCode(g)}},Ii={},ki={},tg={},Ht=class extends Error{constructor(u){super(u),this.name="BindingError"}};function at(u,p,g={}){return(function(f,v,I={}){var A=v.name;if(!f)throw new Ht(`type "${A}" must have a positive integer typeid pointer`);if(ki.hasOwnProperty(f)){if(I.yd)return;throw new Ht(`Cannot register type '${A}' twice`)}ki[f]=v,delete tg[f],Ii.hasOwnProperty(f)&&(v=Ii[f],delete Ii[f],v.forEach(B=>B()))})(u,p,g)}var xs=(u,p,g)=>{switch(p){case 1:return g?f=>($(),F)[f>>>0]:f=>($(),V)[f>>>0];case 2:return g?f=>($(),P)[f>>>1>>>0]:f=>($(),j)[f>>>1>>>0];case 4:return g?f=>($(),O)[f>>>2>>>0]:f=>($(),U)[f>>>2>>>0];case 8:return g?f=>($(),X)[f>>>3>>>0]:f=>($(),se)[f>>>3>>>0];default:throw new TypeError(`invalid integer width (${p}): ${u}`)}};function rg(u,p,g,f,v){u>>>=0,g>>>=0,p=tt(p>>>0);let I=A=>A;if(f=f===0n){let A=8*g;I=B=>BigInt.asUintN(A,B),v=I(v)}at(u,{name:p,Oc:I,Vc:(A,B)=>(typeof B=="number"&&(B=BigInt(B)),B),Uc:xs(p,g,!f),Wc:null})}function ig(u,p,g,f){at(u>>>=0,{name:p=tt(p>>>0),Oc:function(v){return!!v},Vc:function(v,I){return I?g:f},Uc:function(v){return this.Oc(($(),V)[v>>>0])},Wc:null})}var Ss=[],It=[0,1,,1,null,1,!0,1,!1,1];function Ci(u){9<(u>>>=0)&&--It[u+1]===0&&(It[u]=void 0,Ss.push(u))}var We=u=>{if(!u)throw new Ht(`Cannot use deleted val. handle = ${u}`);return It[u]},Fe=u=>{switch(u){case void 0:return 2;case null:return 4;case!0:return 6;case!1:return 8;default:let p=Ss.pop()||It.length;return It[p]=u,It[p+1]=1,p}};function zi(u){return this.Oc(($(),U)[u>>>2>>>0])}var ng={name:"emscripten::val",Oc:u=>{var p=We(u);return Ci(u),p},Vc:(u,p)=>Fe(p),Uc:zi,Wc:null};function ag(u){return at(u>>>0,ng)}var sg=(u,p)=>{switch(p){case 4:return function(g){return this.Oc(($(),J)[g>>>2>>>0])};case 8:return function(g){return this.Oc(($(),te)[g>>>3>>>0])};default:throw new TypeError(`invalid float width (${p}): ${u}`)}};function og(u,p,g){g>>>=0,at(u>>>=0,{name:p=tt(p>>>0),Oc:f=>f,Vc:(f,v)=>v,Uc:sg(p,g),Wc:null})}function ug(u,p,g,f,v){u>>>=0,g>>>=0,p=tt(p>>>0);let I=B=>B;if(f===0){var A=32-8*g;I=B=>B<<A>>>A,v=I(v)}at(u,{name:p,Oc:I,Vc:(B,q)=>q,Uc:xs(p,g,f!==0),Wc:null})}function lg(u,p,g){function f(I){var A=($(),U)[I>>>2>>>0];return I=($(),U)[I+4>>>2>>>0],new v(($(),F).buffer,I,A)}var v=[Int8Array,Uint8Array,Int16Array,Uint16Array,Int32Array,Uint32Array,Float32Array,Float64Array,BigInt64Array,BigUint64Array][p];at(u>>>=0,{name:g=tt(g>>>0),Oc:f,Uc:f},{yd:!0})}var ht=(u,p,g)=>{var f=($(),V);if(p>>>=0,0<g){var v=p;g=p+g-1;for(var I=0;I<u.length;++I){var A=u.codePointAt(I);if(127>=A){if(p>=g)break;f[p++>>>0]=A}else if(2047>=A){if(p+1>=g)break;f[p++>>>0]=192|A>>6,f[p++>>>0]=128|63&A}else if(65535>=A){if(p+2>=g)break;f[p++>>>0]=224|A>>12,f[p++>>>0]=128|A>>6&63,f[p++>>>0]=128|63&A}else{if(p+3>=g)break;f[p++>>>0]=240|A>>18,f[p++>>>0]=128|A>>12&63,f[p++>>>0]=128|A>>6&63,f[p++>>>0]=128|63&A,I++}}f[p>>>0]=0,u=p-v}else u=0;return u},Mr=u=>{for(var p=0,g=0;g<u.length;++g){var f=u.charCodeAt(g);127>=f?p++:2047>=f?p+=2:55296<=f&&57343>=f?(p+=4,++g):p+=3}return p};function dg(u,p){at(u>>>=0,{name:p=tt(p>>>0),Oc(g){var f=($(),U)[g>>>2>>>0];return f=ke(g+4,f,!0),it(g),f},Vc(g,f){f instanceof ArrayBuffer&&(f=new Uint8Array(f));var v=typeof f=="string";if(!(v||ArrayBuffer.isView(f)&&f.BYTES_PER_ELEMENT==1))throw new Ht("Cannot pass non-string to std::string");var I=v?Mr(f):f.length,A=or(4+I+1),B=A+4;return($(),U)[A>>>2>>>0]=I,v?ht(f,B,I+1):($(),V).set(f,B>>>0),g!==null&&g.push(it,A),A},Uc:zi,Wc(g){it(g)}})}var Ts=globalThis.TextDecoder?new TextDecoder("utf-16le"):void 0,pg=(u,p,g)=>{if(u>>>=1,16<(p=us(($(),j),u,p/2,g))-u&&Ts)return Ts.decode(($(),j).slice(u,p));for(g="";u<p;++u){var f=($(),j)[u>>>0];g+=String.fromCharCode(f)}return g},cg=(u,p,g)=>{if(g??=2147483647,2>g)return 0;var f=p;g=(g-=2)<2*u.length?g/2:u.length;for(var v=0;v<g;++v){var I=u.charCodeAt(v);($(),P)[p>>>1>>>0]=I,p+=2}return($(),P)[p>>>1>>>0]=0,p-f},hg=u=>2*u.length,fg=(u,p,g)=>{var f="";u>>>=2;for(var v=0;!(v>=p/4);v++){var I=($(),U)[u+v>>>0];if(!I&&!g)break;f+=String.fromCodePoint(I)}return f},mg=(u,p,g)=>{if(p>>>=0,g??=2147483647,4>g)return 0;var f=p;g=f+g-4;for(var v=0;v<u.length;++v){var I=u.codePointAt(v);if(65535<I&&v++,($(),O)[p>>>2>>>0]=I,(p+=4)+4>g)break}return($(),O)[p>>>2>>>0]=0,p-f},gg=u=>{for(var p=0,g=0;g<u.length;++g)65535<u.codePointAt(g)&&g++,p+=4;return p};function _g(u,p,g){if(u>>>=0,p>>>=0,g=tt(g>>>=0),p===2)var f=pg,v=cg,I=hg;else f=fg,v=mg,I=gg;at(u,{name:g,Oc:A=>{var B=($(),U)[A>>>2>>>0];return B=f(A+4,B*p,!0),it(A),B},Vc:(A,B)=>{if(typeof B!="string")throw new Ht(`Cannot pass non-string to C++ string type ${g}`);var q=I(B),G=or(4+q+p);return($(),U)[G>>>2>>>0]=q/p,v(B,G+4,q+p),A!==null&&A.push(it,G),G},Uc:zi,Wc(A){it(A)}})}function yg(u,p){at(u>>>=0,{zd:!0,name:p=tt(p>>>0),Oc:()=>{},Vc:()=>{}})}function bg(u){Li(u>>>0,!i,1,!r,131072,!1),es()}var Dr=u=>{if(!C)try{if(u(),!(0<dt))try{n?Vr()&&Ui(_):Si(_)}catch(p){p instanceof ze||p=="unwind"||d(0,p)}}catch(p){p instanceof ze||p=="unwind"||d(0,p)}},wg=!Atomics.waitAsync||globalThis.navigator?.userAgent&&91>Number((navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)||[])[2]);function Oi(u){u>>>=0,wg||(Atomics.waitAsync(($(),O),u>>>2,u).value.then(Nr),u+=128,Atomics.store(($(),O),u>>>2,1))}var Nr=()=>Dr(()=>{var u=Vr();u&&(Oi(u),Ys())});function $g(u,p){(u>>>=0)==p>>>0?setTimeout(Nr):n?postMessage({Zc:u,Sc:"checkMailbox"}):(u=Et[u])&&u.postMessage({Sc:"checkMailbox"})}var Ai=[];function vg(u,p,g,f,v){for(p>>>=0,v>>>=0,Ai.length=0,g=v>>>3,f=v+f>>>3;g<f;){var I;I=($(),X)[g++>>>0]?($(),X)[g++>>>0]:($(),te)[g++>>>0],Ai.push(I)}return(p?Gi[p]:h0[u])(...Ai)}var xg=()=>{dt=0};function Sg(u){u>>>=0,n?postMessage({Sc:"cleanupThread",Nd:u}):Ja(Et[u])}function Tg(u){}var Pr=u=>{try{u()}catch(p){$e(p)}};function Eg(u){var p=(...g)=>{Lr.push(u);try{return u(...g)}finally{C||(Lr.pop(),rt&&ft===1&&Lr.length===0&&(ft=0,dt+=1,Pr(Wo),typeof Fibers<"u"&&Fibers.Zd()))}};return ks.set(u,p),p}var ft=0,rt=null,Es=0,Lr=[],Ri=new Map,Is=new Map,ks=new Map,Ig=0,Bi=null,kg=[],Cs=u=>(function(p){if(!C){if(ft===0){var g=!1,f=!1;p((v=0)=>{if(!C&&(Es=v,g=!0,f)){ft=2,Pr(()=>qo(rt)),typeof MainLoop<"u"&&MainLoop.ud&&MainLoop.resume(),v=!1;try{var I=(function(){var q=($(),O)[rt+8>>>2>>>0];return q=Is.get(q),q=ks.get(q),--dt,q()})()}catch(q){I=q,v=!0}var A=!1;if(!rt){var B=Bi;B&&(Bi=null,(v?B.reject:B.resolve)(I),A=!0)}if(v&&!A)throw I}}),f=!0,g||(ft=1,rt=(function(){var v=or(65548),I=v+12;if(($(),U)[v>>>2>>>0]=I,($(),U)[v+4>>>2>>>0]=I+65536,I=Lr[0],!Ri.has(I)){var A=Ig++;Ri.set(I,A),Is.set(A,I)}return I=Ri.get(I),($(),O)[v+8>>>2>>>0]=I,v})(),typeof MainLoop<"u"&&MainLoop.ud&&MainLoop.pause(),Pr(()=>Uo(rt)))}else ft===2?(ft=0,Pr(Vo),it(rt),rt=null,kg.forEach(Dr)):$e(`invalid state: ${ft}`);return Es}})(p=>{u().then(p)});function Cg(u){return u>>>=0,Cs(async()=>{var p=await We(u);return Fe(p)})}var Mi=[],zg=u=>{var p=Mi.length;return Mi.push(u),p},Og=(u,p)=>{for(var g=Array(u),f=0;f<u;++f){var v=f,I=($(),U)[p+4*f>>>2>>>0],A=ki[I];if(A===void 0)throw u=`parameter ${f}`,I=Hs(I),p=tt(I),it(I),new Ht(`${u} has unknown type ${p}`);g[v]=A}return g},Ag=(u,p,g)=>{var f=[];return u=u(f,g),f.length&&(($(),U)[p>>>2>>>0]=Fe(f)),u},Rg={},Ur=u=>{var p=Rg[u];return p===void 0?tt(u):p};function Bg(u,p,g){var[f,...v]=Og(u,p>>>0);p=f.Vc.bind(f);var I=v.map(q=>q.Uc.bind(q));u--;var A={toValue:We};switch(u=I.map((q,G)=>{var oe=`argFromPtr${G}`;return A[oe]=q,`${oe}(args${G?"+"+8*G:""})`}),g){case 0:var B="toValue(handle)";break;case 2:B="new (toValue(handle))";break;case 3:B="";break;case 1:A.getStringOrSymbol=Ur,B="toValue(handle)[getStringOrSymbol(methodName)]"}return B+=`(${u})`,f.zd||(A.toReturnWire=p,A.emval_returnValue=Ag,B=`return emval_returnValue(toReturnWire, destructorsRef, ${B})`),B=`return function (handle, methodName, destructorsRef, args) {
+  ${B}
+  }`,g=new Function(Object.keys(A),B)(...Object.values(A)),B=`methodCaller<(${v.map(q=>q.name)}) => ${f.name}>`,zg(Object.defineProperty(g,"name",{value:B}))}function Mg(u,p){return p>>>=0,(u=We(u>>>0))==We(p)}function Dg(u){return(u>>>=0)?(u=Ur(u),Fe(globalThis[u])):Fe(globalThis)}function Ng(u){return u=Ur(u>>>0),Fe(t[u])}function Pg(u,p){return p>>>=0,u=We(u>>>0),p=We(p),Fe(u[p])}function Lg(u){9<(u>>>=0)&&(It[u+1]+=1)}function zs(u,p,g,f,v){return Mi[u>>>0](p>>>0,g>>>0,f>>>0,v>>>0)}function Ug(u,p,g,f,v){return zs(u>>>0,p>>>0,g>>>0,f>>>0,v>>>0)}function Wg(){return Fe([])}function qg(u){u=We(u>>>0);for(var p=Array(u.length),g=0;g<u.length;g++)p[g]=u[g];return Fe(p)}function Vg(u){return Fe(Ur(u>>>0))}function Gg(){return Fe({})}function Fg(u){for(var p=We(u>>>=0);p.length;){var g=p.pop();p.pop()(g)}Ci(u)}function Hg(u,p,g){p>>>=0,g>>>=0,u=We(u>>>0),p=We(p),g=We(g),u[p]=g}function jg(u,p){u=-9007199254740992>u||9007199254740992<u?NaN:Number(u),p>>>=0,u=new Date(1e3*u),($(),O)[p>>>2>>>0]=u.getUTCSeconds(),($(),O)[p+4>>>2>>>0]=u.getUTCMinutes(),($(),O)[p+8>>>2>>>0]=u.getUTCHours(),($(),O)[p+12>>>2>>>0]=u.getUTCDate(),($(),O)[p+16>>>2>>>0]=u.getUTCMonth(),($(),O)[p+20>>>2>>>0]=u.getUTCFullYear()-1900,($(),O)[p+24>>>2>>>0]=u.getUTCDay(),u=(u.getTime()-Date.UTC(u.getUTCFullYear(),0,1,0,0,0,0))/864e5|0,($(),O)[p+28>>>2>>>0]=u}var Os=u=>u%4==0&&(u%100!=0||u%400==0),As=[0,31,60,91,121,152,182,213,244,274,305,335],Rs=[0,31,59,90,120,151,181,212,243,273,304,334];function Kg(u,p){u=-9007199254740992>u||9007199254740992<u?NaN:Number(u),p>>>=0,u=new Date(1e3*u),($(),O)[p>>>2>>>0]=u.getSeconds(),($(),O)[p+4>>>2>>>0]=u.getMinutes(),($(),O)[p+8>>>2>>>0]=u.getHours(),($(),O)[p+12>>>2>>>0]=u.getDate(),($(),O)[p+16>>>2>>>0]=u.getMonth(),($(),O)[p+20>>>2>>>0]=u.getFullYear()-1900,($(),O)[p+24>>>2>>>0]=u.getDay();var g=(Os(u.getFullYear())?As:Rs)[u.getMonth()]+u.getDate()-1|0;($(),O)[p+28>>>2>>>0]=g,($(),O)[p+36>>>2>>>0]=-60*u.getTimezoneOffset(),g=new Date(u.getFullYear(),6,1).getTimezoneOffset();var f=new Date(u.getFullYear(),0,1).getTimezoneOffset();u=0|(g!=f&&u.getTimezoneOffset()==Math.min(f,g)),($(),O)[p+32>>>2>>>0]=u}function Xg(u){u>>>=0;var p=new Date(($(),O)[u+20>>>2>>>0]+1900,($(),O)[u+16>>>2>>>0],($(),O)[u+12>>>2>>>0],($(),O)[u+8>>>2>>>0],($(),O)[u+4>>>2>>>0],($(),O)[u>>>2>>>0],0),g=($(),O)[u+32>>>2>>>0],f=p.getTimezoneOffset(),v=new Date(p.getFullYear(),6,1).getTimezoneOffset(),I=new Date(p.getFullYear(),0,1).getTimezoneOffset(),A=Math.min(I,v);return 0>g?($(),O)[u+32>>>2>>>0]=+(v!=I&&A==f):0<g!=(A==f)&&(v=Math.max(I,v),p.setTime(p.getTime()+6e4*((0<g?A:v)-f))),($(),O)[u+24>>>2>>>0]=p.getDay(),g=(Os(p.getFullYear())?As:Rs)[p.getMonth()]+p.getDate()-1|0,($(),O)[u+28>>>2>>>0]=g,($(),O)[u>>>2>>>0]=p.getSeconds(),($(),O)[u+4>>>2>>>0]=p.getMinutes(),($(),O)[u+8>>>2>>>0]=p.getHours(),($(),O)[u+12>>>2>>>0]=p.getDate(),($(),O)[u+16>>>2>>>0]=p.getMonth(),($(),O)[u+20>>>2>>>0]=p.getYear(),u=p.getTime(),BigInt(isNaN(u)?-1:u/1e3)}function Bs(u,p,g,f,v,I,A){return n?ve(16,1,u,p,g,f,v,I,A):-52}function Ms(u,p,g,f,v,I){if(n)return ve(17,1,u,p,g,f,v,I)}var sr={},Zg=()=>performance.timeOrigin+performance.now();function Ds(u,p){if(n)return ve(18,1,u,p);if(sr[u]&&(clearTimeout(sr[u].id),delete sr[u]),!p)return 0;var g=setTimeout(()=>{delete sr[u],Dr(()=>Qs(u,performance.timeOrigin+performance.now()))},p);return sr[u]={id:g,Yd:p},0}function Qg(u,p,g,f){u>>>=0,p>>>=0,g>>>=0,f>>>=0;var v=new Date().getFullYear(),I=new Date(v,0,1).getTimezoneOffset();v=new Date(v,6,1).getTimezoneOffset();var A=Math.max(I,v);($(),U)[u>>>2>>>0]=60*A,($(),O)[p>>>2>>>0]=+(I!=v),u=(p=B=>{var q=Math.abs(B);return`UTC${0<=B?"-":"+"}${String(Math.floor(q/60)).padStart(2,"0")}${String(q%60).padStart(2,"0")}`})(I),p=p(v),v<I?(ht(u,g,17),ht(p,f,17)):(ht(u,f,17),ht(p,g,17))}var Yg=()=>Date.now(),Jg=1;function e0(u,p,g){if(g>>>=0,!(0<=u&&3>=u))return 28;if(u===0)u=Date.now();else{if(!Jg)return 52;u=performance.timeOrigin+performance.now()}return u=Math.round(1e6*u),($(),X)[g>>>3>>>0]=BigInt(u),0}var Di=[],Ns=(u,p)=>{Di.length=0;for(var g;g=($(),V)[u++>>>0];){var f=g!=105;p+=(f&=g!=112)&&p%8?4:0,Di.push(g==112?($(),U)[p>>>2>>>0]:g==106?($(),X)[p>>>3>>>0]:g==105?($(),O)[p>>>2>>>0]:($(),te)[p>>>3>>>0]),p+=f?8:4}return Di};function t0(u,p,g){return u>>>=0,p=Ns(p>>>0,g>>>0),Gi[u](...p)}function r0(u,p,g){return u>>>=0,p=Ns(p>>>0,g>>>0),Gi[u](...p)}var i0=()=>{};function n0(u,p){return k(ke(u>>>0,p>>>0))}var a0=()=>{throw dt+=1,"unwind"};function s0(){return 4294901760}var o0=()=>navigator.hardwareConcurrency,kt={},Wr=u=>{var p;return(p=/\bwasm-function\[\d+\]:(0x[0-9a-f]+)/.exec(u))?+p[1]:(p=/:(\d+):\d+(?:\)|$)/.exec(u))?2147483648|+p[1]:0},Ps=u=>{for(var p of u)(u=Wr(p))&&(kt[u]=p)};function u0(){var u=Error().stack.toString().split(`
+`);return u[0]=="Error"&&u.shift(),Ps(u),kt.gd=Wr(u[3]),kt.Jd=u,kt.gd}function qr(u){if(!(u=kt[u>>>0]))return 0;var p;if(p=/^\s+at .*\.wasm\.(.*) \(.*\)$/.exec(u))u=p[1];else if(p=/^\s+at (.*) \(.*\)$/.exec(u))u=p[1];else{if(!(p=/^(.+?)@/.exec(u)))return 0;u=p[1]}it(qr.hd??0),p=Mr(u)+1;var g=or(p);return g&&ht(u,g,p),qr.hd=g,qr.hd}function l0(u){u>>>=0;var p=($(),V).length;if(u<=p||4294901760<u)return!1;for(var g=1;4>=g;g*=2){var f=p*(1+.2/g);f=Math.min(f,u+100663296);e:{f=(Math.min(4294901760,65536*Math.ceil(Math.max(u,f)/65536))-ct.buffer.byteLength+65535)/65536|0;try{ct.grow(f),Q();var v=1;break e}catch{}v=void 0}if(v)return!0}return!1}function d0(u,p,g){if(u>>>=0,p>>>=0,kt.gd==u)var f=kt.Jd;else(f=Error().stack.toString().split(`
+`))[0]=="Error"&&f.shift(),Ps(f);for(var v=3;f[v]&&Wr(f[v])!=u;)++v;for(u=0;u<g&&f[u+v];++u)($(),O)[p+4*u>>>2>>>0]=Wr(f[u+v]);return u}var Ni,Pi={},Ls=()=>{if(!Ni){var u,p={USER:"web_user",LOGNAME:"web_user",PATH:"/",PWD:"/",HOME:"/home/web_user",LANG:(globalThis.navigator?.language??"C").replace("-","_")+".UTF-8",_:"./this.program"};for(u in Pi)Pi[u]===void 0?delete p[u]:p[u]=Pi[u];var g=[];for(u in p)g.push(`${u}=${p[u]}`);Ni=g}return Ni};function Us(u,p){if(n)return ve(19,1,u,p);u>>>=0,p>>>=0;var g,f=0,v=0;for(g of Ls()){var I=p+f;($(),U)[u+v>>>2>>>0]=I,f+=ht(g,I,1/0)+1,v+=4}return 0}function Ws(u,p){if(n)return ve(20,1,u,p);u>>>=0,p>>>=0;var g=Ls();for(var f of(($(),U)[u>>>2>>>0]=g.length,u=0,g))u+=Mr(f)+1;return($(),U)[p>>>2>>>0]=u,0}function qs(u){return n?ve(21,1,u):52}function Vs(u,p,g,f){return n?ve(22,1,u,p,g,f):52}function Gs(u,p,g,f){return n?ve(23,1,u,p,g,f):70}var p0=[null,[],[]];function Fs(u,p,g,f){if(n)return ve(24,1,u,p,g,f);p>>>=0,g>>>=0,f>>>=0;for(var v=0,I=0;I<g;I++){var A=($(),U)[p>>>2>>>0],B=($(),U)[p+4>>>2>>>0];p+=8;for(var q=0;q<B;q++){var G=u,oe=($(),V)[A+q>>>0],ce=p0[G];oe===0||oe===10?((G===1?T:k)(ls(ce)),ce.length=0):ce.push(oe)}v+=B}return($(),U)[f>>>2>>>0]=v,0}function c0(u){return u>>>0}n||(function(){for(var u=t.numThreads-1;u--;)rs();Te.push(async()=>{var p=(async function(){if(!n)return Promise.all(pt.map(ts))})();De++,await p,--De==0&&Tt&&(p=Tt,Tt=null,p())})})(),n||(ct=new WebAssembly.Memory({initial:256,maximum:65536,shared:!0}),Q()),t.wasmBinary&&(m=t.wasmBinary),t.stackSave=()=>le(),t.stackRestore=u=>ue(u),t.stackAlloc=u=>Wi(u),t.setValue=function(u,p,g="i8"){switch(g.endsWith("*")&&(g="*"),g){case"i1":case"i8":($(),F)[u>>>0]=p;break;case"i16":($(),P)[u>>>1>>>0]=p;break;case"i32":($(),O)[u>>>2>>>0]=p;break;case"i64":($(),X)[u>>>3>>>0]=BigInt(p);break;case"float":($(),J)[u>>>2>>>0]=p;break;case"double":($(),te)[u>>>3>>>0]=p;break;case"*":($(),U)[u>>>2>>>0]=p;break;default:$e(`invalid type for setValue: ${g}`)}},t.getValue=function(u,p="i8"){switch(p.endsWith("*")&&(p="*"),p){case"i1":case"i8":return($(),F)[u>>>0];case"i16":return($(),P)[u>>>1>>>0];case"i32":return($(),O)[u>>>2>>>0];case"i64":return($(),X)[u>>>3>>>0];case"float":return($(),J)[u>>>2>>>0];case"double":return($(),te)[u>>>3>>>0];case"*":return($(),U)[u>>>2>>>0];default:$e(`invalid type for getValue: ${p}`)}},t.UTF8ToString=ke,t.stringToUTF8=ht,t.lengthBytesUTF8=Mr;var Hs,js,Vr,it,or,Li,Ks,Xs,Zs,Ui,Qs,Ys,de,ur,Js,ue,Wi,le,eo,qi,to,ro,io,Vi,no,ao,so,oo,uo,lo,po,co,ho,fo,mo,go,_o,yo,bo,wo,$o,vo,xo,So,To,Eo,Io,ko,Co,zo,Oo,Ao,Ro,Bo,Mo,Do,No,Po,Lo,Uo,Wo,qo,Vo,st,h0=[xi,Qa,as,ds,ps,cs,hs,fs,ms,gs,_s,ys,bs,ws,$s,vs,Bs,Ms,Ds,Us,Ws,qs,Vs,Gs,Fs],Gi={1003524:(u,p,g,f,v)=>{if(t===void 0||!t.Xc)return 1;if((u=ke(Number(u>>>0))).startsWith("./")&&(u=u.substring(2)),!(u=t.Xc.get(u)))return 2;if(p=Number(p>>>0),g=Number(g>>>0),f=Number(f>>>0),p+g>u.byteLength)return 3;try{let I=u.subarray(p,p+g);switch(v){case 0:($(),V).set(I,f>>>0);break;case 1:t.Qd?t.Qd(f,I):t.Id(f,I);break;default:return 4}return 0}catch{return 4}},1004348:(u,p,g)=>{t.td(u,($(),V).subarray(p>>>0,p+g>>>0))},1004412:()=>t.Sd(),1004454:u=>{t.sd(u)},1004491:()=>{t.Bd()},1004522:()=>{t.Cd()},1004551:()=>{t.Gd()},1004576:u=>t.Ad(u),1004609:u=>t.Ed(u),1004641:(u,p,g)=>{t.ed(Number(u),Number(p),Number(g),!0)},1004704:(u,p,g)=>{t.ed(Number(u),Number(p),Number(g))},1004761:()=>typeof wasmOffsetConverter<"u",1004818:u=>{t.$b("Abs",u,void 0)},1004869:u=>{t.$b("Neg",u,void 0)},1004920:u=>{t.$b("Floor",u,void 0)},1004973:u=>{t.$b("Ceil",u,void 0)},1005025:u=>{t.$b("Reciprocal",u,void 0)},1005083:u=>{t.$b("Sqrt",u,void 0)},1005135:u=>{t.$b("Exp",u,void 0)},1005186:u=>{t.$b("Erf",u,void 0)},1005237:u=>{t.$b("Sigmoid",u,void 0)},1005292:(u,p,g)=>{t.$b("HardSigmoid",u,{alpha:p,beta:g})},1005371:u=>{t.$b("Log",u,void 0)},1005422:u=>{t.$b("Sin",u,void 0)},1005473:u=>{t.$b("Cos",u,void 0)},1005524:u=>{t.$b("Tan",u,void 0)},1005575:u=>{t.$b("Asin",u,void 0)},1005627:u=>{t.$b("Acos",u,void 0)},1005679:u=>{t.$b("Atan",u,void 0)},1005731:u=>{t.$b("Sinh",u,void 0)},1005783:u=>{t.$b("Cosh",u,void 0)},1005835:u=>{t.$b("Asinh",u,void 0)},1005888:u=>{t.$b("Acosh",u,void 0)},1005941:u=>{t.$b("Atanh",u,void 0)},1005994:u=>{t.$b("Tanh",u,void 0)},1006046:u=>{t.$b("Not",u,void 0)},1006097:(u,p,g)=>{t.$b("Clip",u,{min:p,max:g})},1006166:u=>{t.$b("Clip",u,void 0)},1006218:(u,p)=>{t.$b("Elu",u,{alpha:p})},1006276:u=>{t.$b("Gelu",u,void 0)},1006328:u=>{t.$b("Relu",u,void 0)},1006380:(u,p)=>{t.$b("LeakyRelu",u,{alpha:p})},1006444:(u,p)=>{t.$b("ThresholdedRelu",u,{alpha:p})},1006514:(u,p)=>{t.$b("Cast",u,{to:p})},1006572:u=>{t.$b("Add",u,void 0)},1006623:u=>{t.$b("Sub",u,void 0)},1006674:u=>{t.$b("Mul",u,void 0)},1006725:u=>{t.$b("Div",u,void 0)},1006776:u=>{t.$b("Pow",u,void 0)},1006827:u=>{t.$b("Equal",u,void 0)},1006880:u=>{t.$b("Greater",u,void 0)},1006935:u=>{t.$b("GreaterOrEqual",u,void 0)},1006997:u=>{t.$b("Less",u,void 0)},1007049:u=>{t.$b("LessOrEqual",u,void 0)},1007108:(u,p,g,f,v)=>{t.$b("ReduceMean",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1007283:(u,p,g,f,v)=>{t.$b("ReduceMax",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1007457:(u,p,g,f,v)=>{t.$b("ReduceMin",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1007631:(u,p,g,f,v)=>{t.$b("ReduceProd",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1007806:(u,p,g,f,v)=>{t.$b("ReduceSum",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1007980:(u,p,g,f,v)=>{t.$b("ReduceL1",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1008153:(u,p,g,f,v)=>{t.$b("ReduceL2",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1008326:(u,p,g,f,v)=>{t.$b("ReduceLogSum",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1008503:(u,p,g,f,v)=>{t.$b("ReduceSumSquare",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1008683:(u,p,g,f,v)=>{t.$b("ReduceLogSumExp",u,{keepDims:!!p,noopWithEmptyAxes:!!g,axes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1008863:u=>{t.$b("Where",u,void 0)},1008916:(u,p,g)=>{t.$b("Transpose",u,{perm:p?Array.from(($(),O).subarray(Number(p)>>>0,Number(g)>>>0)):[]})},1009040:(u,p,g,f)=>{t.$b("DepthToSpace",u,{blocksize:p,mode:ke(g),format:f?"NHWC":"NCHW"})},1009173:(u,p,g,f)=>{t.$b("DepthToSpace",u,{blocksize:p,mode:ke(g),format:f?"NHWC":"NCHW"})},1009306:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we,mt)=>{t.$b("ConvTranspose",u,{format:q?"NHWC":"NCHW",autoPad:p,dilations:[g],group:f,kernelShape:[v],pads:[I,A],strides:[B],wIsConst:()=>!!($(),F)[G>>>0],outputPadding:oe?Array.from(($(),O).subarray(Number(oe)>>>0,Number(ce)>>>0)):[],outputShape:ye?Array.from(($(),O).subarray(Number(ye)>>>0,Number(we)>>>0)):[],activation:ke(mt)})},1009739:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we)=>{t.$b("ConvTranspose",u,{format:B?"NHWC":"NCHW",autoPad:p,dilations:Array.from(($(),O).subarray(Number(g)>>>0,(Number(g)>>>0)+2>>>0)),group:f,kernelShape:Array.from(($(),O).subarray(Number(v)>>>0,(Number(v)>>>0)+2>>>0)),pads:Array.from(($(),O).subarray(Number(I)>>>0,(Number(I)>>>0)+4>>>0)),strides:Array.from(($(),O).subarray(Number(A)>>>0,(Number(A)>>>0)+2>>>0)),wIsConst:()=>!!($(),F)[q>>>0],outputPadding:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],outputShape:ce?Array.from(($(),O).subarray(Number(ce)>>>0,Number(ye)>>>0)):[],activation:ke(we)})},1010400:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we,mt)=>{t.$b("ConvTranspose",u,{format:q?"NHWC":"NCHW",autoPad:p,dilations:[g],group:f,kernelShape:[v],pads:[I,A],strides:[B],wIsConst:()=>!!($(),F)[G>>>0],outputPadding:oe?Array.from(($(),O).subarray(Number(oe)>>>0,Number(ce)>>>0)):[],outputShape:ye?Array.from(($(),O).subarray(Number(ye)>>>0,Number(we)>>>0)):[],activation:ke(mt)})},1010833:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we)=>{t.$b("ConvTranspose",u,{format:B?"NHWC":"NCHW",autoPad:p,dilations:Array.from(($(),O).subarray(Number(g)>>>0,(Number(g)>>>0)+2>>>0)),group:f,kernelShape:Array.from(($(),O).subarray(Number(v)>>>0,(Number(v)>>>0)+2>>>0)),pads:Array.from(($(),O).subarray(Number(I)>>>0,(Number(I)>>>0)+4>>>0)),strides:Array.from(($(),O).subarray(Number(A)>>>0,(Number(A)>>>0)+2>>>0)),wIsConst:()=>!!($(),F)[q>>>0],outputPadding:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],outputShape:ce?Array.from(($(),O).subarray(Number(ce)>>>0,Number(ye)>>>0)):[],activation:ke(we)})},1011494:(u,p)=>{t.$b("GlobalAveragePool",u,{format:p?"NHWC":"NCHW"})},1011585:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we)=>{t.$b("AveragePool",u,{format:we?"NHWC":"NCHW",auto_pad:p,ceil_mode:g,count_include_pad:f,storage_order:v,dilations:I?Array.from(($(),O).subarray(Number(I)>>>0,Number(A)>>>0)):[],kernel_shape:B?Array.from(($(),O).subarray(Number(B)>>>0,Number(q)>>>0)):[],pads:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],strides:ce?Array.from(($(),O).subarray(Number(ce)>>>0,Number(ye)>>>0)):[]})},1012064:(u,p)=>{t.$b("GlobalAveragePool",u,{format:p?"NHWC":"NCHW"})},1012155:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we)=>{t.$b("AveragePool",u,{format:we?"NHWC":"NCHW",auto_pad:p,ceil_mode:g,count_include_pad:f,storage_order:v,dilations:I?Array.from(($(),O).subarray(Number(I)>>>0,Number(A)>>>0)):[],kernel_shape:B?Array.from(($(),O).subarray(Number(B)>>>0,Number(q)>>>0)):[],pads:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],strides:ce?Array.from(($(),O).subarray(Number(ce)>>>0,Number(ye)>>>0)):[]})},1012634:(u,p)=>{t.$b("GlobalMaxPool",u,{format:p?"NHWC":"NCHW"})},1012721:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we)=>{t.$b("MaxPool",u,{format:we?"NHWC":"NCHW",auto_pad:p,ceil_mode:g,count_include_pad:f,storage_order:v,dilations:I?Array.from(($(),O).subarray(Number(I)>>>0,Number(A)>>>0)):[],kernel_shape:B?Array.from(($(),O).subarray(Number(B)>>>0,Number(q)>>>0)):[],pads:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],strides:ce?Array.from(($(),O).subarray(Number(ce)>>>0,Number(ye)>>>0)):[]})},1013196:(u,p)=>{t.$b("GlobalMaxPool",u,{format:p?"NHWC":"NCHW"})},1013283:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we)=>{t.$b("MaxPool",u,{format:we?"NHWC":"NCHW",auto_pad:p,ceil_mode:g,count_include_pad:f,storage_order:v,dilations:I?Array.from(($(),O).subarray(Number(I)>>>0,Number(A)>>>0)):[],kernel_shape:B?Array.from(($(),O).subarray(Number(B)>>>0,Number(q)>>>0)):[],pads:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],strides:ce?Array.from(($(),O).subarray(Number(ce)>>>0,Number(ye)>>>0)):[]})},1013758:(u,p,g,f,v)=>{t.$b("Gemm",u,{alpha:p,beta:g,transA:f,transB:v})},1013862:u=>{t.$b("MatMul",u,void 0)},1013916:(u,p,g,f)=>{t.$b("ArgMax",u,{keepDims:!!p,selectLastIndex:!!g,axis:f})},1014024:(u,p,g,f)=>{t.$b("ArgMin",u,{keepDims:!!p,selectLastIndex:!!g,axis:f})},1014132:(u,p)=>{t.$b("Softmax",u,{axis:p})},1014195:(u,p)=>{t.$b("Concat",u,{axis:p})},1014255:(u,p,g,f,v)=>{t.$b("Split",u,{axis:p,numOutputs:g,splitSizes:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1014411:u=>{t.$b("Expand",u,void 0)},1014465:(u,p)=>{t.$b("Gather",u,{axis:Number(p)})},1014536:(u,p)=>{t.$b("GatherElements",u,{axis:Number(p)})},1014615:(u,p)=>{t.$b("GatherND",u,{batch_dims:Number(p)})},1014694:(u,p,g,f,v,I,A,B,q,G,oe)=>{t.$b("Resize",u,{antialias:p,axes:g?Array.from(($(),O).subarray(Number(g)>>>0,Number(f)>>>0)):[],coordinateTransformMode:ke(v),cubicCoeffA:I,excludeOutside:A,extrapolationValue:B,keepAspectRatioPolicy:ke(q),mode:ke(G),nearestMode:ke(oe)})},1015056:(u,p,g,f,v,I,A)=>{t.$b("Slice",u,{starts:p?Array.from(($(),O).subarray(Number(p)>>>0,Number(g)>>>0)):[],ends:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[],axes:I?Array.from(($(),O).subarray(Number(I)>>>0,Number(A)>>>0)):[]})},1015320:u=>{t.$b("Tile",u,void 0)},1015372:(u,p,g)=>{t.$b("InstanceNormalization",u,{epsilon:p,format:g?"NHWC":"NCHW"})},1015486:(u,p,g)=>{t.$b("InstanceNormalization",u,{epsilon:p,format:g?"NHWC":"NCHW"})},1015600:u=>{t.$b("Range",u,void 0)},1015653:(u,p)=>{t.$b("Einsum",u,{equation:ke(p)})},1015734:(u,p,g,f,v)=>{t.$b("Pad",u,{mode:p,value:g,pads:f?Array.from(($(),O).subarray(Number(f)>>>0,Number(v)>>>0)):[]})},1015877:(u,p,g,f,v,I)=>{t.$b("BatchNormalization",u,{epsilon:p,momentum:g,spatial:!!v,trainingMode:!!f,format:I?"NHWC":"NCHW"})},1016046:(u,p,g,f,v,I)=>{t.$b("BatchNormalization",u,{epsilon:p,momentum:g,spatial:!!v,trainingMode:!!f,format:I?"NHWC":"NCHW"})},1016215:(u,p,g)=>{t.$b("CumSum",u,{exclusive:Number(p),reverse:Number(g)})},1016312:(u,p,g)=>{t.$b("DequantizeLinear",u,{axis:p,blockSize:g})},1016402:(u,p,g,f,v)=>{t.$b("GridSample",u,{align_corners:p,mode:ke(g),padding_mode:ke(f),format:v?"NHWC":"NCHW"})},1016572:(u,p,g,f,v)=>{t.$b("GridSample",u,{align_corners:p,mode:ke(g),padding_mode:ke(f),format:v?"NHWC":"NCHW"})},1016742:(u,p)=>{t.$b("ScatterND",u,{reduction:ke(p)})},1016827:(u,p,g,f,v,I,A,B,q)=>{t.$b("Attention",u,{numHeads:p,isUnidirectional:g,maskFilterValue:f,scale:v,doRotary:I,qkvHiddenSizes:A?Array.from(($(),O).subarray(Number(B)>>>0,Number(B)+A>>>0)):[],pastPresentShareBuffer:!!q})},1017099:u=>{t.$b("BiasAdd",u,void 0)},1017154:u=>{t.$b("BiasSplitGelu",u,void 0)},1017215:u=>{t.$b("FastGelu",u,void 0)},1017271:(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we,mt,Fi)=>{t.$b("Conv",u,{format:ce?"NHWC":"NCHW",auto_pad:p,dilations:g?Array.from(($(),O).subarray(Number(g)>>>0,Number(f)>>>0)):[],group:v,kernel_shape:I?Array.from(($(),O).subarray(Number(I)>>>0,Number(A)>>>0)):[],pads:B?Array.from(($(),O).subarray(Number(B)>>>0,Number(q)>>>0)):[],strides:G?Array.from(($(),O).subarray(Number(G)>>>0,Number(oe)>>>0)):[],w_is_const:()=>!!($(),F)[Number(ye)>>>0],activation:ke(we),activation_params:mt?Array.from(($(),J).subarray(Number(mt)>>>0,Number(Fi)>>>0)):[]})},1017855:u=>{t.$b("Gelu",u,void 0)},1017907:(u,p,g,f,v,I,A,B,q)=>{t.$b("GroupQueryAttention",u,{numHeads:p,kvNumHeads:g,scale:f,softcap:v,doRotary:I,rotaryInterleaved:A,smoothSoftmax:B,localWindowSize:q})},1018124:(u,p,g,f)=>{t.$b("LayerNormalization",u,{axis:p,epsilon:g,simplified:!!f})},1018235:(u,p,g,f)=>{t.$b("LayerNormalization",u,{axis:p,epsilon:g,simplified:!!f})},1018346:(u,p,g,f,v,I)=>{t.$b("MatMulNBits",u,{k:p,n:g,accuracyLevel:f,bits:v,blockSize:I})},1018473:(u,p,g,f,v,I)=>{t.$b("MultiHeadAttention",u,{numHeads:p,isUnidirectional:g,maskFilterValue:f,scale:v,doRotary:I})},1018632:(u,p)=>{t.$b("QuickGelu",u,{alpha:p})},1018696:(u,p,g,f,v)=>{t.$b("RotaryEmbedding",u,{interleaved:!!p,numHeads:g,rotaryEmbeddingDim:f,scale:v})},1018835:(u,p,g)=>{t.$b("SkipLayerNormalization",u,{epsilon:p,simplified:!!g})},1018937:(u,p,g)=>{t.$b("SkipLayerNormalization",u,{epsilon:p,simplified:!!g})},1019039:(u,p,g,f)=>{t.$b("GatherBlockQuantized",u,{gatherAxis:p,quantizeAxis:g,blockSize:f})},1019160:u=>{t.Fd(u)},1019194:(u,p)=>t.Hd(Number(u),Number(p),t.Yc.Kd,t.Yc.errors)};function f0(u,p,g){return Cs(async()=>{await t.Dd(Number(u),Number(p),Number(g))})}function m0(){return typeof wasmOffsetConverter<"u"}function g0(u,p,g,f){var v=le();try{return co(u,p,g,f)}catch(I){if(ue(v),I!==I+0)throw I;de(1,0)}}function _0(u,p,g){var f=le();try{return oo(u,p,g)}catch(v){if(ue(f),v!==v+0)throw v;de(1,0)}}function y0(u){var p=le();try{no(u)}catch(g){if(ue(p),g!==g+0)throw g;de(1,0)}}function b0(u,p){var g=le();try{return Vi(u,p)}catch(f){if(ue(g),f!==f+0)throw f;de(1,0)}}function w0(u,p,g){var f=le();try{io(u,p,g)}catch(v){if(ue(f),v!==v+0)throw v;de(1,0)}}function $0(u,p){var g=le();try{ho(u,p)}catch(f){if(ue(g),f!==f+0)throw f;de(1,0)}}function v0(u,p,g,f,v,I,A){var B=le();try{return lo(u,p,g,f,v,I,A)}catch(q){if(ue(B),q!==q+0)throw q;de(1,0)}}function x0(u,p,g,f,v,I){var A=le();try{ao(u,p,g,f,v,I)}catch(B){if(ue(A),B!==B+0)throw B;de(1,0)}}function S0(u,p,g,f){var v=le();try{po(u,p,g,f)}catch(I){if(ue(v),I!==I+0)throw I;de(1,0)}}function T0(u,p,g,f,v){var I=le();try{so(u,p,g,f,v)}catch(A){if(ue(I),A!==A+0)throw A;de(1,0)}}function E0(u,p,g,f,v,I,A){var B=le();try{mo(u,p,g,f,v,I,A)}catch(q){if(ue(B),q!==q+0)throw q;de(1,0)}}function I0(u,p,g,f,v,I,A){var B=le();try{go(u,p,g,f,v,I,A)}catch(q){if(ue(B),q!==q+0)throw q;de(1,0)}}function k0(u,p,g,f,v,I,A,B){var q=le();try{wo(u,p,g,f,v,I,A,B)}catch(G){if(ue(q),G!==G+0)throw G;de(1,0)}}function C0(u,p,g,f,v){var I=le();try{return fo(u,p,g,f,v)}catch(A){if(ue(I),A!==A+0)throw A;de(1,0)}}function z0(u,p,g){var f=le();try{return $o(u,p,g)}catch(v){if(ue(f),v!==v+0)throw v;de(1,0)}}function O0(u,p,g,f,v,I,A,B){var q=le();try{vo(u,p,g,f,v,I,A,B)}catch(G){if(ue(q),G!==G+0)throw G;de(1,0)}}function A0(u,p,g,f,v,I,A,B,q,G,oe,ce){var ye=le();try{_o(u,p,g,f,v,I,A,B,q,G,oe,ce)}catch(we){if(ue(ye),we!==we+0)throw we;de(1,0)}}function R0(u,p,g,f,v,I){var A=le();try{return yo(u,p,g,f,v,I)}catch(B){if(ue(A),B!==B+0)throw B;de(1,0)}}function B0(u,p,g){var f=le();try{return xo(u,p,g)}catch(v){if(ue(f),v!==v+0)throw v;return de(1,0),0n}}function M0(u,p,g,f,v,I,A,B,q){var G=le();try{uo(u,p,g,f,v,I,A,B,q)}catch(oe){if(ue(G),oe!==oe+0)throw oe;de(1,0)}}function D0(u){var p=le();try{return So(u)}catch(g){if(ue(p),g!==g+0)throw g;de(1,0)}}function N0(u,p){var g=le();try{return Lo(u,p)}catch(f){if(ue(g),f!==f+0)throw f;return de(1,0),0n}}function P0(u){var p=le();try{return To(u)}catch(g){if(ue(p),g!==g+0)throw g;return de(1,0),0n}}function L0(u,p,g,f){var v=le();try{return Oo(u,p,g,f)}catch(I){if(ue(v),I!==I+0)throw I;de(1,0)}}function U0(u,p,g,f,v){var I=le();try{return Ao(u,p,g,f,v)}catch(A){if(ue(I),A!==A+0)throw A;de(1,0)}}function W0(u,p,g,f,v,I){var A=le();try{return Ro(u,p,g,f,v,I)}catch(B){if(ue(A),B!==B+0)throw B;de(1,0)}}function q0(u,p,g,f,v,I){var A=le();try{return Bo(u,p,g,f,v,I)}catch(B){if(ue(A),B!==B+0)throw B;de(1,0)}}function V0(u,p,g,f,v,I,A,B){var q=le();try{return bo(u,p,g,f,v,I,A,B)}catch(G){if(ue(q),G!==G+0)throw G;de(1,0)}}function G0(u,p,g,f,v){var I=le();try{return Mo(u,p,g,f,v)}catch(A){if(ue(I),A!==A+0)throw A;return de(1,0),0n}}function F0(u,p,g,f){var v=le();try{return Do(u,p,g,f)}catch(I){if(ue(v),I!==I+0)throw I;de(1,0)}}function H0(u,p,g,f){var v=le();try{return No(u,p,g,f)}catch(I){if(ue(v),I!==I+0)throw I;de(1,0)}}function j0(u,p,g,f,v,I,A,B,q,G,oe,ce){var ye=le();try{return Po(u,p,g,f,v,I,A,B,q,G,oe,ce)}catch(we){if(ue(ye),we!==we+0)throw we;de(1,0)}}function K0(u,p,g,f,v,I,A,B,q,G,oe){var ce=le();try{Co(u,p,g,f,v,I,A,B,q,G,oe)}catch(ye){if(ue(ce),ye!==ye+0)throw ye;de(1,0)}}function X0(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we,mt,Fi){var J0=le();try{zo(u,p,g,f,v,I,A,B,q,G,oe,ce,ye,we,mt,Fi)}catch(Hi){if(ue(J0),Hi!==Hi+0)throw Hi;de(1,0)}}function Z0(u,p,g){var f=le();try{return Eo(u,p,g)}catch(v){if(ue(f),v!==v+0)throw v;de(1,0)}}function Q0(u,p,g){var f=le();try{return Io(u,p,g)}catch(v){if(ue(f),v!==v+0)throw v;de(1,0)}}function Y0(u,p,g,f){var v=le();try{ko(u,p,g,f)}catch(I){if(ue(v),I!==I+0)throw I;de(1,0)}}function Gr(){if(0<De)Tt=Gr;else if(n)w?.(t),H();else{for(var u=Te;0<u.length;)u.shift()(t);0<De?Tt=Gr:(t.calledRun=!0,C||(H(),w?.(t)))}}return n||(st=await Se(),Gr()),t.PTR_SIZE=4,ee?t:new Promise((u,p)=>{w=u,S=p})}var Hp,jo,w_=L(()=>{"use strict";Hp=Ho,jo=globalThis.self?.name?.startsWith("em-pthread"),jo&&Ho()}),Ji,Fn,Ko,Ne,jp,Hr,Xo,Zo,en,Qo,tn,Kp,rn,Xp,pa=L(()=>{"use strict";da(),Ji=typeof location>"u"?void 0:location.origin,Fn=Ye.url>"file:"&&Ye.url<"file;",Ko=()=>{if(Fn){let e=URL;return new URL(new e("ort.bundle.min.mjs",Ye.url).href,Ji).href}return Ye.url},Ne=Ko(),jp=()=>{if(Ne&&!Ne.startsWith("blob:"))return Ne.substring(0,Ne.lastIndexOf("/")+1)},Hr=(e,t)=>{try{let r=t??Ne;return(r?new URL(e,r):new URL(e)).origin===Ji}catch{return!1}},Xo=(e,t)=>{let r=t??Ne;try{return(r?new URL(e,r):new URL(e)).href}catch{return}},Zo=(e,t)=>`${t??"./"}${e}`,en=async e=>{let t=await(await fetch(e,{credentials:"same-origin"})).blob();return URL.createObjectURL(t)},Qo=async e=>(await import(e)).default,tn=(b_(),Sr(Vp)).default,Kp=async()=>{if(!Ne)throw new Error("Failed to load proxy worker: cannot determine the script source URL.");if(Hr(Ne))return[void 0,tn()];let e=await en(Ne);return[e,tn(e)]},rn=(w_(),Sr(Fp)).default,Xp=async(e,t,r,i)=>{let n=rn&&!(e||t);if(n)if(Ne)n=Hr(Ne)||i&&!r;else if(i&&!r)n=!0;else throw new Error("cannot determine the script source URL.");if(n)return[void 0,rn];{let a="ort-wasm-simd-threaded.jsep.mjs",s=e??Xo(a,t),o=r&&s&&!Hr(s,t),l=o?await en(s):s??Zo(a,t);return[o?l:void 0,await Qo(l)]}}}),nn,jr,dr,an,Yo,Jo,eu,ca,be,qt=L(()=>{"use strict";pa(),jr=!1,dr=!1,an=!1,Yo=()=>{if(typeof SharedArrayBuffer>"u")return!1;try{return typeof MessageChannel<"u"&&new MessageChannel().port1.postMessage(new SharedArrayBuffer(1)),WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,5,4,1,3,1,1,10,11,1,9,0,65,0,254,16,2,0,26,11]))}catch{return!1}},Jo=()=>{try{return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,30,1,28,0,65,0,253,15,253,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,253,186,1,26,11]))}catch{return!1}},eu=()=>{try{return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,19,1,17,0,65,1,253,15,65,2,253,15,65,3,253,15,253,147,2,11]))}catch{return!1}},ca=async e=>{if(jr)return Promise.resolve();if(dr)throw new Error("multiple calls to 'initializeWebAssembly()' detected.");if(an)throw new Error("previous call to 'initializeWebAssembly()' failed.");dr=!0;let t=e.initTimeout,r=e.numThreads;if(e.simd!==!1){if(e.simd==="relaxed"){if(!eu())throw new Error("Relaxed WebAssembly SIMD is not supported in the current environment.")}else if(!Jo())throw new Error("WebAssembly SIMD is not supported in the current environment.")}let i=Yo();r>1&&!i&&(typeof self<"u"&&!self.crossOriginIsolated&&console.warn("env.wasm.numThreads is set to "+r+", but this will not work unless you enable crossOriginIsolated mode. See https://web.dev/cross-origin-isolation-guide/ for more info."),console.warn("WebAssembly multi-threading is not supported in the current environment. Falling back to single-threading."),e.numThreads=r=1);let n=e.wasmPaths,a=typeof n=="string"?n:void 0,s=n?.mjs,o=s?.href??s,l=n?.wasm,d=l?.href??l,c=e.wasmBinary,[h,m]=await Xp(o,a,r>1,!!c||!!d),y=!1,_=[];if(t>0&&_.push(new Promise(w=>{setTimeout(()=>{y=!0,w()},t)})),_.push(new Promise((w,S)=>{let x={numThreads:r};if(c)x.wasmBinary=c,x.locateFile=b=>b;else if(d||a)x.locateFile=b=>d??a+b;else if(o&&o.indexOf("blob:")!==0)x.locateFile=b=>new URL(b,o).href;else if(h){let b=jp();b&&(x.locateFile=E=>b+E)}m(x).then(b=>{dr=!1,jr=!0,nn=b,w(),h&&URL.revokeObjectURL(h)},b=>{dr=!1,an=!0,S(b)})})),await Promise.race(_),y)throw new Error(`WebAssembly backend initializing failed due to timeout: ${t}ms`)},be=()=>{if(jr&&nn)return nn;throw new Error("WebAssembly is not initialized yet.")}}),Qe,si,ge,ha=L(()=>{"use strict";qt(),Qe=(e,t)=>{let r=be(),i=r.lengthBytesUTF8(e)+1,n=r._malloc(i);return r.stringToUTF8(e,n,i),t.push(n),n},si=(e,t,r,i)=>{if(typeof e=="object"&&e!==null){if(r.has(e))throw new Error("Circular reference in options");r.add(e)}Object.entries(e).forEach(([n,a])=>{let s=t?t+n:n;if(typeof a=="object")si(a,s+".",r,i);else if(typeof a=="string"||typeof a=="number")i(s,a.toString());else if(typeof a=="boolean")i(s,a?"1":"0");else throw new Error(`Can't handle extra config type: ${typeof a}`)})},ge=e=>{let t=be(),r=t.stackSave();try{let i=t.PTR_SIZE,n=t.stackAlloc(2*i);t._OrtGetLastError(n,n+i);let a=Number(t.getValue(n,i===4?"i32":"i64")),s=t.getValue(n+i,"*"),o=s?t.UTF8ToString(s):"";throw new Error(`${e} ERROR_CODE: ${a}, ERROR_MESSAGE: ${o}`)}finally{t.stackRestore(r)}}}),Zp,$_=L(()=>{"use strict";qt(),ha(),Zp=e=>{let t=be(),r=0,i=[],n=e||{};try{if(e?.logSeverityLevel===void 0)n.logSeverityLevel=2;else if(typeof e.logSeverityLevel!="number"||!Number.isInteger(e.logSeverityLevel)||e.logSeverityLevel<0||e.logSeverityLevel>4)throw new Error(`log severity level is not valid: ${e.logSeverityLevel}`);if(e?.logVerbosityLevel===void 0)n.logVerbosityLevel=0;else if(typeof e.logVerbosityLevel!="number"||!Number.isInteger(e.logVerbosityLevel))throw new Error(`log verbosity level is not valid: ${e.logVerbosityLevel}`);e?.terminate===void 0&&(n.terminate=!1);let a=0;return e?.tag!==void 0&&(a=Qe(e.tag,i)),r=t._OrtCreateRunOptions(n.logSeverityLevel,n.logVerbosityLevel,!!n.terminate,a),r===0&&ge("Can't create run options."),e?.extra!==void 0&&si(e.extra,"",new WeakSet,(s,o)=>{let l=Qe(s,i),d=Qe(o,i);t._OrtAddRunConfigEntry(r,l,d)!==0&&ge(`Can't set a run config entry: ${s} - ${o}.`)}),[r,i]}catch(a){throw r!==0&&t._OrtReleaseRunOptions(r),i.forEach(s=>t._free(s)),a}}}),tu,ru,iu,zt,nu,Qp,v_=L(()=>{"use strict";qt(),ha(),tu=e=>{switch(e){case"disabled":return 0;case"basic":return 1;case"extended":return 2;case"layout":return 3;case"all":return 99;default:throw new Error(`unsupported graph optimization level: ${e}`)}},ru=e=>{switch(e){case"sequential":return 0;case"parallel":return 1;default:throw new Error(`unsupported execution mode: ${e}`)}},iu=e=>{e.extra||(e.extra={}),e.extra.session||(e.extra.session={});let t=e.extra.session;t.use_ort_model_bytes_directly||(t.use_ort_model_bytes_directly="1"),e.executionProviders&&e.executionProviders.some(r=>(typeof r=="string"?r:r.name)==="webgpu")&&(e.enableMemPattern=!1)},zt=(e,t,r,i)=>{let n=Qe(t,i),a=Qe(r,i);be()._OrtAddSessionConfigEntry(e,n,a)!==0&&ge(`Can't set a session config entry: ${t} - ${r}.`)},nu=async(e,t,r)=>{let i=t.executionProviders;for(let n of i){let a=typeof n=="string"?n:n.name,s=[];switch(a){case"webnn":if(a="WEBNN",zt(e,"session.disable_quant_qdq","1",r),zt(e,"session.disable_qdq_constant_folding","1",r),typeof n!="string"){let h=n?.deviceType;h&&zt(e,"deviceType",h,r)}break;case"webgpu":if(a="JS",typeof n!="string"){let h=n;if(h?.preferredLayout){if(h.preferredLayout!=="NCHW"&&h.preferredLayout!=="NHWC")throw new Error(`preferredLayout must be either 'NCHW' or 'NHWC': ${h.preferredLayout}`);zt(e,"preferredLayout",h.preferredLayout,r)}}break;case"wasm":case"cpu":continue;default:throw new Error(`not supported execution provider: ${a}`)}let o=Qe(a,r),l=s.length,d=0,c=0;if(l>0){d=be()._malloc(l*be().PTR_SIZE),r.push(d),c=be()._malloc(l*be().PTR_SIZE),r.push(c);for(let h=0;h<l;h++)be().setValue(d+h*be().PTR_SIZE,s[h][0],"*"),be().setValue(c+h*be().PTR_SIZE,s[h][1],"*")}await be()._OrtAppendExecutionProvider(e,o,d,c,l)!==0&&ge(`Can't append execution provider: ${a}.`)}},Qp=async e=>{let t=be(),r=0,i=[],n=e||{};iu(n);try{let a=tu(n.graphOptimizationLevel??"all"),s=ru(n.executionMode??"sequential"),o=typeof n.logId=="string"?Qe(n.logId,i):0,l=n.logSeverityLevel??2;if(!Number.isInteger(l)||l<0||l>4)throw new Error(`log severity level is not valid: ${l}`);let d=n.logVerbosityLevel??0;if(!Number.isInteger(d)||d<0||d>4)throw new Error(`log verbosity level is not valid: ${d}`);let c=typeof n.optimizedModelFilePath=="string"?Qe(n.optimizedModelFilePath,i):0;if(r=t._OrtCreateSessionOptions(a,!!n.enableCpuMemArena,!!n.enableMemPattern,s,!!n.enableProfiling,0,o,l,d,c),r===0&&ge("Can't create session options."),n.executionProviders&&await nu(r,n,i),n.enableGraphCapture!==void 0){if(typeof n.enableGraphCapture!="boolean")throw new Error(`enableGraphCapture must be a boolean value: ${n.enableGraphCapture}`);zt(r,"enableGraphCapture",n.enableGraphCapture.toString(),i)}if(n.freeDimensionOverrides)for(let[h,m]of Object.entries(n.freeDimensionOverrides)){if(typeof h!="string")throw new Error(`free dimension override name must be a string: ${h}`);if(typeof m!="number"||!Number.isInteger(m)||m<0)throw new Error(`free dimension override value must be a non-negative integer: ${m}`);let y=Qe(h,i);t._OrtAddFreeDimensionOverride(r,y,m)!==0&&ge(`Can't set a free dimension override: ${h} - ${m}.`)}return n.extra!==void 0&&si(n.extra,"",new WeakSet,(h,m)=>{zt(r,h,m,i)}),[r,i]}catch(a){throw r!==0&&t._OrtReleaseSessionOptions(r)!==0&&ge("Can't release session options."),i.forEach(s=>t._free(s)),a}}}),Dt,ut,Nt,hi,oi,fa,ma,Hn,re=L(()=>{"use strict";Dt=e=>{switch(e){case"int8":return 3;case"uint8":return 2;case"bool":return 9;case"int16":return 5;case"uint16":return 4;case"int32":return 6;case"uint32":return 12;case"float16":return 10;case"float32":return 1;case"float64":return 11;case"string":return 8;case"int64":return 7;case"uint64":return 13;case"int4":return 22;case"uint4":return 21;default:throw new Error(`unsupported data type: ${e}`)}},ut=e=>{switch(e){case 3:return"int8";case 2:return"uint8";case 9:return"bool";case 5:return"int16";case 4:return"uint16";case 6:return"int32";case 12:return"uint32";case 10:return"float16";case 1:return"float32";case 11:return"float64";case 8:return"string";case 7:return"int64";case 13:return"uint64";case 22:return"int4";case 21:return"uint4";default:throw new Error(`unsupported data type: ${e}`)}},Nt=(e,t)=>{let r=[-1,4,1,1,2,2,4,8,-1,1,2,8,4,8,-1,-1,-1,-1,-1,-1,-1,.5,.5][e],i=typeof t=="number"?t:t.reduce((n,a)=>n*a,1);return r>0?Math.ceil(i*r):void 0},hi=e=>{switch(e){case"float16":return typeof Float16Array<"u"?Float16Array:Uint16Array;case"float32":return Float32Array;case"uint8":return Uint8Array;case"int8":return Int8Array;case"uint16":return Uint16Array;case"int16":return Int16Array;case"int32":return Int32Array;case"bool":return Uint8Array;case"float64":return Float64Array;case"uint32":return Uint32Array;case"int64":return BigInt64Array;case"uint64":return BigUint64Array;default:throw new Error(`unsupported type: ${e}`)}},oi=e=>{switch(e){case"verbose":return 0;case"info":return 1;case"warning":return 2;case"error":return 3;case"fatal":return 4;default:throw new Error(`unsupported logging level: ${e}`)}},fa=e=>e==="float32"||e==="float16"||e==="int32"||e==="int64"||e==="uint32"||e==="uint8"||e==="bool"||e==="uint4"||e==="int4",ma=e=>e==="float32"||e==="float16"||e==="int32"||e==="int64"||e==="uint32"||e==="uint64"||e==="int8"||e==="uint8"||e==="bool"||e==="uint4"||e==="int4",Hn=e=>{switch(e){case"none":return 0;case"cpu":return 1;case"cpu-pinned":return 2;case"texture":return 3;case"gpu-buffer":return 4;case"ml-tensor":return 5;default:throw new Error(`unsupported data location: ${e}`)}}}),ga,Yp=L(()=>{"use strict";da(),ga=async e=>{if(typeof e=="string"){let t=await fetch(e);if(!t.ok)throw new Error(`failed to load external data file: ${e}`);let r=t.headers.get("Content-Length"),i=r?parseInt(r,10):0;if(i<1073741824)return new Uint8Array(await t.arrayBuffer());{if(!t.body)throw new Error(`failed to load external data file: ${e}, no response body.`);let n=t.body.getReader(),a;try{a=new ArrayBuffer(i)}catch(o){if(o instanceof RangeError){let l=Math.ceil(i/65536);a=new WebAssembly.Memory({initial:l,maximum:l}).buffer}else throw o}let s=0;for(;;){let{done:o,value:l}=await n.read();if(o)break;let d=l.byteLength;new Uint8Array(a,s,d).set(l),s+=d}return new Uint8Array(a,0,i)}}else return e instanceof Blob?new Uint8Array(await e.arrayBuffer()):e instanceof Uint8Array?e:new Uint8Array(e)}}),au,su,ou,uu,_a,lu,pe,lt=L(()=>{"use strict";re(),au=["V","I","W","E","F"],su=(e,t)=>{console.log(`[${au[e]},${new Date().toISOString()}]${t}`)},_a=(e,t)=>{ou=e,uu=t},lu=(e,t)=>{let r=oi(e),i=oi(ou);r>=i&&su(r,typeof t=="function"?t():t)},pe=(...e)=>{uu&&lu(...e)}}),du,Xt,R,ui,Jp,ec,tc,ne=L(()=>{"use strict";du=class{static calcMatMulShape(e,t){return e[1]!==t[0]?void 0:[e[0],t[1]]}},Xt=class{static calcShape(e,t,r=!1){let i=e.length,n=t.length;if(i===0)return t;if(n===0)return e;let a=Math.max(e.length,t.length),s=new Array(a);if(r){if(i<2||n<2)return;let o=du.calcMatMulShape([e[i-2],e[i-1]],[t[n-2],t[n-1]]);if(o===void 0)return;[s[a-2],s[a-1]]=o}for(let o=r?3:1;o<=a;o++){let l=i-o<0?1:e[i-o],d=n-o<0?1:t[n-o];if(l!==d&&l>1&&d>1)return;let c=Math.max(l,d);if(l&&d)s[a-o]=Math.max(l,d);else{if(c>1)return;s[a-o]=0}}return s}static isValidBroadcast(e,t){let r=e.length,i=t.length;if(r>i)return!1;for(let n=1;n<=r;n++)if(e[r-n]!==1&&e[r-n]!==t[i-n])return!1;return!0}},R=class ni{static size(t){return ni.getSizeFromDimensionRange(t,0,t.length)}static convertShape(t,r=4){let i=t.length;if(i===0)return[];let n=new Array(i),a=i-1;for(;a>=0;){if(t[a]%r===0){n[a]=t[a]/r;break}if(r%t[a]!==0)throw new Error("cannot convert shape");n[a]=1,r/=t[a],a--}for(a--;a>=0;a--)n[a]=t[a];return n}static sizeFromDimension(t,r){if(r<0||r>t.length)throw new Error(`invalid dimension of ${r} for sizeFromDimension as Tensor has ${t.length} dimensions.`);return ni.getSizeFromDimensionRange(t,r,t.length)}static sizeToDimension(t,r){if(r<0||r>t.length)throw new Error(`invalid dimension of ${r} for sizeToDimension as Tensor has ${t.length} dimensions.`);return ni.getSizeFromDimensionRange(t,0,r)}static getSizeFromDimensionRange(t,r,i){let n=1;for(let a=r;a<i;a++){if(t[a]<0)throw new Error("cannot get valid size from specified dimension range. Most likely the range contains negative values in them.");n*=Number(t[a])}return n}static computeStrides(t){let r=t.length;if(r===0)return[];if(r===1)return[1];let i=new Array(r);i[r-1]=1,i[r-2]=t[r-1];for(let n=r-3;n>=0;--n)i[n]=i[n+1]*t[n+1];return i}static normalizeAxis(t,r){if(t<-r&&t>=r)throw new Error("unsupported axis for this operation.");return t<0?t+r:t}static normalizeAxes(t,r){return t.map(i=>this.normalizeAxis(i,r??t.length))}static sortBasedOnPerm(t,r){return r?r.map(i=>t[i]):t.slice().reverse()}static padShape(t,r){let i=t.length;return t.map((n,a)=>n+r[a]+r[a+i])}static areEqual(t,r){return t.length!==r.length?!1:t.every((i,n)=>i===r[n])}},ui=class wr{static adjustPoolAttributes(t,r,i,n,a,s){if(!t&&i.length!==r.length-2)throw new Error("length of specified kernel shapes should be 2 less than length of input dimensions");if(t)for(let o=0;o<r.length-2;o++)o>=i.length?i.push(r[o+2]):i[o]=r[o+2];for(let o=0;o<i.length;o++)if(o<n.length){if(n[o]<0)throw new Error("strides should be greater than or equal to 1")}else n.push(1);for(let o=0;o<i.length;o++)if(o<a.length){if(a[o]<0)throw new Error("dilations should be greater than or equal to 1")}else a.push(1);for(let o=0;o<i.length*2;o++)if(o<s.length){if(s[o]<0)throw new Error("pad should be greater than or equal to 1")}else s.push(0);for(let o=0;o<i.length;o++){if(i[o]<=0)throw new Error("kernel shapes need to be greater than 0");if(s[o]>=i[o]||s[o+i.length]>=i[o])throw new Error("pads should be smaller than kernel")}}static adjustPadsBasedOnAutoPad(t,r,i,n,a,s,o){if(o){if(a.length!==2*(t.length-2))throw new Error("length of pads should be twice the length of data dimensions");if(r.length!==t.length-2)throw new Error("length of strides should be the length of data dimensions");if(n.length!==t.length-2)throw new Error("length of kernel shapes should be the length of data dimensions");for(let l=0;l<t.length-2;l++)wr.adjustPadAndReturnShape(t[l+(s?1:2)],r[l],i[l],n[l],a,l,l+t.length-2,o)}}static computePoolOutputShape(t,r,i,n,a,s,o){if(r.length<=0)throw new Error("input shape must be of size greater than 0");let l=[r[0],r[1]];return wr.computeShapeHelper(t,r,l,i,n,a,s,o),l}static computeConvOutputShape(t,r,i,n,a,s,o){if(t.length<=0||r.length<=0)throw new Error("invalid input tensor dims or invalid filter tensor dims");let l=[t[0],r[0]];return wr.computeShapeHelper(!1,t,l,i,n,a,s,o),l}static computeShapeHelper(t,r,i,n,a,s,o,l){if(t)for(let d=0;d<r.length-2;d++)i.push(1);else for(let d=0;d<r.length-2;d++)i.push(wr.adjustPadAndReturnShape(r[d+2],n[d],a[d],s[d],o,d,d+r.length-2,l))}static adjustPadAndReturnShape(t,r,i,n,a,s,o,l){let d=i*(n-1)+1;if(l&&l!=="NOTSET")switch(l){case"VALID":return a[s]=0,a[o]=0,Math.floor((t-d)/r+1);case"SAME_LOWER":case"SAME_UPPER":if(i!==1)throw new Error("Dilation not supported for SAME_UPPER or SAME_LOWER");{let c=((t+r-1)/r-1)*r+n-t;return a[s]=Math.floor(l==="SAME_LOWER"?(c+1)/2:c/2),a[o]=c-a[s],Math.floor((t+c-n)/r+1)}default:throw new Error("Unsupported AutoPad type")}else return Math.floor((t+a[s]+a[o]-d)/r+1)}},Jp=class{static getShapeOfGemmResult(e,t,r,i,n){if(e.length!==2||r.length!==2)throw new Error("shape need to be of size 2");let a,s,o;t?(a=e[1],s=e[0]):(a=e[0],s=e[1]);let l=-1;if(i?(o=r[0],l=1):(o=r[1],l=0),r[l]!==s)throw new Error("dimension mismatch");if(a<=0||o<=0||s<=0)throw new Error("invalid shape specified");if(n&&!Xt.isValidBroadcast(n,[a,o]))throw new Error("gemm: invalid bias shape for broadcast");return[a,o,s]}},ec=-34028234663852886e22,tc=34028234663852886e22}),ya,rc=L(()=>{"use strict";re(),ya=(e,t)=>new(hi(t))(e)}),sn,jn,on,pu,un,cu,ln,dn,pn,hu,ic,x_=L(()=>{"use strict";re(),lt(),sn=new Map([["float32",32],["float16",16],["int32",32],["uint32",32],["int64",64],["uint64",64],["int8",8],["uint8",8],["int4",4],["uint4",4]]),jn=(e,t)=>{if(t==="int32")return e;let r=sn.get(t);if(!r)throw new Error(`WebNN backend does not support data type: ${t}`);let i=r/8;if(e.byteLength%i!==0)throw new Error(`Invalid Uint8Array length - must be a multiple of ${i}.`);let n=e.byteLength/i,a=new(hi(t))(e.buffer,e.byteOffset,n);switch(t){case"int64":case"uint64":{let s=new Int32Array(n);for(let o=0;o<n;o++){let l=a[o];if(l>2147483647n||l<-2147483648n)throw new Error("Can not convert int64 data to int32 - value out of range.");s[o]=Number(l)}return new Uint8Array(s.buffer)}case"int8":case"uint8":case"uint32":{if(t==="uint32"&&a.some(o=>o>2147483647))throw new Error("Can not convert uint32 data to int32 - value out of range.");let s=Int32Array.from(a,Number);return new Uint8Array(s.buffer)}default:throw new Error(`Unsupported data conversion from ${t} to 'int32'`)}},on=(e,t)=>{if(t==="int32")return e;if(e.byteLength%4!==0)throw new Error("Invalid Uint8Array length - must be a multiple of 4 (int32).");let r=e.byteLength/4,i=new Int32Array(e.buffer,e.byteOffset,r);switch(t){case"int64":{let n=BigInt64Array.from(i,BigInt);return new Uint8Array(n.buffer)}case"uint64":{if(i.some(a=>a<0))throw new Error("Can not convert int32 data to uin64 - negative value found.");let n=BigUint64Array.from(i,BigInt);return new Uint8Array(n.buffer)}case"int8":{if(i.some(a=>a<-128||a>127))throw new Error("Can not convert int32 data to int8 - value out of range.");let n=Int8Array.from(i,Number);return new Uint8Array(n.buffer)}case"uint8":{if(i.some(n=>n<0||n>255))throw new Error("Can not convert int32 data to uint8 - value out of range.");return Uint8Array.from(i,Number)}case"uint32":{if(i.some(a=>a<0))throw new Error("Can not convert int32 data to uint32 - negative value found.");let n=Uint32Array.from(i,Number);return new Uint8Array(n.buffer)}default:throw new Error(`Unsupported data conversion from 'int32' to ${t}`)}},pu=1,un=()=>pu++,cu=new Map([["int8","int32"],["uint8","int32"],["uint32","int32"],["int64","int32"]]),ln=(e,t)=>{let r=sn.get(e);if(!r)throw new Error(`WebNN backend does not support data type: ${e}`);return t.length>0?Math.ceil(t.reduce((i,n)=>i*n)*r/8):0},dn=class{constructor(e){this.isDataConverted=!1;let{sessionId:t,context:r,tensor:i,dataType:n,shape:a,fallbackDataType:s}=e;this.sessionId=t,this.mlContext=r,this.mlTensor=i,this.dataType=n,this.tensorShape=a,this.fallbackDataType=s}get tensor(){return this.mlTensor}get type(){return this.dataType}get fallbackType(){return this.fallbackDataType}get shape(){return this.tensorShape}get byteLength(){return ln(this.dataType,this.tensorShape)}destroy(){pe("verbose",()=>"[WebNN] TensorWrapper.destroy"),this.mlTensor.destroy()}write(e){this.mlContext.writeTensor(this.mlTensor,e)}async read(e){if(this.fallbackDataType){let t=await this.mlContext.readTensor(this.mlTensor),r=on(new Uint8Array(t),this.dataType);if(e){(e instanceof ArrayBuffer?new Uint8Array(e):new Uint8Array(e.buffer,e.byteOffset,e.byteLength)).set(r);return}else return new Uint8Array(r).buffer}else return e?this.mlContext.readTensor(this.mlTensor,e):this.mlContext.readTensor(this.mlTensor)}canReuseTensor(e,t,r){return this.mlContext===e&&this.dataType===t&&this.tensorShape.length===r.length&&this.tensorShape.every((i,n)=>i===r[n])}setIsDataConverted(e){this.isDataConverted=e}},pn=class{constructor(e,t){this.tensorManager=e,this.wrapper=t}get tensorWrapper(){return this.wrapper}releaseTensor(){this.tensorWrapper&&(this.tensorManager.releaseTensor(this.tensorWrapper),this.wrapper=void 0)}async ensureTensor(e,t,r,i){let n=this.tensorManager.getMLContext(e),a=this.tensorManager.getMLOpSupportLimits(e),s;if(!a?.input.dataTypes.includes(t)){if(s=cu.get(t),!s||a?.input.dataTypes.includes(s))throw new Error(`WebNN backend does not support data type: ${t}`);pe("verbose",()=>`[WebNN] TensorIdTracker.ensureTensor: fallback dataType from ${t} to ${s}`)}if(this.wrapper){if(this.wrapper.canReuseTensor(n,t,r))return this.wrapper.tensor;if(i){if(this.wrapper.byteLength!==ln(t,r))throw new Error("Unable to copy data to tensor with different size.");this.activeUpload=new Uint8Array(await this.wrapper.read())}this.tensorManager.releaseTensor(this.wrapper)}let o=typeof MLTensorUsage>"u"?void 0:MLTensorUsage.READ|MLTensorUsage.WRITE;return this.wrapper=await this.tensorManager.getCachedTensor(e,t,r,o,!0,!0,s),i&&this.activeUpload&&(this.wrapper.write(this.activeUpload),this.activeUpload=void 0),this.wrapper.tensor}upload(e){let t=e;if(this.wrapper){if(this.wrapper.fallbackType)if(this.wrapper.fallbackType==="int32")t=jn(e,this.wrapper.type),this.wrapper.setIsDataConverted(!0);else throw new Error(`Unsupported fallback data type: ${this.wrapper.fallbackType}`);if(e.byteLength===this.wrapper.byteLength){this.wrapper.write(t);return}else pe("verbose",()=>"Data size does not match tensor size. Releasing tensor."),this.releaseTensor()}this.activeUpload?this.activeUpload.set(t):this.activeUpload=new Uint8Array(t)}async download(e){if(this.activeUpload){let t=this.wrapper?.isDataConverted?on(this.activeUpload,this.wrapper?.type):this.activeUpload;if(e){e instanceof ArrayBuffer?new Uint8Array(e).set(t):new Uint8Array(e.buffer,e.byteOffset,e.byteLength).set(t);return}else return t.buffer}if(!this.wrapper)throw new Error("Tensor has not been created.");return e?this.wrapper.read(e):this.wrapper.read()}},hu=class{constructor(e){this.backend=e,this.tensorTrackersById=new Map,this.freeTensors=[],this.externalTensors=new Set}getMLContext(e){let t=this.backend.getMLContext(e);if(!t)throw new Error("MLContext not found for session.");return t}getMLOpSupportLimits(e){return this.backend.getMLOpSupportLimits(e)}reserveTensorId(){let e=un();return this.tensorTrackersById.set(e,new pn(this)),e}releaseTensorId(e){let t=this.tensorTrackersById.get(e);t&&(this.tensorTrackersById.delete(e),t.tensorWrapper&&this.releaseTensor(t.tensorWrapper))}async ensureTensor(e,t,r,i,n){pe("verbose",()=>`[WebNN] TensorManager.ensureTensor {tensorId: ${t}, dataType: ${r}, shape: ${i}, copyOld: ${n}}`);let a=this.tensorTrackersById.get(t);if(!a)throw new Error("Tensor not found.");return a.ensureTensor(e,r,i,n)}upload(e,t){let r=this.tensorTrackersById.get(e);if(!r)throw new Error("Tensor not found.");r.upload(t)}async download(e,t){pe("verbose",()=>`[WebNN] TensorManager.download {tensorId: ${e}, dstBuffer: ${t?.byteLength}}`);let r=this.tensorTrackersById.get(e);if(!r)throw new Error("Tensor not found.");return r.download(t)}releaseTensorsForSession(e){for(let t of this.freeTensors)t.sessionId===e&&t.destroy();this.freeTensors=this.freeTensors.filter(t=>t.sessionId!==e)}registerTensor(e,t,r,i){let n=this.getMLContext(e),a=un(),s=new dn({sessionId:e,context:n,tensor:t,dataType:r,shape:i});return this.tensorTrackersById.set(a,new pn(this,s)),this.externalTensors.add(s),a}async getCachedTensor(e,t,r,i,n,a,s){let o=this.getMLContext(e);for(let[d,c]of this.freeTensors.entries())if(c.canReuseTensor(o,t,r)){pe("verbose",()=>`[WebNN] Reusing tensor {dataType: ${t}, ${s?`fallbackDataType: ${s},`:""} shape: ${r}`);let h=this.freeTensors.splice(d,1)[0];return h.sessionId=e,h}pe("verbose",()=>`[WebNN] MLContext.createTensor {dataType: ${t}, ${s?`fallbackDataType: ${s},`:""} shape: ${r}}`);let l=await o.createTensor({dataType:s??t,shape:r,dimensions:r,usage:i,writable:n,readable:a});return new dn({sessionId:e,context:o,tensor:l,dataType:t,shape:r,fallbackDataType:s})}releaseTensor(e){this.externalTensors.has(e)&&this.externalTensors.delete(e),this.freeTensors.push(e)}},ic=(...e)=>new hu(...e)}),pr,fu,nc,S_=L(()=>{"use strict";re(),qt(),rc(),x_(),lt(),pr=new Map([[1,"float32"],[10,"float16"],[6,"int32"],[12,"uint32"],[7,"int64"],[13,"uint64"],[22,"int4"],[21,"uint4"],[3,"int8"],[2,"uint8"],[9,"uint8"]]),fu=(e,t)=>{if(e===t)return!0;if(e===void 0||t===void 0)return!1;let r=Object.keys(e).sort(),i=Object.keys(t).sort();return r.length===i.length&&r.every((n,a)=>n===i[a]&&e[n]===t[n])},nc=class{constructor(e){this.tensorManager=ic(this),this.mlContextBySessionId=new Map,this.sessionIdsByMLContext=new Map,this.mlContextCache=[],this.sessionGraphInputs=new Map,this.sessionGraphOutputs=new Map,this.temporaryGraphInputs=[],this.temporaryGraphOutputs=[],this.temporarySessionTensorIds=new Map,this.mlOpSupportLimitsBySessionId=new Map,_a(e.logLevel,!!e.debug)}get currentSessionId(){if(this.activeSessionId===void 0)throw new Error("No active session");return this.activeSessionId}onRunStart(e){pe("verbose",()=>`[WebNN] onRunStart {sessionId: ${e}}`),this.activeSessionId=e}onRunEnd(e){pe("verbose",()=>`[WebNN] onRunEnd {sessionId: ${e}}`);let t=this.temporarySessionTensorIds.get(e);if(t){for(let r of t)pe("verbose",()=>`[WebNN] releasing temporary tensor {tensorId: ${r}}`),this.tensorManager.releaseTensorId(r);this.temporarySessionTensorIds.delete(e),this.activeSessionId=void 0}}async createMLContext(e){if(e instanceof GPUDevice){let r=this.mlContextCache.findIndex(i=>i.gpuDevice===e);if(r!==-1)return this.mlContextCache[r].mlContext;{let i=await navigator.ml.createContext(e);return this.mlContextCache.push({gpuDevice:e,mlContext:i}),i}}else if(e===void 0){let r=this.mlContextCache.findIndex(i=>i.options===void 0&&i.gpuDevice===void 0);if(r!==-1)return this.mlContextCache[r].mlContext;{let i=await navigator.ml.createContext();return this.mlContextCache.push({mlContext:i}),i}}let t=this.mlContextCache.findIndex(r=>fu(r.options,e));if(t!==-1)return this.mlContextCache[t].mlContext;{let r=await navigator.ml.createContext(e);return this.mlContextCache.push({options:e,mlContext:r}),r}}registerMLContext(e,t){this.mlContextBySessionId.set(e,t);let r=this.sessionIdsByMLContext.get(t);r||(r=new Set,this.sessionIdsByMLContext.set(t,r)),r.add(e),this.mlOpSupportLimitsBySessionId.has(e)||this.mlOpSupportLimitsBySessionId.set(e,t.opSupportLimits()),this.temporaryGraphInputs.length>0&&(this.sessionGraphInputs.set(e,this.temporaryGraphInputs),this.temporaryGraphInputs=[]),this.temporaryGraphOutputs.length>0&&(this.sessionGraphOutputs.set(e,this.temporaryGraphOutputs),this.temporaryGraphOutputs=[])}onReleaseSession(e){this.sessionGraphInputs.delete(e),this.sessionGraphOutputs.delete(e);let t=this.mlContextBySessionId.get(e);if(!t)return;this.tensorManager.releaseTensorsForSession(e),this.mlContextBySessionId.delete(e),this.mlOpSupportLimitsBySessionId.delete(e);let r=this.sessionIdsByMLContext.get(t);if(r.delete(e),r.size===0){this.sessionIdsByMLContext.delete(t);let i=this.mlContextCache.findIndex(n=>n.mlContext===t);i!==-1&&this.mlContextCache.splice(i,1)}}getMLContext(e){return this.mlContextBySessionId.get(e)}getMLOpSupportLimits(e){return this.mlOpSupportLimitsBySessionId.get(e)}reserveTensorId(){return this.tensorManager.reserveTensorId()}releaseTensorId(e){pe("verbose",()=>`[WebNN] releaseTensorId {tensorId: ${e}}`),this.tensorManager.releaseTensorId(e)}async ensureTensor(e,t,r,i,n){let a=pr.get(r);if(!a)throw new Error(`Unsupported ONNX data type: ${r}`);return this.tensorManager.ensureTensor(e??this.currentSessionId,t,a,i,n)}async createTemporaryTensor(e,t,r){pe("verbose",()=>`[WebNN] createTemporaryTensor {onnxDataType: ${t}, shape: ${r}}`);let i=pr.get(t);if(!i)throw new Error(`Unsupported ONNX data type: ${t}`);let n=this.tensorManager.reserveTensorId();await this.tensorManager.ensureTensor(e,n,i,r,!1);let a=this.temporarySessionTensorIds.get(e);return a?a.push(n):this.temporarySessionTensorIds.set(e,[n]),n}uploadTensor(e,t){if(!be().shouldTransferToMLTensor)throw new Error("Trying to upload to a MLTensor while shouldTransferToMLTensor is false");pe("verbose",()=>`[WebNN] uploadTensor {tensorId: ${e}, data: ${t.byteLength}}`),this.tensorManager.upload(e,t)}async downloadTensor(e,t){return this.tensorManager.download(e,t)}createMLTensorDownloader(e,t){return async()=>{let r=await this.tensorManager.download(e);return ya(r,t)}}registerMLTensor(e,t,r,i){let n=pr.get(r);if(!n)throw new Error(`Unsupported ONNX data type: ${r}`);let a=this.tensorManager.registerTensor(e,t,n,i);return pe("verbose",()=>`[WebNN] registerMLTensor {tensor: ${t}, dataType: ${n}, dimensions: ${i}} -> {tensorId: ${a}}`),a}registerMLConstant(e,t,r,i,n,a,s=!1){if(!a)throw new Error("External mounted files are not available.");let o=e;e.startsWith("./")&&(o=e.substring(2));let l=a.get(o);if(!l)throw new Error(`File with name ${o} not found in preloaded files.`);if(t+r>l.byteLength)throw new Error("Out of bounds: data offset and length exceed the external file data size.");let d=l.slice(t,t+r).buffer,c;switch(n.dataType){case"float32":c=new Float32Array(d);break;case"float16":c=typeof Float16Array<"u"?new Float16Array(d):new Uint16Array(d);break;case"int32":c=new Int32Array(d);break;case"uint32":c=new Uint32Array(d);break;case"int64":if(s){let h=jn(new Uint8Array(d),"int64");c=new Int32Array(h.buffer),n.dataType="int32"}else c=new BigInt64Array(d);break;case"uint64":c=new BigUint64Array(d);break;case"int8":c=new Int8Array(d);break;case"int4":case"uint4":case"uint8":c=new Uint8Array(d);break;default:throw new Error(`Unsupported data type: ${n.dataType} in creating WebNN Constant from external data.`)}return pe("verbose",()=>`[WebNN] registerMLConstant {dataType: ${n.dataType}, shape: ${n.shape}}} ${s?"(Note: it was int64 data type and registered to int32 as workaround)":""}`),i.constant(n,c)}registerGraphInput(e){this.temporaryGraphInputs.push(e)}registerGraphOutput(e){this.temporaryGraphOutputs.push(e)}isGraphInput(e,t){let r=this.sessionGraphInputs.get(e);return r?r.includes(t):!1}isGraphOutput(e,t){let r=this.sessionGraphOutputs.get(e);return r?r.includes(t):!1}isGraphInputOutputTypeSupported(e,t,r=!0){let i=pr.get(Dt(t)),n=this.mlOpSupportLimitsBySessionId.get(e);return typeof i>"u"?!1:r?!!n?.input.dataTypes.includes(i):!!n?.output.dataTypes.includes(i)}flush(){}}}),ba=L(()=>{"use strict"}),cn,Kr,Xr,mu,gu,hn,Kn,_u,ac,T_=L(()=>{"use strict";lt(),ba(),cn=new Map([[64,250],[128,200],[256,200],[512,200],[2048,230],[4096,200],[8192,50],[16384,50],[32768,50],[65536,50],[131072,50],[262144,50],[524288,50],[1048576,50],[2097152,30],[4194304,20],[8388608,10],[12582912,10],[16777216,10],[26214400,15],[33554432,22],[44236800,2],[58982400,6],[67108864,6],[134217728,6],[167772160,6]]),Kr=[],Xr=e=>Math.ceil(Number(e)/16)*16,mu=e=>{for(let t=0;t<Kr.length;t++){let r=Kr[t];if(e<=r)return r}return Math.ceil(e/16)*16},gu=1,hn=()=>gu++,Kn=async(e,t,r,i)=>{let n=Xr(r),a=e.device.createBuffer({size:n,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});try{let s=e.getCommandEncoder();e.endComputePass(),s.copyBufferToBuffer(t,0,a,0,n),e.flush(),await a.mapAsync(GPUMapMode.READ);let o=a.getMappedRange();if(i){let l=i();return l.set(new Uint8Array(o,0,r)),l}else return new Uint8Array(o.slice(0,r))}finally{a.destroy()}},_u=class{constructor(e){this.backend=e,this.storageCache=new Map,this.freeBuffers=new Map,this.freeUniformBuffers=new Map,this.buffersPending=[],this.capturedPendingBuffers=new Map;for(let[t]of cn)Kr.push(t),this.freeBuffers.set(t,[]),this.freeUniformBuffers.set(t,[]);this.sessionCount=0}upload(e,t){let r=t.buffer,i=t.byteOffset,n=t.byteLength,a=Xr(n),s=this.storageCache.get(e);if(!s)throw new Error("gpu data for uploading does not exist");if(Number(s.originalSize)!==n)throw new Error(`inconsistent data size. gpu data size=${s.originalSize}, data size=${n}`);let o=this.backend.device.createBuffer({mappedAtCreation:!0,size:a,usage:GPUBufferUsage.MAP_WRITE|GPUBufferUsage.COPY_SRC}),l=o.getMappedRange();new Uint8Array(l).set(new Uint8Array(r,i,n)),o.unmap();let d=this.backend.device.createCommandEncoder();d.copyBufferToBuffer(o,0,s.gpuData.buffer,0,a),this.backend.device.queue.submit([d.finish()]),o.destroy(),pe("verbose",()=>`[WebGPU] GpuDataManager.upload(id=${e})`)}memcpy(e,t){let r=this.storageCache.get(e);if(!r)throw new Error("source gpu data for memcpy does not exist");let i=this.storageCache.get(t);if(!i)throw new Error("destination gpu data for memcpy does not exist");if(r.originalSize!==i.originalSize)throw new Error("inconsistent source and destination gpu data size");let n=Xr(r.originalSize),a=this.backend.getCommandEncoder();this.backend.endComputePass(),a.copyBufferToBuffer(r.gpuData.buffer,0,i.gpuData.buffer,0,n)}registerExternalBuffer(e,t,r){let i;if(r){if(i=r[0],e===r[1])return pe("verbose",()=>`[WebGPU] GpuDataManager.registerExternalBuffer(size=${t}) => id=${i}, buffer is the same, skip.`),i;if(this.backend.capturedCommandList.has(this.backend.currentSessionId))throw new Error(`Registering a different external buffer under graph capture mode is not supported yet.
+             Please use the previous external buffer!`)}else i=hn();return this.storageCache.set(i,{gpuData:{id:i,type:0,buffer:e},originalSize:t}),pe("verbose",()=>`[WebGPU] GpuDataManager.registerExternalBuffer(size=${t}) => id=${i}, registered.`),i}unregisterExternalBuffer(e){e!==void 0&&(this.storageCache.delete(e),pe("verbose",()=>`[WebGPU] GpuDataManager.unregisterExternalBuffer() => id=${e}`))}create(e,t=GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST){let r=mu(e),i,n=(t&GPUBufferUsage.STORAGE)===GPUBufferUsage.STORAGE,a=(t&GPUBufferUsage.UNIFORM)===GPUBufferUsage.UNIFORM;if(n||a){let o=(n?this.freeBuffers:this.freeUniformBuffers).get(r);o?o.length>0?i=o.pop():i=this.backend.device.createBuffer({size:r,usage:t}):i=this.backend.device.createBuffer({size:r,usage:t})}else i=this.backend.device.createBuffer({size:r,usage:t});let s={id:hn(),type:0,buffer:i};return this.storageCache.set(s.id,{gpuData:s,originalSize:Number(e)}),pe("verbose",()=>`[WebGPU] GpuDataManager.create(size=${e}) => id=${s.id}`),s}get(e){return this.storageCache.get(e)?.gpuData}release(e){let t=typeof e=="bigint"?Number(e):e,r=this.storageCache.get(t);if(!r){if(this.storageCache.size===0)return 0;throw new Error("releasing data does not exist")}return pe("verbose",()=>`[WebGPU] GpuDataManager.release(id=${t}), gpuDataId=${r.gpuData.id}`),this.storageCache.delete(t),this.buffersPending.push(r.gpuData.buffer),r.originalSize}async download(e,t){let r=this.storageCache.get(Number(e));if(!r)throw new Error("data does not exist");await Kn(this.backend,r.gpuData.buffer,r.originalSize,t)}refreshPendingBuffers(){if(this.buffersPending.length!==0)if(this.backend.sessionStatus==="default"){for(let e of this.buffersPending){let t=cn.get(e.size);if((e.usage&GPUBufferUsage.STORAGE)===GPUBufferUsage.STORAGE){let r=this.freeBuffers.get(e.size)||[];t===void 0||r.length>=t?e.destroy():r.push(e)}else if((e.usage&GPUBufferUsage.UNIFORM)===GPUBufferUsage.UNIFORM){let r=this.freeUniformBuffers.get(e.size)||[];t===void 0||r.length>=t?e.destroy():r.push(e)}else e.destroy()}this.buffersPending=[]}else{let e=this.capturedPendingBuffers.get(this.backend.currentSessionId);e||(e=[],this.capturedPendingBuffers.set(this.backend.currentSessionId,e));for(let t of this.buffersPending)e.push(t);this.buffersPending=[]}}dispose(){this.freeBuffers.forEach(e=>{e.forEach(t=>{t.destroy()})}),this.freeUniformBuffers.forEach(e=>{e.forEach(t=>{t.destroy()})}),this.storageCache.forEach(e=>{e.gpuData.buffer.destroy()}),this.capturedPendingBuffers.forEach(e=>{e.forEach(t=>{t.destroy()})}),this.storageCache=new Map,this.freeBuffers=new Map,this.freeUniformBuffers=new Map,this.capturedPendingBuffers=new Map}onCreateSession(){this.sessionCount+=1}onReleaseSession(e){let t=this.capturedPendingBuffers.get(e);t&&(t.forEach(r=>{r.destroy()}),this.capturedPendingBuffers.delete(e)),this.sessionCount-=1,this.sessionCount===0&&(pe("warning",()=>"[WebGPU] Clearing webgpu buffer cache"),this.storageCache.forEach(r=>{r.gpuData.buffer.destroy()}),this.storageCache=new Map)}},ac=(...e)=>new _u(...e)}),yu,me,Ie=L(()=>{"use strict";yu=class{constructor(e){Object.assign(this,e)}get cacheKey(){return this.key||(this.key=Object.getOwnPropertyNames(this).sort().map(e=>`${this[e]}`).join(";")),this.key}},me=e=>new yu(e)}),Zt,Zr,Ce,Be,Y,Ee,Xn,Kt,$t,Z,cr,M,K,sc,wa,bu,oc,ae=L(()=>{"use strict";re(),ne(),Zt=64,Zr=(e,t)=>{if(t===3)throw new Error("vec3 has same alignment as vec4, use vec4 instead");switch(Number(e)){case 10:return t>1?`vec${t}<f16>`:"f16";case 1:return t>1?`vec${t}<f32>`:"f32";case 6:return t>1?`vec${t}<i32>`:"i32";case 12:return t>1?`vec${t}<u32>`:"u32";case 7:if(t>1)throw new Error("currently not supported vecX of uint64 yet");return["vec2<u32>","i32"];case 13:if(t>1)throw new Error("currently not supported vecX of uint64 yet");return["vec2<u32>","u32"];case 9:if(t!==4)throw new Error("bool must be vec4");return["u32","vec4<bool>"];case 22:return"i32";case 21:return"u32";default:throw new Error(`Unknown data type: ${e}`)}},Ce=(e,t=1)=>{let r=Zr(e,t);return typeof r=="string"?r:r[0]},Be=(e,t=1)=>{let r=Zr(e,t);return typeof r=="string"?r:r[1]},Y=(...e)=>{let t=[];return e.forEach(r=>{r.length!==0&&t.push({type:12,data:r},{type:12,data:R.computeStrides(r)})}),t},Ee=e=>e%4===0?4:e%2===0?2:1,Xn=(e="f32",t,r="0")=>!t||t===1?`${e}(${r})`:`vec${t}<${e}>(${r})`,Kt=(e,t,r)=>e==="f32"?r:t===1?`f32(${r})`:`vec${t}<f32>(${r})`,$t=(e,t)=>t===4?`(${e}.x + ${e}.y + ${e}.z + ${e}.w)`:t===2?`(${e}.x + ${e}.y)`:t===3?`(${e}.x + ${e}.y + ${e}.z)`:e,Z=(e,t,r,i)=>e.startsWith("uniforms.")&&r>4?typeof t=="string"?i==="f16"?`${e}[(${t}) / 8][(${t}) % 8 / 4][(${t}) % 8 % 4]`:`${e}[(${t}) / 4][(${t}) % 4]`:i==="f16"?`${e}[${Math.floor(t/8)}][${Math.floor(t%8/4)}][${t%8%4}]`:`${e}[${Math.floor(t/4)}][${t%4}]`:r>1?`${e}[${t}]`:e,cr=(e,t,r,i,n)=>{let a=typeof r=="number",s=a?r:r.length,o=[...new Array(s).keys()],l=s<2?"u32":s<=4?`vec${s}<u32>`:`array<u32, ${s}>`,d=Zr(t,n),c=typeof d=="string"?d:d[1],h=typeof d=="string"?d:d[0],m={indices:l,value:c,storage:h,tensor:t},y=N=>typeof N=="string"?N:`${N}u`,_={offsetToIndices:!1,indicesToOffset:!1,broadcastedIndicesToOffset:!1,set:!1,setByIndices:!1,get:!1,getByIndices:!1},w=a?"uniforms.":"",S=`${w}${e}_shape`,x=`${w}${e}_strides`,b="";for(let N=0;N<s-1;N++)b+=`
+    let dim${N} = current / ${Z(x,N,s)};
+    let rest${N} = current % ${Z(x,N,s)};
+    indices[${N}] = dim${N};
+    current = rest${N};
+    `;b+=`indices[${s-1}] = current;`;let E=s<2?"":`
+  fn o2i_${e}(offset: u32) -> ${m.indices} {
+    var indices: ${m.indices};
+    var current = offset;
+    ${b}
+    return indices;
+  }`,T=N=>(_.offsetToIndices=!0,s<2?N:`o2i_${e}(${N})`),k=[];if(s>=2)for(let N=s-1;N>=0;N--)k.push(`${Z(x,N,s)} * (indices[${N}])`);let C=s<2?"":`
+  fn i2o_${e}(indices: ${m.indices}) -> u32 {
+    return ${k.join("+")};
+  }`,z=N=>(_.indicesToOffset=!0,s<2?N:`i2o_${e}(${N})`),$=(...N)=>s===0?"0u":`${m.indices}(${N.map(y).join(",")})`,D=(N,ee)=>s<2?`${N}`:`${Z(N,ee,s)}`,W=(N,ee,Q)=>s<2?`${N}=${Q};`:`${Z(N,ee,s)}=${Q};`,F={},V=(N,ee)=>{_.broadcastedIndicesToOffset=!0;let Q=`${ee.name}broadcastedIndicesTo${e}Offset`;if(Q in F)return`${Q}(${N})`;let H=[];for(let $e=s-1;$e>=0;$e--){let Re=ee.indicesGet("outputIndices",$e+ee.rank-s);H.push(`${D(x,$e)} * (${Re} % ${D(S,$e)})`)}return F[Q]=`fn ${Q}(outputIndices: ${ee.type.indices}) -> u32 {
+             return ${H.length>0?H.join("+"):"0u"};
+           }`,`${Q}(${N})`},P=(N,ee)=>(()=>{if(m.storage===m.value)return`${e}[${N}]=${ee};`;if(m.storage==="vec2<u32>"&&m.value==="i32")return`${e}[${N}]=vec2<u32>(u32(${ee}), select(0u, 0xFFFFFFFFu, ${ee} < 0));`;if(m.storage==="vec2<u32>"&&m.value==="u32")return`${e}[${N}]=vec2<u32>(u32(${ee}), 0u);`;if(m.storage==="u32"&&m.value==="vec4<bool>")return`${e}[${N}]=dot(vec4<u32>(0x1, 0x100, 0x10000, 0x1000000), vec4<u32>(${ee}));`;throw new Error(`not supported combination of storage type ${m.storage} and value type ${m.value} yet`)})(),j=N=>(()=>{if(m.storage===m.value)return`${e}[${N}]`;if(m.storage==="vec2<u32>"&&m.value==="i32")return`i32(${e}[${N}].x)`;if(m.storage==="vec2<u32>"&&m.value==="u32")return`u32(${e}[${N}].x)`;if(m.storage==="u32"&&m.value==="vec4<bool>")return`vec4<bool>(bool(${e}[${N}] & 0xFFu), bool(${e}[${N}] & 0xFF00u), bool(${e}[${N}] & 0xFF0000u), bool(${e}[${N}] & 0xFF000000u))`;throw new Error(`not supported combination of storage type ${m.storage} and value type ${m.value} yet`)})(),O=s<2?"":`
+  fn get_${e}ByIndices(indices: ${m.indices}) -> ${c} {
+    return ${j(`i2o_${e}(indices)`)};
+  }`,U=s<2?"":(()=>{let N=o.map(Q=>`d${Q}: u32`).join(", "),ee=o.map(Q=>`d${Q}`).join(", ");return`
+  fn get_${e}(${N}) -> ${c} {
+    return get_${e}ByIndices(${$(ee)});
+  }`})(),J=(...N)=>{if(N.length!==s)throw new Error(`indices length must be ${s}`);let ee=N.map(y).join(",");return s===0?j("0u"):s===1?j(ee[0]):(_.get=!0,_.getByIndices=!0,_.indicesToOffset=!0,`get_${e}(${ee})`)},te=N=>s<2?j(N):(_.getByIndices=!0,_.indicesToOffset=!0,`get_${e}ByIndices(${N})`),X=s<2?"":`
+  fn set_${e}ByIndices(indices: ${m.indices}, value: ${c}) {
+    ${P(`i2o_${e}(indices)`,"value")}
+  }`,se=s<2?"":(()=>{let N=o.map(Q=>`d${Q}: u32`).join(", "),ee=o.map(Q=>`d${Q}`).join(", ");return`
+  fn set_${e}(${N}, value: ${c}) {
+    set_${e}ByIndices(${$(ee)}, value);
+  }`})();return{impl:()=>{let N=[],ee=!1;return _.offsetToIndices&&(N.push(E),ee=!0),_.indicesToOffset&&(N.push(C),ee=!0),_.broadcastedIndicesToOffset&&(Object.values(F).forEach(Q=>N.push(Q)),ee=!0),_.set&&(N.push(se),ee=!0),_.setByIndices&&(N.push(X),ee=!0),_.get&&(N.push(U),ee=!0),_.getByIndices&&(N.push(O),ee=!0),!a&&ee&&N.unshift(`const ${S} = ${m.indices}(${r.join(",")});`,`const ${x} = ${m.indices}(${R.computeStrides(r).join(",")});`),N.join(`
+`)},type:m,offsetToIndices:T,indicesToOffset:z,broadcastedIndicesToOffset:V,indices:$,indicesGet:D,indicesSet:W,set:(...N)=>{if(N.length!==s+1)throw new Error(`indices length must be ${s}`);let ee=N[s];if(typeof ee!="string")throw new Error("value must be string");let Q=N.slice(0,s).map(y).join(",");return s===0?P("0u",ee):s===1?P(Q[0],ee):(_.set=!0,_.setByIndices=!0,_.indicesToOffset=!0,`set_${e}(${Q}, ${ee})`)},setByOffset:P,setByIndices:(N,ee)=>s<2?P(N,ee):(_.setByIndices=!0,_.indicesToOffset=!0,`set_${e}ByIndices(${N}, ${ee});`),get:J,getByOffset:j,getByIndices:te,usage:i,name:e,strides:x,shape:S,rank:s}},M=(e,t,r,i=1)=>cr(e,t,r,"input",i),K=(e,t,r,i=1)=>cr(e,t,r,"output",i),sc=(e,t,r)=>cr(e,t,r,"atomicOutput",1),wa=(e,t,r,i=1)=>cr(e,t,r,"internal",i),bu=class{constructor(e,t){this.normalizedDispatchGroup=e,this.limits=t,this.internalVariables=[],this.variables=[],this.uniforms=[],this.variableIndex=0}guardAgainstOutOfBoundsWorkgroupSizes(e){return`if (global_idx >= ${typeof e=="number"?`${e}u`:e}) { return; }`}mainStart(e=Zt){let t=typeof e=="number"?e:e[0],r=typeof e=="number"?1:e[1],i=typeof e=="number"?1:e[2];if(t>this.limits.maxComputeWorkgroupSizeX||r>this.limits.maxComputeWorkgroupSizeY||i>this.limits.maxComputeWorkgroupSizeZ)throw new Error(`workgroup size [${t}, ${r}, ${i}] exceeds the maximum workgroup size [${this.limits.maxComputeWorkgroupSizeX}, ${this.limits.maxComputeWorkgroupSizeY}, ${this.limits.maxComputeWorkgroupSizeZ}].`);if(t*r*i>this.limits.maxComputeInvocationsPerWorkgroup)throw new Error(`workgroup size [${t}, ${r}, ${i}] exceeds the maximum workgroup invocations ${this.limits.maxComputeInvocationsPerWorkgroup}.`);let n=this.normalizedDispatchGroup[1]===1&&this.normalizedDispatchGroup[2]===1,a=n?`@builtin(global_invocation_id) global_id : vec3<u32>,
+    @builtin(workgroup_id) workgroup_id : vec3<u32>,
+    @builtin(local_invocation_index) local_idx : u32,
+    @builtin(local_invocation_id) local_id : vec3<u32>`:`@builtin(global_invocation_id) global_id : vec3<u32>,
+                                             @builtin(local_invocation_id) local_id : vec3<u32>,
+    @builtin(local_invocation_index) local_idx : u32,
+    @builtin(workgroup_id) workgroup_id : vec3<u32>,
+    @builtin(num_workgroups) num_workgroups : vec3<u32>`,s=n?`let global_idx = global_id.x;
+         let workgroup_index = workgroup_id.x;`:`let workgroup_index = workgroup_id.z * num_workgroups[0] * num_workgroups[1] +
+             workgroup_id.y * num_workgroups[0] + workgroup_id.x;
+         let global_idx = workgroup_index * ${t*r*i}u + local_idx;`;return`@compute @workgroup_size(${t}, ${r}, ${i})
+  fn main(${a}) {
+    ${s}
+  `}appendVariableUniforms(e){e.rank!==0&&(e.shape.startsWith("uniforms.")&&this.uniforms.push({name:e.shape.replace("uniforms.",""),type:"u32",length:e.rank}),e.strides.startsWith("uniforms.")&&this.uniforms.push({name:e.strides.replace("uniforms.",""),type:"u32",length:e.rank}))}declareVariable(e,t){if(e.usage==="internal")throw new Error("cannot use internal variable with declareVariable(). use registerInternalVariables() instead.");this.variables.push(e),this.appendVariableUniforms(e);let r=e.usage==="input"?"read":"read_write",i=e.usage==="atomicOutput"?"atomic<i32>":e.type.storage;return`@group(0) @binding(${t}) var<storage, ${r}> ${e.name}: array<${i}>;`}declareVariables(...e){return e.map(t=>this.declareVariable(t,this.variableIndex++)).join(`
+`)}registerInternalVariable(e){if(e.usage!=="internal")throw new Error("cannot use input or output variable with registerInternalVariable(). use declareVariables() instead.");this.internalVariables.push(e),this.appendVariableUniforms(e)}registerInternalVariables(...e){return e.forEach(t=>this.registerInternalVariable(t)),this}registerUniform(e,t,r=1){return this.uniforms.push({name:e,type:t,length:r}),this}registerUniforms(e){return this.uniforms=this.uniforms.concat(e),this}uniformDeclaration(){if(this.uniforms.length===0)return"";let e=[];for(let{name:t,type:r,length:i}of this.uniforms)if(i&&i>4)r==="f16"?e.push(`@align(16) ${t}:array<mat2x4<${r}>, ${Math.ceil(i/8)}>`):e.push(`${t}:array<vec4<${r}>, ${Math.ceil(i/4)}>`);else{let n=i==null||i===1?r:`vec${i}<${r}>`;e.push(`${t}:${n}`)}return`
+      struct Uniforms { ${e.join(", ")} };
+      @group(0) @binding(${this.variableIndex}) var<uniform> uniforms: Uniforms;`}get additionalImplementations(){return this.uniformDeclaration()+this.variables.map(e=>e.impl()).join(`
+`)+this.internalVariables.map(e=>e.impl()).join(`
+`)}get variablesInfo(){if(this.uniforms.length===0)return;let e=t=>[12,10,1,6][["u32","f16","f32","i32"].indexOf(t)];return this.uniforms.map(t=>[e(t.type),t.length??1])}},oc=(e,t)=>new bu(e,t)}),wu,fn,$u,vu,xu,Su,Le,uc,lc,vt=L(()=>{"use strict";re(),ne(),Ie(),ae(),wu=(e,t)=>{if(!e||e.length!==1)throw new Error("Transpose requires 1 input.");if(t.length!==0&&t.length!==e[0].dims.length)throw new Error(`perm size ${t.length} does not match input rank ${e[0].dims.length}`)},fn=(e,t)=>t.length!==0?t:[...new Array(e).keys()].reverse(),$u=(e,t)=>R.sortBasedOnPerm(e,fn(e.length,t)),vu=(e,t,r,i)=>{let n=`fn perm(i: ${i.type.indices}) -> ${r.type.indices} {
+    var a: ${r.type.indices};`;for(let a=0;a<t;++a)n+=`a[${e[a]}]=i[${a}];`;return n+="return a;}"},xu=(e,t)=>{let r=[],i=[];for(let n=0;n<e.length;++n)e[n]!==1&&r.push(e[n]),e[t[n]]!==1&&i.push(t[n]);return{newShape:r,newPerm:i}},Su=(e,t)=>{let r=0;for(let i=0;i<e.length;++i)if(t[e[i]]!==1){if(e[i]<r)return!1;r=e[i]}return!0},Le=(e,t)=>{let r=e.dataType,i=e.dims.length,n=fn(i,t),a=$u(e.dims,n),s=e.dims,o=a,l=i<2||Su(n,e.dims),d;if(l)return d=_=>{let w=M("input",r,s,4),S=K("output",r,o,4);return`
+  ${_.registerUniform("output_size","u32").declareVariables(w,S)}
+  ${_.mainStart()}
+    ${_.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+    output[global_idx] = input[global_idx];
+  }`},{name:"TransposeCopy",shaderCache:{inputDependencies:["type"]},getRunData:()=>{let _=R.size(a);return{outputs:[{dims:a,dataType:e.dataType}],dispatchGroup:{x:Math.ceil(_/64/4)},programUniforms:[{type:12,data:Math.ceil(_/4)}]}},getShaderSource:d};let{newShape:c,newPerm:h}=xu(e.dims,n),m=R.areEqual(h,[2,3,1]),y=R.areEqual(h,[3,1,2]);if(c.length===2||m||y){s=m?[c[0],c[1]*c[2]]:y?[c[0]*c[1],c[2]]:c,o=[s[1],s[0]];let _=16;return d=w=>{let S=M("a",r,s.length),x=K("output",r,o.length);return`
+  ${w.registerUniform("output_size","u32").declareVariables(S,x)}
+  var<workgroup> tile : array<array<${x.type.value}, ${_+1}>, ${_}>;
+  ${w.mainStart([_,_,1])}
+    let stride = (uniforms.output_shape[1] - 1) / ${_} + 1;
+    let workgroup_id_x = workgroup_index % stride;
+    let workgroup_id_y = workgroup_index / stride;
+    let input_col = workgroup_id_y * ${_}u + local_id.x;
+    let input_row = workgroup_id_x * ${_}u + local_id.y;
+    if (input_row < uniforms.a_shape[0] && input_col < uniforms.a_shape[1]) {
+      tile[local_id.y][local_id.x] = ${S.getByIndices(`${S.type.indices}(input_row, input_col)`)};
+    }
+    workgroupBarrier();
+
+    let output_col = workgroup_id_x * ${_}u + local_id.x;
+    let output_row = workgroup_id_y * ${_}u + local_id.y;
+    if (output_row < uniforms.output_shape[0] && output_col < uniforms.output_shape[1]) {
+      ${x.setByIndices(`${x.type.indices}(output_row, output_col)`,"tile[local_id.x][local_id.y]")}
+    }
+  }`},{name:"TransposeShared",shaderCache:{inputDependencies:["type"]},getRunData:()=>{let w=R.size(a);return{outputs:[{dims:a,dataType:e.dataType}],dispatchGroup:{x:Math.ceil(o[1]/_),y:Math.ceil(o[0]/_)},programUniforms:[{type:12,data:w},...Y(s,o)]}},getShaderSource:d}}return d=_=>{let w=M("a",r,s.length),S=K("output",r,o.length);return`
+  ${_.registerUniform("output_size","u32").declareVariables(w,S)}
+
+  ${vu(n,i,w,S)}
+
+  ${_.mainStart()}
+    ${_.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+
+    let indices = ${S.offsetToIndices("global_idx")};
+    let aIndices = perm(indices);
+
+    ${S.setByOffset("global_idx",w.getByIndices("aIndices"))}
+  }`},{name:"Transpose",shaderCache:{hint:`${t}`,inputDependencies:["rank"]},getRunData:()=>{let _=R.size(a);return{outputs:[{dims:a,dataType:e.dataType}],dispatchGroup:{x:Math.ceil(_/64)},programUniforms:[{type:12,data:_},...Y(s,o)]}},getShaderSource:d}},uc=(e,t)=>{wu(e.inputs,t.perm),e.compute(Le(e.inputs[0],t.perm))},lc=e=>me({perm:e.perm})}),Tu,Eu,Iu,ku,Cu,zu,Ou,Au,Ru,Bu,He,dc,pc,cc,hc,fc,mc,gc,_c,yc,bc,E_=L(()=>{"use strict";re(),ne(),ae(),$a(),vt(),Tu={max:"select(bestValue, candidate, candidate > bestValue)",min:"select(bestValue, candidate, candidate < bestValue)",mean:"bestValue + candidate",sum:"bestValue + candidate",prod:"bestValue * candidate",sumSquare:"bestValue + candidate * candidate",logSumExp:"bestValue + exp(candidate)",l1:"bestValue + abs(candidate)",l2:"bestValue + candidate * candidate",logSum:"bestValue + candidate"},Eu={max:"select(bestValue, candidate, candidate > bestValue)",min:"select(bestValue, candidate, candidate < bestValue)",mean:"bestValue + candidate",sum:"bestValue + candidate",prod:"bestValue * candidate",sumSquare:"bestValue + candidate",logSumExp:"bestValue + candidate",l1:"bestValue + candidate",l2:"bestValue + candidate",logSum:"bestValue + candidate"},Iu={max:"_A[offset]",min:"_A[offset]",mean:"0",sum:"0",prod:"1",sumSquare:"0",logSumExp:"0",l1:"0",l2:"0",logSum:"0"},ku={max:"bestValue",min:"bestValue",sum:"bestValue",prod:"bestValue",sumSquare:"bestValue",logSumExp:"log(bestValue)",l1:"bestValue",l2:"sqrt(bestValue)",logSum:"log(bestValue)"},Cu=(e,t)=>{let r=[];for(let i=t-e;i<t;++i)r.push(i);return r},zu=(e,t)=>{let r=[],i=e.length;for(let a=0;a<i;a++)t.indexOf(a)===-1&&r.push(e[a]);let n=t.map(a=>e[a]);return[r,n]},Ou=(e,t)=>{let r=e.length+t.length,i=[],n=0;for(let a=0;a<r;a++)t.indexOf(a)===-1?i.push(e[n++]):i.push(1);return i},Au=(e,t)=>{for(let r=0;r<e.length;++r)if(e[e.length-r-1]!==t-1-r)return!1;return!0},Ru=(e,t)=>{let r=[];if(!Au(e,t)){for(let i=0;i<t;++i)e.indexOf(i)===-1&&r.push(i);e.forEach(i=>r.push(i))}return r},Bu=(e,t,r,i,n,a,s)=>{let o=r[0].dims,l=R.size(a),d=R.size(s),c=M("_A",r[0].dataType,o),h=K("output",n,a),m=64;l===1&&(m=256);let y=`
+          var<workgroup> aBestValues : array<f32, ${m}>;
+       `,_=w=>`
+        ${w.registerUniform("reduceSize","u32").declareVariables(c,h)}
+        ${y}
+        fn DIV_CEIL(a : u32, b : u32) -> u32 {
+          return ((a - 1u) / b + 1u);
+         }
+         ${w.mainStart(m)}
+
+          let outputIndex = global_idx / ${m};
+          let offset = outputIndex * uniforms.reduceSize;
+
+          var bestValue = f32(${Iu[i]});
+          let Length = uniforms.reduceSize;
+          for (var k = local_idx; k < Length; k = k + ${m}) {
+           let candidate = f32(${c.getByOffset("offset + k")});
+           bestValue = ${Tu[i]};
+          }
+          aBestValues[local_idx] = bestValue;
+          workgroupBarrier();
+
+         var reduceSize = min(Length, ${m}u);
+         for (var currentSize = reduceSize / 2u; reduceSize > 1u;
+             currentSize = reduceSize / 2u) {
+           let interval = DIV_CEIL(reduceSize, 2u);
+           if (local_idx < currentSize) {
+            let candidate = aBestValues[local_idx + interval];
+            bestValue = ${Eu[i]};
+            aBestValues[local_idx] = bestValue;
+           }
+           reduceSize = interval;
+           workgroupBarrier();
+         }
+
+         if (local_idx == 0u) {
+          ${h.setByOffset("outputIndex",`${i==="mean"?`${h.type.storage}(bestValue / f32(uniforms.reduceSize))`:`${h.type.storage}(${ku[i]})`}`)};
+         }
+        }`;return{name:e,shaderCache:{hint:`${t};${m}`,inputDependencies:["type"]},getShaderSource:_,getRunData:()=>({outputs:[{dims:a,dataType:n}],dispatchGroup:{x:l},programUniforms:[{type:12,data:d}]})}},He=(e,t,r,i)=>{let n=e.inputs.length===1?r:Zn(e.inputs,r),a=n.axes;a.length===0&&!n.noopWithEmptyAxes&&(a=e.inputs[0].dims.map((y,_)=>_));let s=R.normalizeAxes(a,e.inputs[0].dims.length),o=s,l=e.inputs[0],d=Ru(o,e.inputs[0].dims.length);d.length>0&&(l=e.compute(Le(e.inputs[0],d),{inputs:[0],outputs:[-1]})[0],o=Cu(o.length,l.dims.length));let[c,h]=zu(l.dims,o),m=c;n.keepDims&&(m=Ou(c,s)),e.compute(Bu(t,n.cacheKey,[l],i,e.inputs[0].dataType,m,h),{inputs:[l]})},dc=(e,t)=>{He(e,"ReduceMeanShared",t,"mean")},pc=(e,t)=>{He(e,"ReduceL1Shared",t,"l1")},cc=(e,t)=>{He(e,"ReduceL2Shared",t,"l2")},hc=(e,t)=>{He(e,"ReduceLogSumExpShared",t,"logSumExp")},fc=(e,t)=>{He(e,"ReduceMaxShared",t,"max")},mc=(e,t)=>{He(e,"ReduceMinShared",t,"min")},gc=(e,t)=>{He(e,"ReduceProdShared",t,"prod")},_c=(e,t)=>{He(e,"ReduceSumShared",t,"sum")},yc=(e,t)=>{He(e,"ReduceSumSquareShared",t,"sumSquare")},bc=(e,t)=>{He(e,"ReduceLogSumShared",t,"logSum")}}),je,Mu,li,Zn,Ke,Du,Nu,Pu,Lu,Uu,Wu,qu,Vu,Gu,Fu,Xe,wc,$c,vc,xc,Sc,Tc,Ec,Ic,kc,Cc,$a=L(()=>{"use strict";re(),ne(),Ie(),ae(),E_(),je=e=>{if(!e||e.length===0||e.length>2)throw new Error("Reduce op requires 1 or 2 inputs.");if(e.length===2&&e[1].dims.length!==1)throw new Error("Invalid axes input dims.")},Mu=e=>["","",`var value = ${e.getByIndices("input_indices")};`,""],li=(e,t,r,i,n,a,s=!1,o=!1)=>{let l=[],d=r[0].dims,c=d.length,h=R.normalizeAxes(n,c),m=!o&&h.length===0;d.forEach((w,S)=>{m||h.indexOf(S)>=0?s&&l.push(1):l.push(w)});let y=l.length,_=R.size(l);return{name:e,shaderCache:t,getShaderSource:w=>{let S=[],x=M("_A",r[0].dataType,c),b=K("output",a,y),E=i(x,b,h),T=E[2];for(let k=0,C=0;k<c;k++)m||h.indexOf(k)>=0?(s&&C++,T=`for(var j${k}: u32 = 0; j${k} < ${d[k]}; j${k}++) {
+                  ${E[2].includes("last_index")?`let last_index = j${k};`:""}
+                  ${x.indicesSet("input_indices",k,`j${k}`)}
+                  ${T}
+                }`):(S.push(`${x.indicesSet("input_indices",k,b.indicesGet("output_indices",C))};`),C++);return`
+
+        ${w.registerUniform("output_size","u32").declareVariables(x,b)}
+
+        ${w.mainStart()}
+          ${w.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+          var input_indices: ${x.type.indices};
+          let output_indices = ${b.offsetToIndices("global_idx")};
+
+          ${S.join(`
+`)}
+          ${E[0]}       // init ops for reduce max/min
+          ${E[1]}
+          ${T}
+          ${E[3]}
+          ${E.length===4?b.setByOffset("global_idx","value"):E.slice(4).join(`
+`)}
+        }`},getRunData:()=>({outputs:[{dims:l,dataType:a}],dispatchGroup:{x:Math.ceil(_/64)},programUniforms:[{type:12,data:_},...Y(d,l)]})}},Zn=(e,t)=>{let r=[];return e[1].dims[0]>0&&e[1].getBigInt64Array().forEach(i=>r.push(Number(i))),me({axes:r,keepDims:t.keepDims,noopWithEmptyAxes:t.noopWithEmptyAxes})},Ke=(e,t,r,i)=>{let n=e.inputs,a=n.length===1?r:Zn(n,r);e.compute(li(t,{hint:a.cacheKey,inputDependencies:["rank"]},[n[0]],a.noopWithEmptyAxes&&a.axes.length===0?Mu:i,a.axes,n[0].dataType,a.keepDims,a.noopWithEmptyAxes),{inputs:[0]})},Du=(e,t)=>{je(e.inputs),Ke(e,"ReduceLogSum",t,(r,i)=>[`var value = ${i.type.storage}(0);`,"",`value += ${r.getByIndices("input_indices")};`,"value = log(value);"])},Nu=(e,t)=>{je(e.inputs),Ke(e,"ReduceL1",t,(r,i)=>[`var value = ${i.type.storage}(0);`,"",`value += abs(${r.getByIndices("input_indices")});`,""])},Pu=(e,t)=>{je(e.inputs),Ke(e,"ReduceL2",t,(r,i)=>[`var t = ${i.type.value}(0); var value = ${i.type.value}(0);`,"",`t = ${r.getByIndices("input_indices")}; value += (t * t);`,"value = sqrt(value);"])},Lu=(e,t)=>{je(e.inputs),Ke(e,"ReduceLogSumExp",t,(r,i)=>[`var value = ${i.type.storage}(0);`,"",`value += exp(${r.getByIndices("input_indices")});`,"value = log(value);"])},Uu=(e,t)=>{je(e.inputs),Ke(e,"ReduceMax",t,(r,i,n)=>{let a=[];for(let s=0;s<r.rank;s++)(n.indexOf(s)>=0||n.length===0)&&a.push(r.indicesSet("input_indices",s,0));return[`${a.join(`
+`)}`,`var value = ${r.getByIndices("input_indices")};`,`value = max(value, ${r.getByIndices("input_indices")});`,""]})},Wu=(e,t)=>{je(e.inputs),Ke(e,"ReduceMean",t,(r,i,n)=>{let a=1;for(let s=0;s<r.rank;s++)(n.indexOf(s)>=0||n.length===0)&&(a*=e.inputs[0].dims[s]);return["var sum = f32(0);","",`sum += f32(${r.getByIndices("input_indices")});`,`let value = ${i.type.value}(sum / ${a});`]})},qu=(e,t)=>{je(e.inputs),Ke(e,"ReduceMin",t,(r,i,n)=>{let a=[];for(let s=0;s<r.rank;s++)(n.indexOf(s)>=0||n.length===0)&&a.push(`input_indices[${s}] = 0;`);return[`${a.join(`
+`)}`,`var value = ${r.getByIndices("input_indices")};`,`value = min(value, ${r.getByIndices("input_indices")});`,""]})},Vu=(e,t)=>{je(e.inputs),Ke(e,"ReduceProd",t,(r,i)=>[`var value = ${i.type.storage}(1);`,"",`value *= ${r.getByIndices("input_indices")};`,""])},Gu=(e,t)=>{je(e.inputs),Ke(e,"ReduceSum",t,(r,i)=>[`var value = ${i.type.storage}(0);`,"",`value += ${r.getByIndices("input_indices")};`,""])},Fu=(e,t)=>{je(e.inputs),Ke(e,"ReduceSumSquare",t,(r,i)=>[`var t = ${i.type.value}(0); var value = ${i.type.value}(0);`,"",`t = ${r.getByIndices("input_indices")}; value += t * t;`,""])},Xe=(e,t,r)=>{if(t.length===0)return r;let i=1,n=1;for(let a=0;a<t.length;a++)t.indexOf(a)===-1?i*=e[a]:n*=e[a];return n<32&&i>1024},wc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Wu(e,t):dc(e,t)},$c=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Nu(e,t):pc(e,t)},vc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Pu(e,t):cc(e,t)},xc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Lu(e,t):hc(e,t)},Sc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Uu(e,t):fc(e,t)},Tc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?qu(e,t):mc(e,t)},Ec=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Vu(e,t):gc(e,t)},Ic=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Gu(e,t):_c(e,t)},kc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Fu(e,t):yc(e,t)},Cc=(e,t)=>{Xe(e.inputs[0].dims,t.axes,t.noopWithEmptyAxes)?Du(e,t):bc(e,t)}}),mn,zc,Oc,Qn,I_=L(()=>{"use strict";re(),Ie(),$a(),mn=e=>{if(!e||e.length===0||e.length>2)throw new Error("ArgMinMaxOp op requires 1 or 2 inputs.");if(e[0].dataType!==1)throw new Error("Invalid input type.")},zc=(e,t)=>{mn(e.inputs);let r=(i,n,a)=>{let s=[];for(let o=0;o<i.rank;o++)(a.indexOf(o)>=0||a.length===0)&&s.push(`input_indices[${o}] = 0;`);return[`${s.join(`
+`)}`,`var value = ${i.getByIndices("input_indices")};
+var best_index : i32 = 0;`,`if (${i.getByIndices("input_indices")} ${t.selectLastIndex>0?"<=":"<"} value) {
+         value = ${i.getByIndices("input_indices")};
+         best_index = i32(last_index);
+       }`,"",n.setByOffset("global_idx","best_index")]};e.compute(li("ArgMin",{hint:t.cacheKey,inputDependencies:["rank"]},[e.inputs[0]],r,[t.axis],7,t.keepDims),{inputs:[0]})},Oc=(e,t)=>{mn(e.inputs);let r=(i,n,a)=>{let s=[];for(let o=0;o<i.rank;o++)(a.indexOf(o)>=0||a.length===0)&&s.push(`input_indices[${o}] = 0;`);return[`${s.join(`
+`)}`,`var value = ${i.getByIndices("input_indices")};
+var best_index : i32 = 0;`,`if (${i.getByIndices("input_indices")} ${t.selectLastIndex>0?">=":">"} value) {
+         value = ${i.getByIndices("input_indices")};
+         best_index = i32(last_index);
+       }`,"",n.setByOffset("global_idx","best_index")]};e.compute(li("argMax",{hint:t.cacheKey,inputDependencies:["rank"]},[e.inputs[0]],r,[t.axis],7,t.keepDims),{inputs:[0]})},Qn=e=>me(e)}),Hu,Qr,ju,Ku,Xu,Er,Zu,Ac,va=L(()=>{"use strict";re(),ne(),ba(),ae(),Hu=(e,t)=>{let r=e[0],i=e[1],n=e[2],a=e[3],s=e[4],o=e[5];if(s&&o)throw new Error("Attention cannot have both past and attention_bias");if(r.dims.length!==3)throw new Error('Input "input" must have 3 dimensions');let l=r.dims[0],d=r.dims[1],c=r.dims[2];if(n.dims.length!==1)throw new Error('Input "bias" is expected to have 1 dimensions');if(i.dims.length!==2)throw new Error('Input "weights" is expected to have 2 dimensions');if(i.dims[0]!==c)throw new Error("Input 1 dimension 0 should have same length as dimension 2 of input 0");if(n.dims[0]!==i.dims[1])throw new Error('Input "bias" dimension 0 should have same length as dimension 1 of input "weights"');let h=n.dims[0]/3,m=h,y=m;if(t.qkvHiddenSizes.length>0){if(t.qkvHiddenSizes.length!==3)throw new Error("qkv_hidden_sizes attribute should have 3 elements");for(let E of t.qkvHiddenSizes)if(E%t.numHeads!==0)throw new Error("qkv_hidden_sizes should be divisible by num_heads");h=t.qkvHiddenSizes[0],m=t.qkvHiddenSizes[1],y=t.qkvHiddenSizes[2]}let _=d;if(h!==m)throw new Error("qkv_hidden_sizes first element should be same as the second");if(n.dims[0]!==h+m+y)throw new Error('Input "bias" dimension 0 should have same length as sum of Q/K/V hidden sizes');let w=0;if(s){if(m!==y)throw new Error('Input "past" expect k_hidden_size == v_hidden_size');if(s.dims.length!==5)throw new Error('Input "past" must have 5 dimensions');if(s.dims[0]!==2)throw new Error('Input "past" first dimension must be 2');if(s.dims[1]!==l)throw new Error('Input "past" second dimension must be batch_size');if(s.dims[2]!==t.numHeads)throw new Error('Input "past" third dimension must be num_heads');if(s.dims[4]!==m/t.numHeads)throw new Error('Input "past" fifth dimension must be k_hidden_size / num_heads');t.pastPresentShareBuffer||(w=s.dims[3])}let S=_+w,x=-1,b=0;if(a)throw new Error("Mask not supported");if(s)throw new Error("past is not supported");if(o){if(o.dims.length!==4)throw new Error('Input "attention_bias" must have 4 dimensions');if(o.dims[0]!==l||o.dims[1]!==t.numHeads||o.dims[2]!==d||o.dims[3]!==S)throw new Error('Expect "attention_bias" shape (batch_size, num_heads, sequence_length, total_sequence_length)')}return{batchSize:l,sequenceLength:d,pastSequenceLength:w,kvSequenceLength:_,totalSequenceLength:S,maxSequenceLength:x,inputHiddenSize:c,hiddenSize:h,vHiddenSize:y,headSize:Math.floor(h/t.numHeads),vHeadSize:Math.floor(y/t.numHeads),numHeads:t.numHeads,isUnidirectional:!1,pastPresentShareBuffer:!1,maskFilterValue:t.maskFilterValue,maskType:b,scale:t.scale,broadcastResPosBias:!1,passPastInKv:!1,qkvFormat:1}},Qr=(e,t,r)=>t&&e?`
+      let total_sequence_length_input = u32(${t.getByOffset("0")});
+      let present_sequence_length = max(total_sequence_length_input, uniforms.past_sequence_length);
+      let is_subsequent_prompt: bool = sequence_length > 1 && sequence_length != total_sequence_length_input;
+      let is_first_prompt: bool = is_subsequent_prompt == false && sequence_length == total_sequence_length_input;
+      total_sequence_length = u32(${e?.getByOffset("batchIdx")}) + 1;
+      var past_sequence_length: u32 = 0;
+      if (is_first_prompt == false) {
+        past_sequence_length = total_sequence_length - sequence_length;
+      }
+       `:`
+    ${r?"let past_sequence_length = uniforms.past_sequence_length":""};
+    let present_sequence_length = total_sequence_length;
+    `,ju=(e,t,r,i,n,a,s,o)=>{let l=Ee(s?1:a),d=64,c=a/l;c<d&&(d=32);let h=Math.ceil(a/l/d),m=[{type:12,data:t},{type:12,data:r},{type:12,data:i},{type:12,data:n},{type:12,data:c},{type:12,data:h}],y=Ce(e.dataType,l),_=Be(1,l),w=["type"];s&&w.push("type"),o&&w.push("type");let S=x=>{let b=K("x",e.dataType,e.dims,l),E=[b],T=s?M("seq_lens",s.dataType,s.dims):void 0;T&&E.push(T);let k=o?M("total_sequence_length_input",o.dataType,o.dims):void 0;k&&E.push(k);let C=Be(e.dataType),z=[{name:"batch_size",type:"u32"},{name:"num_heads",type:"u32"},{name:"past_sequence_length",type:"u32"},{name:"sequence_length",type:"u32"},{name:"total_sequence_length",type:"u32"},{name:"elements_per_thread",type:"u32"}];return`
+  var<workgroup> thread_max: array<f32, ${d}>;
+  var<workgroup> thread_sum: array<f32, ${d}>;
+  ${x.registerUniforms(z).declareVariables(...E)}
+  ${x.mainStart([d,1,1])}
+    let batchIdx = workgroup_id.z / uniforms.num_heads;
+    let headIdx = workgroup_id.z % uniforms.num_heads;
+    let sequence_length = uniforms.sequence_length;
+    var total_sequence_length = uniforms.total_sequence_length;
+    ${Qr(T,k,!1)}
+    let local_offset = local_idx * uniforms.elements_per_thread;
+    let offset = (global_idx / ${d}) * uniforms.total_sequence_length + local_offset;
+    let seq_causal_length = ${s?"u32(past_sequence_length + workgroup_id.y + 1)":"total_sequence_length"};
+    var thread_max_vector = ${_}(-3.4028234663852886e+38f);
+    for (var i: u32 = 0; i < uniforms.elements_per_thread && i + local_offset < seq_causal_length; i++) {
+      thread_max_vector = max(${_}(x[offset + i]), thread_max_vector);
+    }
+    thread_max[local_idx] = ${(()=>{switch(l){case 1:return"thread_max_vector";case 2:return"max(thread_max_vector.x, thread_max_vector.y)";case 4:return"max(max(thread_max_vector.x, thread_max_vector.y), max(thread_max_vector.z, thread_max_vector.w))";default:throw new Error(`Unsupported components: ${l}`)}})()};
+    workgroupBarrier();
+
+    var max_value =  f32(-3.4028234663852886e+38f);
+    for (var i = 0u; i < ${d}; i++) {
+      max_value = max(thread_max[i], max_value);
+    }
+
+    var sum_vector = ${_}(0);
+    for (var i: u32 = 0; i < uniforms.elements_per_thread && i + local_offset < seq_causal_length; i++) {
+      sum_vector += exp(${_}(x[offset + i]) - max_value);
+    }
+    thread_sum[local_idx] = ${(()=>{switch(l){case 1:return"sum_vector";case 2:return"sum_vector.x + sum_vector.y";case 4:return"sum_vector.x + sum_vector.y + sum_vector.z + sum_vector.w";default:throw new Error(`Unsupported components: ${l}`)}})()};
+    workgroupBarrier();
+
+    var sum: f32 = 0;
+    for (var i = 0u; i < ${d}; i++) {
+      sum += thread_sum[i];
+    }
+
+    if (sum == 0) {
+      for (var i: u32 = 0; i < uniforms.elements_per_thread && i + local_offset < seq_causal_length; i++) {
+        x[offset + i] = ${b.type.value}(${C}(1.0) / ${C}(seq_causal_length));
+      }
+    } else {
+      for (var i: u32 = 0; i < uniforms.elements_per_thread && i + local_offset < seq_causal_length; i++) {
+        var f32input = ${_}(x[offset + i]);
+        x[offset + i] = ${b.type.value}(exp(f32input - max_value) / sum);
+      }
+    }
+      ${s?`
+        for (var total_seq_id: u32 = seq_causal_length; total_seq_id + local_offset < uniforms.total_sequence_length; total_seq_id++) {
+          x[offset + total_seq_id] = ${b.type.value}(${C}(0));
+        }`:""};
+  }`};return{name:"AttentionProbsSoftmax",shaderCache:{hint:`${d};${y};${l}`,inputDependencies:w},getShaderSource:S,getRunData:()=>({outputs:[],dispatchGroup:{x:1,y:n,z:t*r},programUniforms:m})}},Ku=(e,t,r,i,n,a,s,o,l)=>{let d=s+a.kvSequenceLength,c=[a.batchSize,a.numHeads,a.sequenceLength,d],h=e>1&&i,m=a.kvNumHeads?a.kvNumHeads:a.numHeads,y=h?[a.batchSize,m,d,a.headSize]:void 0,_=a.nReps?a.nReps:1,w=a.scale===0?1/Math.sqrt(a.headSize):a.scale,S=Ee(a.headSize),x=a.headSize/S,b=12,E={x:Math.ceil(d/b),y:Math.ceil(a.sequenceLength/b),z:a.batchSize*a.numHeads},T=[{type:12,data:a.sequenceLength},{type:12,data:x},{type:12,data:d},{type:12,data:a.numHeads},{type:12,data:a.headSize},{type:1,data:w},{type:12,data:s},{type:12,data:a.kvSequenceLength},{type:12,data:_}],k=h&&i&&R.size(i.dims)>0,C=["type","type"];k&&C.push("type"),n&&C.push("type"),o&&C.push("type"),l&&C.push("type");let z=[{dims:c,dataType:t.dataType,gpuDataType:0}];h&&z.push({dims:y,dataType:t.dataType,gpuDataType:0});let $=D=>{let W=M("q",t.dataType,t.dims,S),F=M("key",r.dataType,r.dims,S),V=[W,F];if(k){let X=M("past_key",i.dataType,i.dims,S);V.push(X)}n&&V.push(M("attention_bias",n.dataType,n.dims));let P=o?M("seq_lens",o.dataType,o.dims):void 0;P&&V.push(P);let j=l?M("total_sequence_length_input",l.dataType,l.dims):void 0;j&&V.push(j);let O=K("output",t.dataType,c),U=[O];h&&U.push(K("present_key",t.dataType,y,S));let J=Be(1,S),te=[{name:"M",type:"u32"},{name:"K",type:"u32"},{name:"N",type:"u32"},{name:"num_heads",type:"u32"},{name:"head_size",type:"u32"},{name:"alpha",type:"f32"},{name:"past_sequence_length",type:"u32"},{name:"kv_sequence_length",type:"u32"},{name:"n_reps",type:"u32"}];return`
+  const TILE_SIZE = ${b}u;
+
+  var<workgroup> tileQ: array<${W.type.storage}, ${b*b}>;
+  var<workgroup> tileK: array<${W.type.storage}, ${b*b}>;
+  ${D.registerUniforms(te).declareVariables(...V,...U)}
+  ${D.mainStart([b,b,1])}
+    // x holds the N and y holds the M
+    let headIdx = workgroup_id.z % uniforms.num_heads;
+    let kvHeadIdx = ${_===1?"headIdx":"headIdx / uniforms.n_reps"};
+    let kv_num_heads = ${_===1?"uniforms.num_heads":"uniforms.num_heads / uniforms.n_reps"};
+    let batchIdx = workgroup_id.z / uniforms.num_heads;
+    let m = workgroup_id.y * TILE_SIZE;
+    let n = workgroup_id.x * TILE_SIZE;
+    let sequence_length = uniforms.M;
+    var total_sequence_length = uniforms.N;
+    ${Qr(P,j,!0)}
+    let absKvHeadIdx = batchIdx * kv_num_heads + kvHeadIdx;
+    let qOffset = workgroup_id.z * uniforms.M * uniforms.K + m * uniforms.K;
+    ${k&&h?"let pastKeyOffset = absKvHeadIdx * uniforms.past_sequence_length * uniforms.K;":""};
+    let kOffset = absKvHeadIdx * uniforms.kv_sequence_length * uniforms.K;
+    ${h?"let presentKeyOffset = absKvHeadIdx * uniforms.N * uniforms.K;":""}
+    var value = ${J}(0);
+    for (var w: u32 = 0u; w < uniforms.K; w += TILE_SIZE) {
+      if (global_id.y < uniforms.M && w + local_id.x < uniforms.K) {
+        tileQ[TILE_SIZE * local_id.y + local_id.x] = q[qOffset + local_id.y * uniforms.K + w + local_id.x];
+      }
+      if (n + local_id.y < uniforms.N && w + local_id.x < uniforms.K) {
+        var idx = TILE_SIZE * local_id.y + local_id.x;
+      ${k&&h?`
+              if (n + local_id.y < past_sequence_length) {
+                tileK[idx] = past_key[pastKeyOffset + (n + local_id.y) * uniforms.K + w + local_id.x];
+              } else if (n + local_id.y - past_sequence_length < uniforms.kv_sequence_length) {
+                tileK[idx] = key[kOffset + (n + local_id.y - past_sequence_length) * uniforms.K + w + local_id.x];
+              }`:`
+          if (n + local_id.y < uniforms.kv_sequence_length) {
+            tileK[idx] = key[kOffset + (n + local_id.y) * uniforms.K + w + local_id.x];
+          }`}
+      ${h?`if (n + local_id.y < present_sequence_length) {
+        present_key[presentKeyOffset + (n + local_id.y) * uniforms.K + w + local_id.x] = tileK[idx];
+      }`:""}
+      }
+      workgroupBarrier();
+
+      for (var k: u32 = 0u; k < TILE_SIZE && w+k < uniforms.K; k++) {
+          value += ${J}(tileQ[TILE_SIZE * local_id.y + k] * tileK[TILE_SIZE * local_id.x + k]);
+      }
+
+      workgroupBarrier();
+    }
+
+    if (global_id.y < uniforms.M && global_id.x < total_sequence_length) {
+      let headOffset = workgroup_id.z * uniforms.M * uniforms.N;
+      let outputIdx = headOffset + global_id.y * uniforms.N + global_id.x;
+      var sum: f32 = ${(()=>{switch(S){case 1:return"value";case 2:return"value.x + value.y";case 4:return"value.x + value.y + value.z + value.w";default:throw new Error(`Unsupported components: ${S}`)}})()};
+        output[outputIdx] = ${O.type.value} (sum * uniforms.alpha) + ${n?"attention_bias[outputIdx]":"0.0"};
+    }
+  }`};return{name:"AttentionProbs",shaderCache:{hint:`${S};${n!==void 0};${i!==void 0};${e}`,inputDependencies:C},getRunData:()=>({outputs:z,dispatchGroup:E,programUniforms:T}),getShaderSource:$}},Xu=(e,t,r,i,n,a,s=void 0,o=void 0)=>{let l=a+n.kvSequenceLength,d=n.nReps?n.nReps:1,c=n.vHiddenSize*d,h=e>1&&i,m=n.kvNumHeads?n.kvNumHeads:n.numHeads,y=h?[n.batchSize,m,l,n.headSize]:void 0,_=[n.batchSize,n.sequenceLength,c],w=12,S={x:Math.ceil(n.vHeadSize/w),y:Math.ceil(n.sequenceLength/w),z:n.batchSize*n.numHeads},x=[{type:12,data:n.sequenceLength},{type:12,data:l},{type:12,data:n.vHeadSize},{type:12,data:n.numHeads},{type:12,data:n.headSize},{type:12,data:c},{type:12,data:a},{type:12,data:n.kvSequenceLength},{type:12,data:d}],b=h&&i&&R.size(i.dims)>0,E=["type","type"];b&&E.push("type"),s&&E.push("type"),o&&E.push("type");let T=[{dims:_,dataType:t.dataType,gpuDataType:0}];h&&T.push({dims:y,dataType:t.dataType,gpuDataType:0});let k=C=>{let z=M("probs",t.dataType,t.dims),$=M("v",r.dataType,r.dims),D=[z,$];b&&D.push(M("past_value",i.dataType,i.dims));let W=s?M("seq_lens",s.dataType,s.dims):void 0;s&&D.push(W);let F=o?M("total_sequence_length_input",o.dataType,o.dims):void 0;o&&D.push(F);let V=[K("output",t.dataType,_)];h&&V.push(K("present_value",t.dataType,y));let P=[{name:"M",type:"u32"},{name:"K",type:"u32"},{name:"N",type:"u32"},{name:"num_heads",type:"u32"},{name:"head_size",type:"u32"},{name:"v_hidden_size",type:"u32"},{name:"past_sequence_length",type:"u32"},{name:"kv_sequence_length",type:"u32"},{name:"n_reps",type:"u32"}];return`
+  const TILE_SIZE = ${w}u;
+  var<workgroup> tileQ: array<${z.type.value}, ${w*w}>;
+  var<workgroup> tileV: array<${z.type.value}, ${w*w}>;
+  ${C.registerUniforms(P).declareVariables(...D,...V)}
+  ${C.mainStart([w,w,1])}
+   let headIdx = workgroup_id.z % uniforms.num_heads;
+   let batchIdx = workgroup_id.z / uniforms.num_heads;
+   let kvHeadIdx = ${d===1?"headIdx":"headIdx / uniforms.n_reps"};
+   let kv_num_heads = ${d===1?"uniforms.num_heads":"uniforms.num_heads / uniforms.n_reps"};
+   let m = global_id.y;
+   let n = global_id.x;
+   let sequence_length = uniforms.M;
+   var total_sequence_length = uniforms.K;
+   ${Qr(W,F,!0)}
+   let offsetA = workgroup_id.z * uniforms.M * uniforms.K + m * uniforms.K;
+   let absKvHeadIdx = batchIdx * kv_num_heads + kvHeadIdx; // kvHeadIdx is relative to the batch
+   ${b&&h?"let pastValueOffset = absKvHeadIdx * uniforms.N * uniforms.past_sequence_length + n;":""};
+   let vOffset = absKvHeadIdx * uniforms.N * uniforms.kv_sequence_length + n;
+   ${h?"let presentValueOffset = absKvHeadIdx * uniforms.N * uniforms.K + n;":""}
+   var value = ${z.type.storage}(0);
+   for (var w: u32 = 0u; w < uniforms.K; w += TILE_SIZE) {
+      if (m < uniforms.M && w + local_id.x < uniforms.K) {
+        tileQ[TILE_SIZE * local_id.y + local_id.x] = probs[offsetA + w + local_id.x];
+      }
+      if (n < uniforms.N && w + local_id.y < uniforms.K) {
+        var idx = TILE_SIZE * local_id.y + local_id.x;
+        ${b&&h?`
+        if (w + local_id.y < past_sequence_length) {
+          tileV[idx] = past_value[pastValueOffset + (w + local_id.y) * uniforms.N];
+        } else if (w + local_id.y - past_sequence_length < uniforms.kv_sequence_length) {
+          tileV[idx] = v[vOffset + (w + local_id.y - past_sequence_length) * uniforms.N];
+        }
+      `:`
+            if (w + local_id.y < uniforms.kv_sequence_length) {
+              tileV[idx] = v[vOffset + (w + local_id.y) * uniforms.N];
+            }`}
+        ${h?`
+            if (w + local_id.y < present_sequence_length) {
+          present_value[presentValueOffset + (w + local_id.y) * uniforms.N] = tileV[idx];
+        }`:""}
+      }
+     workgroupBarrier();
+     for (var k: u32 = 0u; k < TILE_SIZE && w+k < total_sequence_length; k++) {
+       value += tileQ[TILE_SIZE * local_id.y + k] * tileV[TILE_SIZE * k + local_id.x];
+     }
+     workgroupBarrier();
+   }
+
+   // we need to transpose output from BNSH_v to BSND_v
+   if (m < uniforms.M && n < uniforms.N) {
+     let outputIdx = batchIdx * uniforms.M * uniforms.v_hidden_size + m * uniforms.v_hidden_size
+       + headIdx * uniforms.N + n;
+     output[outputIdx] = value;
+   }
+  }`};return{name:"AttentionScore",shaderCache:{hint:`${i!==void 0};${e}`,inputDependencies:E},getRunData:()=>({outputs:T,dispatchGroup:S,programUniforms:x}),getShaderSource:k}},Er=(e,t,r,i,n,a,s,o,l,d,c=void 0,h=void 0)=>{let m=Math.min(e.outputCount,1+(s?1:0)+(o?1:0)),y=m>1?s:void 0,_=m>1?o:void 0,w=m>1?d.pastSequenceLength:0,S=w+d.kvSequenceLength,x=l&&R.size(l.dims)>0?l:void 0,b=[t,r];y&&R.size(y.dims)>0&&b.push(y),x&&b.push(x),c&&b.push(c),h&&b.push(h);let E=e.compute(Ku(m,t,r,y,x,d,w,c,h),{inputs:b,outputs:m>1?[-1,1]:[-1]})[0];e.compute(ju(E,d.batchSize,d.numHeads,w,d.sequenceLength,S,c,h),{inputs:c&&h?[E,c,h]:[E],outputs:[]});let T=[E,i];_&&R.size(_.dims)>0&&T.push(_),c&&T.push(c),h&&T.push(h),e.compute(Xu(m,E,i,_,d,w,c,h),{inputs:T,outputs:m>1?[0,2]:[0]})},Zu=(e,t)=>{let r=[t.batchSize,t.numHeads,t.sequenceLength,t.headSize],i=t.sequenceLength,n=t.inputHiddenSize,a=t.headSize,s=12,o={x:Math.ceil(t.headSize/s),y:Math.ceil(t.sequenceLength/s),z:t.batchSize*t.numHeads},l=[e.inputs[0],e.inputs[1],e.inputs[2]],d=[{type:12,data:i},{type:12,data:n},{type:12,data:a},{type:12,data:t.numHeads},{type:12,data:t.headSize},{type:12,data:t.hiddenSize},{type:12,data:t.hiddenSize+t.hiddenSize+t.vHiddenSize}],c=h=>{let m=K("output_q",l[0].dataType,r),y=K("output_k",l[0].dataType,r),_=K("output_v",l[0].dataType,r),w=M("input",l[0].dataType,l[0].dims),S=M("weight",l[1].dataType,l[1].dims),x=M("bias",l[2].dataType,l[2].dims),b=w.type.storage,E=[{name:"M",type:"u32"},{name:"K",type:"u32"},{name:"N",type:"u32"},{name:"num_heads",type:"u32"},{name:"head_size",type:"u32"},{name:"hidden_size",type:"u32"},{name:"ldb",type:"u32"}];return`
+  const TILE_SIZE = ${s}u;
+  var<workgroup> tileInput: array<${b}, ${s*s}>;
+  var<workgroup> tileWeightQ: array<${b}, ${s*s}>;
+  var<workgroup> tileWeightK: array<${b}, ${s*s}>;
+  var<workgroup> tileWeightV: array<${b}, ${s*s}>;
+  ${h.registerUniforms(E).declareVariables(w,S,x,m,y,_)}
+  ${h.mainStart([s,s,1])}
+    let batchIndex = workgroup_id.z / uniforms.num_heads;
+    let headNumber = workgroup_id.z % uniforms.num_heads;
+    let m = global_id.y;
+    let n = global_id.x;
+
+    let inputOffset = batchIndex * (uniforms.M * uniforms.K) + m * uniforms.K;
+    let biasOffsetQ = headNumber * uniforms.head_size;
+    let biasOffsetK = uniforms.hidden_size + biasOffsetQ;
+    let biasOffsetV = uniforms.hidden_size + biasOffsetK;
+
+    var valueQ = ${b}(0);
+    var valueK = ${b}(0);
+    var valueV = ${b}(0);
+    for (var w: u32 = 0u; w < uniforms.K; w += TILE_SIZE) {
+      if (m < uniforms.M && w + local_id.x < uniforms.K) {
+        tileInput[TILE_SIZE * local_id.y + local_id.x] = input[inputOffset + w + local_id.x];
+      }
+      if (n < uniforms.N && w + local_id.y < uniforms.K) {
+        let offset = n + (w + local_id.y) * uniforms.ldb;
+        tileWeightQ[TILE_SIZE * local_id.y + local_id.x] = weight[biasOffsetQ + offset];
+        tileWeightK[TILE_SIZE * local_id.y + local_id.x] = weight[biasOffsetK + offset];
+        tileWeightV[TILE_SIZE * local_id.y + local_id.x] = weight[biasOffsetV + offset];
+      }
+      workgroupBarrier();
+      for (var k: u32 = 0u; k<TILE_SIZE && w+k < uniforms.K; k++) {
+        let inputTileOffset = TILE_SIZE * local_id.y + k;
+        let weightTileOffset = TILE_SIZE * k + local_id.x;
+        valueQ += tileInput[inputTileOffset] * tileWeightQ[weightTileOffset];
+        valueK += tileInput[inputTileOffset] * tileWeightK[weightTileOffset];
+        valueV += tileInput[inputTileOffset] * tileWeightV[weightTileOffset];
+      }
+
+      workgroupBarrier();
+    }
+
+    let headOffset = (m * uniforms.N + n) % uniforms.head_size;
+    valueQ += bias[headOffset + biasOffsetQ];
+    valueK += bias[headOffset + biasOffsetK];
+    valueV += bias[headOffset + biasOffsetV];
+
+    let offset = workgroup_id.z * uniforms.M * uniforms.N;
+    if (m < uniforms.M && n < uniforms.N) {
+      let outputIdx = offset + m * uniforms.N + n;
+      output_q[outputIdx] = valueQ;
+      output_k[outputIdx] = valueK;
+      output_v[outputIdx] = valueV;
+    }
+  }`};return e.compute({name:"AttentionPrepare",shaderCache:{inputDependencies:["type","type","type"]},getRunData:()=>({outputs:[{dims:r,dataType:e.inputs[0].dataType,gpuDataType:0},{dims:r,dataType:e.inputs[0].dataType,gpuDataType:0},{dims:r,dataType:e.inputs[0].dataType,gpuDataType:0}],dispatchGroup:o,programUniforms:d}),getShaderSource:c},{inputs:l,outputs:[-1,-1,-1]})},Ac=(e,t)=>{let r=Hu(e.inputs,t),[i,n,a]=Zu(e,r);return Er(e,i,n,a,e.inputs[4],void 0,void 0,void 0,e.inputs[5],r)}}),Qu,Yu,Ju,Rc,k_=L(()=>{"use strict";Ge(),re(),ne(),Ie(),ae(),Qu=(e,t)=>{if(!e||e.length!==5)throw new Error("BatchNormalization requires 5 inputs");let r=(i,n,a)=>{let s=n.length;if(s!==i.length)throw new Error(`${a}: num dimensions != ${s}`);n.forEach((o,l)=>{if(o!==i[l])throw new Error(`${a}: dim[${l}] do not match`)})};if(e[0].dims.length>1){let i=t.format==="NHWC"?t.spatial?e[0].dims.slice(-1):e[0].dims.slice(-1).concat(e[0].dims.slice(1,e[0].dims.length-1)):e[0].dims.slice(1,t.spatial?2:void 0);r(e[1].dims,i,"Invalid input scale"),r(e[2].dims,i,"Invalid input B"),r(e[3].dims,i,"Invalid input mean"),r(e[4].dims,i,"Invalid input var")}else r(e[1].dims,[1],"Invalid input scale"),r(e[2].dims,[1],"Invalid input B"),r(e[3].dims,[1],"Invalid input mean"),r(e[4].dims,[1],"Invalid input var")},Yu=(e,t)=>{let{epsilon:r,spatial:i,format:n}=t,a=e[0].dims,s=i?Ee(a[a.length-1]):1,o=n==="NHWC"&&a.length>1?s:1,l=R.size(a)/s,d=i,c=d?a.length:a,h=M("x",e[0].dataType,e[0].dims,s),m=M("scale",e[1].dataType,e[1].dims,o),y=M("bias",e[2].dataType,e[2].dims,o),_=M("inputMean",e[3].dataType,e[3].dims,o),w=M("inputVar",e[4].dataType,e[4].dims,o),S=K("y",e[0].dataType,c,s),x=()=>{let E="";if(i)E=`let cOffset = ${a.length===1?"0u":n==="NHWC"?`outputIndices[${a.length-1}] / ${s}`:"outputIndices[1]"};`;else if(n==="NCHW")E=`
+            ${S.indicesSet("outputIndices","0","0")}
+            let cOffset = ${S.indicesToOffset("outputIndices")};`;else{E=`var cIndices = ${m.type.indices}(0);
+                       cIndices[0] = outputIndices[${a.length-1}];`;for(let T=1;T<m.rank;T++)E+=`cIndices[${T}] = outputIndices[${T}];`;E+=`let cOffset = ${m.indicesToOffset("cIndices")};`}return E},b=E=>`
+  const epsilon = ${r};
+  ${E.registerUniform("outputSize","u32").declareVariables(h,m,y,_,w,S)}
+  ${E.mainStart()}
+  ${E.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+    var outputIndices = ${S.offsetToIndices(`global_idx * ${s}`)};
+    ${x()}
+    let scale = ${m.getByOffset("cOffset")};
+    let bias = ${y.getByOffset("cOffset")};
+    let inputMean = ${_.getByOffset("cOffset")};
+    let inputVar = ${w.getByOffset("cOffset")};
+    let x = ${h.getByOffset("global_idx")};
+    let value = (x - inputMean) * inverseSqrt(inputVar + epsilon) * scale + bias;
+    ${S.setByOffset("global_idx","value")}
+  }`;return{name:"BatchNormalization",shaderCache:{hint:`${t.epsilon}_${t.format}_${i}_${s}`,inputDependencies:d?["rank","type","type","type","type"]:void 0},getShaderSource:b,getRunData:()=>({outputs:[{dims:e[0].dims,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(l/64)},programUniforms:d?[{type:12,data:l},...Y(a)]:[{type:12,data:l}]})}},Ju=e=>me(e),Rc=(e,t)=>{let{inputs:r,outputCount:i}=e,n=Ju({...t,outputCount:i});if(fe.webgpu.validateInputContent&&Qu(r,n),t.trainingMode)throw new Error("BatchNormalization trainingMode is not supported yet.");e.compute(Yu(r,n))}}),el,tl,Bc,C_=L(()=>{"use strict";ne(),ae(),el=e=>{if(e[0].dims.length!==3)throw new Error("input should have 3 dimensions");if(![320,640,1280].includes(e[0].dims[2]))throw new Error("number of channels should be 320, 640 or 1280");if(e[1].dims.length!==1)throw new Error("bias is expected to have 1 dimensions");if(e[0].dims[2]!==e[1].dims[0])throw new Error("last dimension of input and bias are not the same")},tl=e=>{let t=e[0].dims,r=e[0].dims[2],i=R.size(t)/4,n=e[0].dataType,a=M("input",n,t,4),s=M("bias",n,[r],4),o=M("residual",n,t,4),l=K("output",n,t,4);return{name:"BiasAdd",getRunData:()=>({outputs:[{dims:t,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(i/64)}}),getShaderSource:d=>`
+  const channels = ${r}u / 4;
+  ${d.declareVariables(a,s,o,l)}
+
+  ${d.mainStart()}
+    ${d.guardAgainstOutOfBoundsWorkgroupSizes(i)}
+    let value = ${a.getByOffset("global_idx")}
+      + ${s.getByOffset("global_idx % channels")} + ${o.getByOffset("global_idx")};
+    ${l.setByOffset("global_idx","value")}
+  }`}},Bc=e=>{el(e.inputs),e.compute(tl(e.inputs))}}),rl,he,Mc,Dc,Nc,Pc,Lc,Uc,Wc,qc,Vc,il,Gc,Fc,Hc,jc,$r,Kc,ai,Xc,Zc,Qc,Yc,Jc,eh,th,rh,ih,nh,ah,sh,oh,uh,lh,dh,gn,ph,Yn,Jn,ch,hh,fh,nl,al,mh,xa=L(()=>{"use strict";re(),ne(),Ie(),ae(),rl=(e,t,r,i,n,a,s)=>{let o=Math.ceil(t/4),l="";typeof n=="string"?l=`${n}(a)`:l=n("a");let d=M("inputData",r,[o],4),c=K("outputData",i,[o],4),h=[{name:"vec_size",type:"u32"}];return s&&h.push(...s),`
+      ${e.registerUniforms(h).declareVariables(d,c)}
+
+  ${a??""}
+
+  ${e.mainStart()}
+    ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+
+    let a = ${d.getByOffset("global_idx")};
+    ${c.setByOffset("global_idx",l)}
+  }`},he=(e,t,r,i,n,a=e.dataType,s,o)=>{let l=[{type:12,data:Math.ceil(R.size(e.dims)/4)}];return s&&l.push(...s),{name:t,shaderCache:{hint:n,inputDependencies:["type"]},getShaderSource:d=>rl(d,R.size(e.dims),e.dataType,a,r,i,o),getRunData:d=>({outputs:[{dims:e.dims,dataType:a}],dispatchGroup:{x:Math.ceil(R.size(d[0].dims)/64/4)},programUniforms:l})}},Mc=e=>{e.compute(he(e.inputs[0],"Abs","abs"))},Dc=e=>{e.compute(he(e.inputs[0],"Acos","acos"))},Nc=e=>{e.compute(he(e.inputs[0],"Acosh","acosh"))},Pc=e=>{e.compute(he(e.inputs[0],"Asin","asin"))},Lc=e=>{e.compute(he(e.inputs[0],"Asinh","asinh"))},Uc=e=>{e.compute(he(e.inputs[0],"Atan","atan"))},Wc=e=>{e.compute(he(e.inputs[0],"Atanh","atanh"))},qc=e=>me(e),Vc=(e,t)=>{let r;switch(t.to){case 10:r="vec4<f16>";break;case 1:r="vec4<f32>";break;case 12:r="vec4<u32>";break;case 6:r="vec4<i32>";break;case 9:r="vec4<bool>";break;default:throw new RangeError(`not supported type (specified in attribute 'to' from 'Cast' operator): ${t.to}`)}e.compute(he(e.inputs[0],"Cast",r,void 0,t.cacheKey,t.to))},il=e=>{let t,r,i=e.length>=2&&e[1].data!==0,n=e.length>=3&&e[2].data!==0;switch(e[0].dataType){case 1:t=i?e[1].getFloat32Array()[0]:-34028234663852886e22,r=n?e[2].getFloat32Array()[0]:34028234663852886e22;break;case 10:t=i?e[1].getUint16Array()[0]:64511,r=n?e[2].getUint16Array()[0]:31743;break;default:throw new Error("Unsupport data type")}return me({min:t,max:r})},Gc=(e,t)=>{let r=t||il(e.inputs),i=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"Clip",n=>`clamp(${n}, vec4<${i}>(uniforms.min), vec4<${i}>(uniforms.max))`,void 0,r.cacheKey,void 0,[{type:e.inputs[0].dataType,data:r.min},{type:e.inputs[0].dataType,data:r.max}],[{name:"min",type:i},{name:"max",type:i}]),{inputs:[0]})},Fc=e=>{e.compute(he(e.inputs[0],"Ceil","ceil"))},Hc=e=>{e.compute(he(e.inputs[0],"Cos","cos"))},jc=e=>{e.compute(he(e.inputs[0],"Cosh","cosh"))},$r=e=>me(e),Kc=(e,t)=>{let r=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"Elu",i=>`elu_vf32(${i})`,`
+  const elu_alpha_ = ${r}(${t.alpha});
+
+  fn elu_f32(a: ${r}) -> ${r} {
+  return select((exp(a) - 1.0) * elu_alpha_, a, a >= 0.0);
+  }
+
+  fn elu_vf32(v: vec4<${r}>) -> vec4<${r}> {
+  return vec4(elu_f32(v.x), elu_f32(v.y), elu_f32(v.z), elu_f32(v.w));
+  }`,t.cacheKey))},ai=(e="f32")=>`
+const r0: ${e} = 0.3275911;
+const r1: ${e} = 0.254829592;
+const r2: ${e} = -0.284496736;
+const r3: ${e} = 1.421413741;
+const r4: ${e} = -1.453152027;
+const r5: ${e} = 1.061405429;
+
+fn erf_vf32(v: vec4<${e}>) -> vec4<${e}> {
+  let absv = abs(v);
+  let x = 1.0 / (1.0 + r0 * absv);
+  return sign(v) * (1.0 - ((((r5 * x + r4) * x + r3) * x + r2) * x + r1) * x * exp(-absv * absv));
+}`,Xc=e=>{let t=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"Erf",r=>`erf_vf32(${r})`,ai(t)))},Zc=e=>{e.compute(he(e.inputs[0],"Exp","exp"))},Qc=e=>{e.compute(he(e.inputs[0],"Floor","floor"))},Yc=e=>{let t=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"Gelu",r=>`0.5 * ${r} * (1.0 + erf_vf32(${r} * 0.7071067811865475))`,ai(t)))},Jc=(e,t)=>{let r=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"LeakyRelu",i=>`select(leaky_relu_alpha_ * ${i}, ${i}, ${i} >= vec4<${r}>(0.0))`,`const leaky_relu_alpha_ = ${r}(${t.alpha});`,t.cacheKey))},eh=e=>{e.compute(he(e.inputs[0],"Not",t=>`!${t}`))},th=e=>{e.compute(he(e.inputs[0],"Neg",t=>`-${t}`))},rh=e=>{e.compute(he(e.inputs[0],"Reciprocal",t=>`1.0/${t}`))},ih=e=>{let t=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"Relu",r=>`select(vec4<${t}>(0.0), ${r}, ${r} > vec4<${t}>(0.0))`))},nh=e=>{e.compute(he(e.inputs[0],"Sigmoid",t=>`(1.0 / (1.0 + exp(-${t})))`))},ah=e=>me(e),sh=(e,t)=>{let r=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"HardSigmoid",i=>`max(vec4<${r}>(0.0), min(vec4<${r}>(1.0), ${t.alpha} * ${i} + vec4<${r}>(${t.beta})))`,void 0,t.cacheKey))},oh=e=>{e.compute(he(e.inputs[0],"Sin","sin"))},uh=e=>{e.compute(he(e.inputs[0],"Sinh","sinh"))},lh=e=>{e.compute(he(e.inputs[0],"Sqrt","sqrt"))},dh=e=>{e.compute(he(e.inputs[0],"Tan","tan"))},gn=e=>`sign(${e}) * (1 - exp(-2 * abs(${e}))) / (1 + exp(-2 * abs(${e})))`,ph=e=>{e.compute(he(e.inputs[0],"Tanh",gn))},Yn=(e="f32")=>`
+const fast_gelu_a: ${e} = 0.5;
+const fast_gelu_b: ${e} = 0.7978845608028654;
+const fast_gelu_c: ${e} = 0.035677408136300125;
+
+fn tanh_v(v: vec4<${e}>) -> vec4<${e}> {
+  return ${gn("v")};
+}
+`,Jn=e=>`(fast_gelu_a + fast_gelu_a * tanh_v(${e} * (fast_gelu_c * ${e} * ${e} + fast_gelu_b))) * ${e}`,ch=e=>{let t=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"FastGelu",Jn,Yn(t),void 0,e.inputs[0].dataType))},hh=(e,t)=>{let r=Be(e.inputs[0].dataType);return e.compute(he(e.inputs[0],"ThresholdedRelu",i=>`select(vec4<${r}>(0.0), ${i}, ${i} > thresholded_relu_alpha_)`,`const thresholded_relu_alpha_ = vec4<${r}>(${t.alpha});`,t.cacheKey)),0},fh=e=>{e.compute(he(e.inputs[0],"Log","log"))},nl=(e,t)=>`
+const alpha = vec4<${e}>(${t});
+const one = ${e}(1.0);
+const zero = ${e}(0.0);
+
+fn quick_gelu_impl(x: vec4<${e}>) -> vec4<${e}> {
+  let v = x *alpha;
+  var x1 : vec4<${e}>;
+  for (var i = 0; i < 4; i = i + 1) {
+    if (v[i] >= zero) {
+      x1[i] = one / (one + exp(-v[i]));
+    } else {
+      x1[i] = one - one / (one + exp(v[i]));
+    }
+  }
+  return x * x1;
+}
+`,al=e=>`quick_gelu_impl(${e})`,mh=(e,t)=>{let r=Be(e.inputs[0].dataType);e.compute(he(e.inputs[0],"QuickGelu",al,nl(r,t.alpha),t.cacheKey,e.inputs[0].dataType))}}),sl,ol,gh,z_=L(()=>{"use strict";ne(),ae(),xa(),sl=e=>{if(e[0].dims.length!==3)throw new Error("input should have 3 dimensions");if(![2560,5120,10240].includes(e[0].dims[2]))throw new Error("hidden state should be 2560, 5120 or 10240");if(e[1].dims.length!==1)throw new Error("bias is expected to have 1 dimensions");if(e[0].dims[2]!==e[1].dims[0])throw new Error("last dimension of input and bias are not the same")},ol=e=>{let t=e[0].dims.slice();t[2]=t[2]/2;let r=M("input",e[0].dataType,e[0].dims,4),i=M("bias",e[0].dataType,[e[0].dims[2]],4),n=K("output",e[0].dataType,t,4),a=R.size(t)/4,s=Ce(e[0].dataType);return{name:"BiasSplitGelu",getRunData:()=>({outputs:[{dims:t,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(a/64)}}),getShaderSource:o=>`
+  const M_SQRT2 = sqrt(2.0);
+  const halfChannels = ${e[0].dims[2]/4/2}u;
+
+  ${o.declareVariables(r,i,n)}
+
+  ${ai(s)}
+
+  ${o.mainStart()}
+    ${o.guardAgainstOutOfBoundsWorkgroupSizes(a)}
+    let biasIdx = global_idx % halfChannels;
+    let batchIndex = global_idx / halfChannels;
+    let inputOffset = biasIdx + batchIndex * halfChannels * 2;
+    let valueLeft = input[inputOffset] + bias[biasIdx];
+    let valueRight = input[inputOffset + halfChannels] + bias[biasIdx + halfChannels];
+    let geluRight = valueRight * 0.5 * (erf_vf32(valueRight / M_SQRT2) + 1);
+
+    ${n.setByOffset("global_idx","valueLeft * geluRight")}
+  }`}},gh=e=>{sl(e.inputs),e.compute(ol(e.inputs))}}),ul,ll,Ze,_h,yh,bh,wh,$h,vh,xh,Sh,Th,Eh,O_=L(()=>{"use strict";re(),ne(),ae(),ul=(e,t,r,i,n,a,s,o,l,d,c,h)=>{let m,y;typeof o=="string"?m=y=(b,E)=>`${o}((${b}),(${E}))`:typeof o=="function"?m=y=o:(m=o.scalar,y=o.vector);let _=K("outputData",c,i.length,4),w=M("aData",l,t.length,4),S=M("bData",d,r.length,4),x;if(n)if(a){let b=R.size(t)===1,E=R.size(r)===1,T=t.length>0&&t[t.length-1]%4===0,k=r.length>0&&r[r.length-1]%4===0;b||E?x=_.setByOffset("global_idx",y(b?`${w.type.value}(${w.getByOffset("0")}.x)`:w.getByOffset("global_idx"),E?`${S.type.value}(${S.getByOffset("0")}.x)`:S.getByOffset("global_idx"))):x=`
+            let outputIndices = ${_.offsetToIndices("global_idx * 4u")};
+            let offsetA = ${w.broadcastedIndicesToOffset("outputIndices",_)};
+            let offsetB = ${S.broadcastedIndicesToOffset("outputIndices",_)};
+            ${_.setByOffset("global_idx",y(s||T?w.getByOffset("offsetA / 4u"):`${w.type.value}(${w.getByOffset("offsetA / 4u")}[offsetA % 4u])`,s||k?S.getByOffset("offsetB / 4u"):`${S.type.value}(${S.getByOffset("offsetB / 4u")}[offsetB % 4u])`))}
+          `}else x=_.setByOffset("global_idx",y(w.getByOffset("global_idx"),S.getByOffset("global_idx")));else{if(!a)throw new Error("no necessary to use scalar implementation for element-wise binary op implementation.");let b=(E,T,k="")=>{let C=`aData[indexA${T}][componentA${T}]`,z=`bData[indexB${T}][componentB${T}]`;return`
+            let outputIndices${T} = ${_.offsetToIndices(`global_idx * 4u + ${T}u`)};
+            let offsetA${T} = ${w.broadcastedIndicesToOffset(`outputIndices${T}`,_)};
+            let offsetB${T} = ${S.broadcastedIndicesToOffset(`outputIndices${T}`,_)};
+            let indexA${T} = offsetA${T} / 4u;
+            let indexB${T} = offsetB${T} / 4u;
+            let componentA${T} = offsetA${T} % 4u;
+            let componentB${T} = offsetB${T} % 4u;
+            ${E}[${T}] = ${k}(${m(C,z)});
+          `};c===9?x=`
+            var data = vec4<u32>(0);
+            ${b("data",0,"u32")}
+            ${b("data",1,"u32")}
+            ${b("data",2,"u32")}
+            ${b("data",3,"u32")}
+            outputData[global_idx] = dot(vec4<u32>(0x1, 0x100, 0x10000, 0x1000000), vec4<u32>(data));`:x=`
+            ${b("outputData[global_idx]",0)}
+            ${b("outputData[global_idx]",1)}
+            ${b("outputData[global_idx]",2)}
+            ${b("outputData[global_idx]",3)}
+          `}return`
+        ${e.registerUniform("vec_size","u32").declareVariables(w,S,_)}
+
+        ${h??""}
+
+        ${e.mainStart()}
+        ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+        ${x}
+      }`},ll=(e,t,r,i,n,a,s=r.dataType)=>{let o=r.dims.map(Number),l=i.dims.map(Number),d=!R.areEqual(o,l),c=o,h=R.size(o),m=!1,y=!1,_=[d];if(d){let w=Xt.calcShape(o,l,!1);if(!w)throw new Error("Can't perform binary op on the given tensors");c=w.slice(),h=R.size(c);let S=R.size(o)===1,x=R.size(l)===1,b=o.length>0&&o[o.length-1]%4===0,E=l.length>0&&l[l.length-1]%4===0;_.push(S),_.push(x),_.push(b),_.push(E);let T=1;for(let k=1;k<c.length;k++){let C=o[o.length-k],z=l[l.length-k];if(C===z)T*=C;else break}T%4===0?(y=!0,m=!0):(S||x||b||E)&&(m=!0)}else m=!0;return _.push(m),{name:e,shaderCache:{hint:t+_.map(w=>w.toString()).join("_"),inputDependencies:["rank","rank"]},getShaderSource:w=>ul(w,o,l,c,m,d,y,n,r.dataType,i.dataType,s,a),getRunData:()=>({outputs:[{dims:c,dataType:s}],dispatchGroup:{x:Math.ceil(h/64/4)},programUniforms:[{type:12,data:Math.ceil(R.size(c)/4)},...Y(o,l,c)]})}},Ze=(e,t,r,i,n,a)=>{e.compute(ll(t,n??"",e.inputs[0],e.inputs[1],r,i,a))},_h=e=>{Ze(e,"Add",(t,r)=>`${t}+${r}`)},yh=e=>{Ze(e,"Div",(t,r)=>`${t}/${r}`)},bh=e=>{Ze(e,"Equal",{scalar:(t,r)=>`u32(${t}==${r})`,vector:(t,r)=>`vec4<u32>(${t}==${r})`},void 0,void 0,9)},wh=e=>{Ze(e,"Mul",(t,r)=>`${t}*${r}`)},$h=e=>{let t=M("input",e.inputs[0].dataType,e.inputs[0].dims).type.value;Ze(e,"Pow",{scalar:(r,i)=>`pow_custom(${r},${i})`,vector:(r,i)=>`pow_vector_custom(${r},${i})`},`
+    fn pow_custom(a : ${t}, b : ${t}) -> ${t} {
+      if (b == ${t}(0.0)) {
+        return ${t}(1.0);
+      } else if (a < ${t}(0.0) && f32(b) != floor(f32(b))) {
+        return ${t}(pow(f32(a), f32(b))); // NaN
+      }
+      return select(sign(a), ${t}(1.0), round(f32(abs(b) % ${t}(2.0))) != 1.0) * ${t}(${t==="i32"?"round":""}(pow(f32(abs(a)), f32(b))));
+    }
+    fn pow_vector_custom(a : vec4<${t}>, b : vec4<${t}>) -> vec4<${t}> {
+      // TODO: implement vectorized pow
+      return vec4<${t}>(pow_custom(a.x, b.x), pow_custom(a.y, b.y), pow_custom(a.z, b.z), pow_custom(a.w, b.w));
+    }
+      `)},vh=e=>{Ze(e,"Sub",(t,r)=>`${t}-${r}`)},xh=e=>{Ze(e,"Greater",{scalar:(t,r)=>`u32(${t}>${r})`,vector:(t,r)=>`vec4<u32>(${t}>${r})`},void 0,void 0,9)},Sh=e=>{Ze(e,"Less",{scalar:(t,r)=>`u32(${t}<${r})`,vector:(t,r)=>`vec4<u32>(${t}<${r})`},void 0,void 0,9)},Th=e=>{Ze(e,"GreaterOrEqual",{scalar:(t,r)=>`u32(${t}>=${r})`,vector:(t,r)=>`vec4<u32>(${t}>=${r})`},void 0,void 0,9)},Eh=e=>{Ze(e,"LessOrEqual",{scalar:(t,r)=>`u32(${t}<=${r})`,vector:(t,r)=>`vec4<u32>(${t}<=${r})`},void 0,void 0,9)}}),dl,pl,cl,hl,Ih,kh,A_=L(()=>{"use strict";re(),ne(),Ie(),ae(),dl=(e,t)=>{if(!e||e.length<1)throw new Error("too few inputs");let r=0,i=e[r],n=i.dataType,a=i.dims.length;e.forEach((s,o)=>{if(o!==r){if(s.dataType!==n)throw new Error("input tensors should be one type");if(s.dims.length!==a)throw new Error("input tensors should have the same shape");s.dims.forEach((l,d)=>{if(d!==t&&l!==i.dims[d])throw new Error("non concat dimensions must match")})}})},pl=(e,t)=>`
+  fn calculateInputIndex(index: u32) -> u32 {
+    let sizeInConcatAxis = array<u32, ${e}u>(${t});
+    for (var i: u32 = 0u; i < ${e}; i += 1u ) {
+      if (index < sizeInConcatAxis[i]) {
+        return i;
+      }
+    }
+    return ${e}u;
+  }`,cl=(e,t)=>{let r=e.length,i=[];for(let n=0;n<r;++n){let a=t.setByOffset("global_idx",e[n].getByIndices("indices"));r===1?i.push(a):n===0?i.push(`if (inputIndex == ${n}u) { ${a} }`):n===r-1?i.push(`else { ${a} }`):i.push(`else if (inputIndex == ${n}) { ${a} }`)}return i.join(`
+`)},hl=(e,t,r,i)=>{let n=R.size(r),a=new Array(e.length),s=new Array(e.length),o=0,l=[],d=[],c=[{type:12,data:n}];for(let w=0;w<e.length;++w)o+=e[w].dims[t],a[w]=o,d.push(e[w].dims.length),s[w]=M(`input${w}`,i,d[w]),l.push("rank"),c.push({type:12,data:a[w]});for(let w=0;w<e.length;++w)c.push(...Y(e[w].dims));c.push(...Y(r));let h=K("output",i,r.length),m=h.indicesGet("indices",t),y=Array.from(Array(a.length).keys()).map(w=>`uniforms.sizeInConcatAxis${w}`).join(","),_=w=>`
+
+  ${(()=>{w.registerUniform("outputSize","u32");for(let S=0;S<e.length;S++)w.registerUniform(`sizeInConcatAxis${S}`,"u32");return w.declareVariables(...s,h)})()}
+
+  ${pl(a.length,y)}
+
+  ${w.mainStart()}
+    ${w.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+
+    var indices = ${h.offsetToIndices("global_idx")};
+
+    let inputIndex = calculateInputIndex(${m});
+    if (inputIndex != 0u) {
+      let sizeInConcatAxis = array<u32, ${a.length}u>(${y});
+      ${m} -= sizeInConcatAxis[inputIndex - 1u];
+    }
+
+    ${cl(s,h)}
+  }`;return{name:"Concat",shaderCache:{hint:`${t}`,inputDependencies:l},getRunData:()=>({outputs:[{dims:r,dataType:i}],dispatchGroup:{x:Math.ceil(n/64)},programUniforms:c}),getShaderSource:_}},Ih=(e,t)=>{let r=e.inputs,i=r[0].dims,n=R.normalizeAxis(t.axis,i.length);dl(r,n);let a=i.slice();a[n]=r.reduce((o,l)=>o+(l.dims.length>n?l.dims[n]:0),0);let s=r.filter(o=>R.size(o.dims)>0);e.compute(hl(s,n,a,r[0].dataType),{inputs:s})},kh=e=>me({axis:e.axis})}),Lt,Ut,Wt,Sa,Vt=L(()=>{"use strict";re(),ne(),Lt=(e,t,r="f32")=>{switch(e.activation){case"Relu":return`value = max(value, ${t}(0.0));`;case"Sigmoid":return`value = (${t}(1.0) / (${t}(1.0) + exp(-value)));`;case"Clip":return`value = clamp(value, ${t}(${r}(uniforms.clip_min)), ${t}(${r}(uniforms.clip_max)));`;case"HardSigmoid":return`value = max(${t}(0.0), min(${t}(1.0), ${r}(uniforms.alpha) * value + ${r}(uniforms.beta)));`;case"LeakyRelu":return`value = select(${r}(uniforms.alpha) * value, value, value >= ${t}(0.0));`;case"Tanh":return`let e2x = exp(-2.0 * abs(value));
+              value = sign(value) * (1.0 - e2x) / (1.0 + e2x);
+        `;case"":return"";default:throw new Error(`Unsupported activation ${e.activation}`)}},Ut=(e,t)=>{e.activation==="Clip"?t.push({type:1,data:e.clipMax},{type:1,data:e.clipMin}):e.activation==="HardSigmoid"?t.push({type:1,data:e.alpha},{type:1,data:e.beta}):e.activation==="LeakyRelu"&&t.push({type:1,data:e.alpha})},Wt=(e,t)=>{e.activation==="Clip"?t.push({name:"clip_max",type:"f32"},{name:"clip_min",type:"f32"}):e.activation==="HardSigmoid"?t.push({name:"alpha",type:"f32"},{name:"beta",type:"f32"}):e.activation==="LeakyRelu"&&t.push({name:"alpha",type:"f32"})},Sa=e=>{let t=e?.activation||"";if(t==="HardSigmoid"){let[r,i]=e?.activation_params||[.2,.5];return{activation:t,alpha:r,beta:i}}else if(t==="Clip"){let[r,i]=e?.activation_params||[ec,tc];return{activation:t,clipMax:i,clipMin:r}}else if(t==="LeakyRelu"){let[r]=e?.activation_params||[.01];return{activation:t,alpha:r}}return{activation:t}}}),Ae,Ch,Ta=L(()=>{"use strict";Ae=(e,t)=>{switch(e){case 1:return t;case 2:return`vec2<${t}>`;case 3:return`vec3<${t}>`;case 4:return`vec4<${t}>`;default:throw new Error(`${e}-component is not supported.`)}},Ch=e=>`
+      ${e?"value = value + getBiasByOutputCoords(coords);":""}
+      `}),zh,R_=L(()=>{"use strict";zh=e=>`
+fn getIndexFromCoords4D(coords : vec4<i32>, shape : vec4<i32>) -> i32 {
+  return dot(coords, vec4<i32>(
+      shape.y * shape.z * shape.w, shape.z * shape.w, shape.w, 1));
+}
+fn getOutputIndexFromCoords(coords : vec4<i32>) -> i32 {
+  return dot(coords, vec4<i32>(
+    i32(${e}.x), i32(${e}.y), i32(${e}.z), 1));
+}
+`}),xr,Ea,Ia=L(()=>{"use strict";re(),ne(),ae(),Vt(),xr=(e,t,r,i,n)=>{let a=i-r;return`
+      ${Array.from({length:r}).map((s,o)=>`
+      if (${Z(t.shape,o,t.rank)} != 1) {
+        ${t.indicesSet(e,o,Z(n,o+a,i))}
+      } else {
+        ${t.indicesSet(e,o,0)}
+      }`).join("")}
+`},Ea=(e,t,r,i,n=!1,a)=>{let s=e[0].dims,o=e[1].dims,l=s[s.length-2],d=o[o.length-1],c=s[s.length-1],h=Ee(d),m=Ee(c),y=Ee(l),_=R.size(r)/h/y,w=e.length>2,S=i?i.slice(0,-2):r.slice(0,-2),x=[R.size(S),l,d],b=[{type:12,data:_},{type:12,data:l},{type:12,data:d},{type:12,data:c}];Ut(t,b),b.push(...Y(S,s,o)),w&&b.push(...Y(e[2].dims)),b.push(...Y(x));let E=T=>{let k=wa("batch_dims",e[0].dataType,S.length),C=M("a",e[0].dataType,s.length,m),z=M("b",e[1].dataType,o.length,h),$=K("output",e[0].dataType,x.length,h),D=Ce($.type.tensor),W=Lt(t,$.type.value,D),F=[C,z],V="";if(w){let O=n?h:1;F.push(M("bias",e[2].dataType,e[2].dims.length,O)),V=`${n?`value += bias[col / ${O}];`:`value += ${$.type.value}(bias[row + i]);`}`}let P=[{name:"output_size",type:"u32"},{name:"M",type:"u32"},{name:"N",type:"u32"},{name:"K",type:"u32"}];Wt(t,P);let j=()=>{let O=`var a_data: ${C.type.value};`;for(let U=0;U<m;U++)O+=`
+              let b_data${U} = b[(b_offset + (k + ${U}) * uniforms.N + col) / ${h}];`;for(let U=0;U<y;U++){O+=`a_data = a[(a_offset + (row + ${U}) * uniforms.K + k) / ${m}];`;for(let J=0;J<m;J++)O+=`
+            values[${U}] = fma(${z.type.value}(a_data${m===1?"":`[${J}]`}), b_data${J}, values[${U}]);
+`}return O};return`
+  ${T.registerUniforms(P).registerInternalVariables(k).declareVariables(...F,$)}
+  ${T.mainStart()}
+    ${T.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+    let col = (global_idx % (uniforms.N / ${h})) * ${h};
+    var index1 = global_idx / (uniforms.N / ${h});
+    let stride1 = uniforms.M / ${y};
+    let row = (index1 % stride1) * ${y};
+    let batch = index1 / stride1;
+
+    ${r.length===2?"":`let batch_indices = ${k.offsetToIndices("batch")};`}
+
+    var a_indices: ${C.type.indices};
+    ${xr("a_indices",C,C.rank-2,k.rank,"batch_indices")}
+    ${C.indicesSet("a_indices",C.rank-2,0)}
+    ${C.indicesSet("a_indices",C.rank-1,0)}
+    let a_offset = ${C.indicesToOffset("a_indices")};
+
+    var b_indices: ${z.type.indices};
+    ${xr("b_indices",z,z.rank-2,k.rank,"batch_indices")}
+    ${z.indicesSet("b_indices",z.rank-2,0)}
+    ${z.indicesSet("b_indices",z.rank-1,0)}
+    let b_offset = ${z.indicesToOffset("b_indices")};
+    var values: array<${$.type.value}, ${y}>;
+    for (var k: u32 = 0u; k < uniforms.K; k = k + ${m}) {
+      ${j()}
+    }
+    for (var i = 0u; i < ${y}u; i++) {
+      var value = values[i];
+      ${V}
+      ${W}
+      let cur_indices = ${$.type.indices}(batch, row + i, col);
+      let offset = ${$.indicesToOffset("cur_indices")};
+      ${$.setByOffset(`offset / ${h}`,"value")};
+    }
+  }
+  `};return{name:"MatMulNaive",shaderCache:{hint:`${t.activation};${h};${m};${y};${n}`,inputDependencies:w?["rank","rank","rank"]:["rank","rank"]},getRunData:()=>({outputs:[{dims:a?a(r):r,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(_/64)},programUniforms:b}),getShaderSource:E}}}),fl,ml,ea,_n,gl,ta,_l,di,ka=L(()=>{"use strict";re(),ne(),ae(),Vt(),Ia(),Ta(),fl=(e,t)=>e?`
+        mm_Asub[inputRow][inputCol] = mm_readA(batch,
+          kStart + inputRow,
+          globalRowStart / innerElementSize + inputCol${t?", batchIndices":""});
+        `:`
+        mm_Asub[inputRow][inputCol] = mm_readA(batch,
+          globalRow + innerRow,
+          kStart / innerElementSize + inputCol${t?", batchIndices":""});
+        `,ml=(e,t)=>e?`
+        let ACached0 = mm_Asub[k * innerElementSize][localRow];
+        let ACached1 = mm_Asub[k * innerElementSize + 1][localRow];
+        let ACached2 = mm_Asub[k * innerElementSize + 2][localRow];
+        ${t===3?"":"let ACached3 = mm_Asub[k * innerElementSize + 3][localRow];"}
+        for (var i = 0; i < rowPerThread; i = i + 1) {
+          acc[i] = BCached0 * ACached0[i] + acc[i];
+          acc[i] = BCached1 * ACached1[i] + acc[i];
+          acc[i] = BCached2 * ACached2[i] + acc[i];
+          ${t===3?"":"acc[i] = BCached3 * ACached3[i] + acc[i];"}
+        }`:`
+        for (var i = 0; i < rowPerThread; i = i + 1) {
+          let ACached = mm_Asub[tileRow + i][k];
+          acc[i] = BCached0 * ACached.x + acc[i];
+          acc[i] = BCached1 * ACached.y + acc[i];
+          acc[i] = BCached2 * ACached.z + acc[i];
+          ${t===3?"":"acc[i] = BCached3 * ACached.w + acc[i];"}
+        }`,ea=(e,t,r="f32",i,n=!1,a=32,s=!1,o=32)=>{let l=t[1]*e[1],d=t[0]*e[0],c=n?l:a,h=n?a:l,m=c/t[0],y=a/t[1];if(!((n&&m===4&&e[1]===4||!n&&(m===3||m===4))&&c%t[0]===0&&a%t[1]===0&&e[0]===4))throw new Error(`If transposeA ${n} is true, innerElementSize ${m} and workPerThread[1] ${e[1]} must be 4.
+      Otherwise, innerElementSize ${m} must be 3 or 4.
+  tileAWidth ${c} must be divisible by workgroupSize[0]${t[0]}. tileInner ${a} must be divisible by workgroupSize[1] ${t[1]}. colPerThread ${e[0]} must be 4.`);return`
+var<workgroup> mm_Asub: array<array<vec${m}<${r}>, ${c/m}>, ${h}>;
+var<workgroup> mm_Bsub: array<array<vec4<${r}>, ${d/e[0]}>, ${a}>;
+
+const rowPerThread = ${e[1]};
+const colPerThread = ${e[0]};
+const innerElementSize = ${m};
+const tileInner = ${a};
+
+@compute @workgroup_size(${t[0]}, ${t[1]}, ${t[2]})
+fn main(@builtin(local_invocation_id) localId : vec3<u32>,
+        @builtin(global_invocation_id) globalId : vec3<u32>,
+        @builtin(workgroup_id) workgroupId : vec3<u32>) {
+  let localRow = i32(localId.y);
+  let tileRow = localRow * rowPerThread;
+  let tileCol = i32(localId.x);
+
+  let globalRow =i32(globalId.y) * rowPerThread;
+  let globalCol = i32(globalId.x);
+  let batch = ${s?"0":"i32(globalId.z)"};
+  ${i?`let batchIndices = ${i.offsetToIndices("u32(batch)")};`:""}
+  let globalRowStart = i32(workgroupId.y) * ${l};
+
+  let num_tiles = ${s?`${Math.ceil(o/a)}`:"(uniforms.dim_inner - 1) / tileInner + 1"};
+  var kStart = ${s?`i32(globalId.z) * ${o}`:"0"};
+
+  var acc: array<vec4<${r}>, rowPerThread>;
+
+  // Loop over shared dimension.
+  let tileRowB = localRow * ${y};
+  for (var t = 0; t < num_tiles; t = t + 1) {
+      // Load one tile of A into local memory.
+      for (var innerRow = 0; innerRow < rowPerThread; innerRow = innerRow + 1) {
+          let inputRow = tileRow + innerRow;
+          let inputCol = tileCol;
+          ${fl(n,i)}
+      }
+
+      // Load one tile of B into local memory.
+      for (var innerRow = 0; innerRow < ${y}; innerRow = innerRow + 1) {
+          let inputRow = tileRowB + innerRow;
+          let inputCol = tileCol;
+          mm_Bsub[inputRow][inputCol] = mm_readB(batch, kStart + inputRow, globalCol${i?", batchIndices":""});
+      }
+      kStart = kStart + tileInner;
+      workgroupBarrier();
+
+      // Compute acc values for a single thread.
+      for (var k = 0; k < tileInner / innerElementSize; k = k + 1) {
+          let BCached0 = mm_Bsub[k * innerElementSize][tileCol];
+          let BCached1 = mm_Bsub[k * innerElementSize + 1][tileCol];
+          let BCached2 = mm_Bsub[k * innerElementSize + 2][tileCol];
+          ${m===3?"":"let BCached3 = mm_Bsub[k * innerElementSize + 3][tileCol];"}
+
+          ${ml(n,m)}
+      }
+
+      workgroupBarrier();
+  }
+
+  for (var innerRow = 0; innerRow < rowPerThread; innerRow = innerRow + 1) {
+      mm_write(batch, globalRow + innerRow, globalCol, acc[innerRow]);
+  }
+}`},_n=(e,t)=>e?`
+            mm_Asub[inputRow][inputCol] = mm_readA(batch,
+              kStart + inputRow,
+              globalRowStart + inputCol${t?", batchIndices":""});
+            `:`
+            mm_Asub[inputRow][inputCol] = mm_readA(batch,
+              globalRowStart + inputRow,
+              kStart + inputCol${t?", batchIndices":""});
+            `,gl=e=>e?"let ACached = mm_Asub[k][tileRow + innerRow];":"let ACached = mm_Asub[tileRow + innerRow][k];",ta=(e,t,r="f32",i,n=!1,a=32,s=!1,o=32,l=!1)=>{let d=e[1]*t[1],c=e[0]*t[0],h=n?d:a,m=n?a:d;if(!(m%t[1]===0&&h%t[0]===0&&a%t[1]===0))throw new Error(`tileAHight ${m} must be divisible by workgroupSize[1]${t[1]}, tileAWidth ${h} must be divisible by workgroupSize[0]${t[0]}, tileInner ${a} must be divisible by workgroupSize[1]${t[1]}`);let y=m/t[1],_=h/t[0],w=a/t[1],S=l?`
+    let localRow = i32(localId.y);
+    let localCol = i32(localId.x);
+    let globalRowStart = i32(workgroupId.y) * ${d};
+    let globalColStart = i32(workgroupId.x) * ${c};
+
+    // Loop over shared dimension.
+    for (var t = 0; t < num_tiles; t = t + 1) {
+      // Load one tile of A into local memory.
+      for (var inputRow = localRow; inputRow < ${m}; inputRow = inputRow + ${t[1]}) {
+        for (var inputCol = localCol; inputCol < ${h}; inputCol = inputCol + ${t[0]}) {
+          ${_n(n,i)}
+        }
+      }
+      // Load one tile of B into local memory.
+      for (var inputRow = localRow; inputRow < ${a}; inputRow = inputRow + ${t[1]}) {
+            for (var inputCol = localCol; inputCol < ${c}; inputCol = inputCol + ${t[0]}) {
+          mm_Bsub[inputRow][inputCol] = mm_readB(batch,
+            kStart + inputRow,
+            globalColStart + inputCol${i?", batchIndices":""});
+        }
+      }
+      kStart = kStart + tileInner;
+      workgroupBarrier();
+
+      // Compute acc values for a single thread.
+      var BCached : array<${r}, colPerThread>;
+      for (var k = 0; k < tileInner; k = k + 1) {
+        for (var inner = 0; inner < colPerThread; inner = inner + 1) {
+          BCached[inner] = mm_Bsub[k][localCol + inner * ${t[0]}];
+        }
+        for (var innerRow = 0; innerRow < rowPerThread; innerRow = innerRow + 1) {
+          let ACached = ${n?`mm_Asub[k][localRow + innerRow * ${t[1]}];`:`mm_Asub[localRow + innerRow * ${t[1]}][k];`}
+          for (var innerCol = 0; innerCol < colPerThread; innerCol = innerCol + 1) {
+            acc[innerRow][innerCol] = acc[innerRow][innerCol] +
+                ACached * BCached[innerCol];
+          }
+        }
+      }
+      workgroupBarrier();
+    }
+    for (var innerRow = 0; innerRow < rowPerThread; innerRow = innerRow + 1) {
+      let gRow = globalRowStart + localRow + innerRow * ${t[1]};
+      for (var innerCol = 0; innerCol < colPerThread; innerCol = innerCol + 1) {
+        let gCol = globalColStart + localCol + innerCol * ${t[0]};
+        mm_write(batch, gRow, gCol, acc[innerRow][innerCol]);
+      }
+    }
+    `:`
+let tileRow = i32(localId.y) * rowPerThread;
+let tileCol = i32(localId.x) * colPerThread;
+
+let globalRow = i32(globalId.y) * rowPerThread;
+let globalCol = i32(globalId.x) * colPerThread;
+let globalRowStart = i32(workgroupId.y) * ${d};
+
+let tileRowA = i32(localId.y) * ${y};
+let tileColA = i32(localId.x) * ${_};
+let tileRowB = i32(localId.y) * ${w};
+// Loop over shared dimension.
+for (var t = 0; t < num_tiles; t = t + 1) {
+  // Load one tile of A into local memory.
+  for (var innerRow = 0; innerRow < ${y}; innerRow = innerRow + 1) {
+    for (var innerCol = 0; innerCol < ${_}; innerCol = innerCol + 1) {
+      let inputRow = tileRowA + innerRow;
+      let inputCol = tileColA + innerCol;
+      ${_n(n,i)}
+    }
+  }
+
+  // Load one tile of B into local memory.
+  for (var innerRow = 0; innerRow < ${w}; innerRow = innerRow + 1) {
+    for (var innerCol = 0; innerCol < colPerThread; innerCol = innerCol + 1) {
+      let inputRow = tileRowB + innerRow;
+      let inputCol = tileCol + innerCol;
+      mm_Bsub[inputRow][inputCol] = mm_readB(batch,
+        kStart + inputRow,
+        globalCol + innerCol${i?", batchIndices":""});
+    }
+  }
+  kStart = kStart + tileInner;
+  workgroupBarrier();
+
+  // Compute acc values for a single thread.
+  var BCached : array<${r}, colPerThread>;
+  for (var k = 0; k < tileInner; k = k + 1) {
+    for (var inner = 0; inner < colPerThread; inner = inner + 1) {
+      BCached[inner] = mm_Bsub[k][tileCol + inner];
+    }
+
+    for (var innerRow = 0; innerRow < rowPerThread; innerRow = innerRow + 1) {
+      ${gl(n)}
+      for (var innerCol = 0; innerCol < colPerThread; innerCol = innerCol + 1) {
+        acc[innerRow][innerCol] = acc[innerRow][innerCol] + ACached * BCached[innerCol];
+      }
+    }
+  }
+
+  workgroupBarrier();
+}
+
+for (var innerRow = 0; innerRow < rowPerThread; innerRow = innerRow + 1) {
+  for (var innerCol = 0; innerCol < colPerThread; innerCol = innerCol + 1) {
+    mm_write(batch, globalRow + innerRow, globalCol + innerCol,
+        acc[innerRow][innerCol]);
+  }
+}
+`;return`
+  var<workgroup> mm_Asub : array<array<${r}, ${h}>, ${m}>;
+  var<workgroup> mm_Bsub : array<array<${r}, ${c}>, ${a}>;
+  const rowPerThread = ${e[1]};
+  const colPerThread = ${e[0]};
+  const tileInner = ${a};
+
+@compute @workgroup_size(${t[0]}, ${t[1]}, ${t[2]})
+fn main(@builtin(local_invocation_id) localId : vec3<u32>,
+        @builtin(global_invocation_id) globalId : vec3<u32>,
+        @builtin(workgroup_id) workgroupId : vec3<u32>) {
+    let batch = ${s?"0":"i32(globalId.z)"};
+    ${i?`let batchIndices = ${i.offsetToIndices("u32(batch)")};`:""}
+    let num_tiles = ${s?`${Math.ceil(o/a)}`:"(uniforms.dim_inner - 1) / tileInner + 1"};
+    var kStart = ${s?`i32(globalId.z) * ${o}`:"0"};
+
+    var acc : array<array<${r}, colPerThread>, rowPerThread>;
+    ${S}
+  }
+`},_l=(e,t,r,i,n=!1)=>{let[a,s,o,l]=i,d=Ce(i[0].type.tensor);return`
+    fn mm_readA(batch: i32, row: i32, colIn: i32, batchIndices: ${a.type.indices}) -> ${Ae(e,d)} {
+      var value = ${Ae(e,d)}(0.0);
+      let col = colIn * ${e};
+      if(row < uniforms.dim_a_outer && col < uniforms.dim_inner)
+      {
+        var aIndices: ${s.type.indices};
+        ${xr("aIndices",s,s.rank-2,a.rank,"batchIndices")}
+        ${s.indicesSet("aIndices",s.rank-2,"u32(row)")}
+        ${s.indicesSet("aIndices",s.rank-1,"u32(colIn)")}
+        value = ${s.getByIndices("aIndices")};
+      }
+      return value;
+    }
+
+    fn mm_readB(batch: i32, row: i32, colIn: i32, batchIndices: ${a.type.indices}) -> ${Ae(e,d)} {
+      var value = ${Ae(e,d)}(0.0);
+      let col = colIn * ${e};
+      if(row < uniforms.dim_inner && col < uniforms.dim_b_outer)
+      {
+        var bIndices: ${o.type.indices};
+        ${xr("bIndices",o,o.rank-2,a.rank,"batchIndices")}
+        ${o.indicesSet("bIndices",o.rank-2,"u32(row)")}
+        ${o.indicesSet("bIndices",o.rank-1,"u32(colIn)")}
+        value = ${o.getByIndices("bIndices")};
+      }
+      return value;
+    }
+
+    fn mm_write(batch: i32, row: i32, colIn: i32, valueIn: ${Ae(e,d)}) {
+      let col = colIn * ${e};
+      if (row < uniforms.dim_a_outer && col < uniforms.dim_b_outer) {
+        var value = valueIn;
+        let coords = vec3<i32>(batch, row, colIn);
+        ${t?`value = value + ${n?"bias[colIn]":`${Ae(e,d)}(bias[row])`};`:""}
+        ${r}
+        ${l.setByIndices("vec3<u32>(coords)","value")}
+      }
+    }
+    `},di=(e,t,r,i,n=!1,a)=>{let s=e[0].dims,o=e[1].dims,l=s.slice(0,-2),d=o.slice(0,-2),c=i?i.slice(0,-2):r.slice(0,-2),h=R.size(c),m=s[s.length-2],y=s[s.length-1],_=o[o.length-1],w=y%4===0&&_%4===0,S=m<=8?[4,1,1]:[4,4,1],x=[8,8,1],b=[Math.ceil(_/x[0]/S[0]),Math.ceil(m/x[1]/S[1]),Math.ceil(h/x[2]/S[2])],E=w?4:1,T=[...l,m,y/E],k=T.length,C=[...d,y,_/E],z=C.length,$=[h,m,_/E],D=[{type:6,data:m},{type:6,data:_},{type:6,data:y}];Ut(t,D),D.push(...Y(c,T,C));let W=["rank","rank"],F=e.length>2;F&&(D.push(...Y(e[2].dims)),W.push("rank")),D.push(...Y($));let V=P=>{let j=c.length,O=wa("batchDims",e[0].dataType,j,1),U=Ce(e[0].dataType),J=M("a",e[0].dataType,k,E),te=M("b",e[1].dataType,z,E),X=K("result",e[0].dataType,$.length,E),se=[J,te];if(F){let $e=n?E:1;se.push(M("bias",e[2].dataType,e[2].dims.length,$e))}let N=[{name:"dim_a_outer",type:"i32"},{name:"dim_b_outer",type:"i32"},{name:"dim_inner",type:"i32"}];Wt(t,N);let ee=Ce(X.type.tensor),Q=Lt(t,X.type.value,ee),H=_l(E,F,Q,[O,J,te,X],n);return`
+  ${P.registerUniforms(N).registerInternalVariables(O).declareVariables(...se,X)}
+  ${H}
+  ${w?ea(S,x,U,O):ta(S,x,U,O)}
+                   `};return{name:"MatMul",shaderCache:{hint:`${S};${t.activation};${w};${n}`,inputDependencies:W},getRunData:()=>({outputs:[{dims:a?a(r):r,dataType:e[0].dataType}],dispatchGroup:{x:b[0],y:b[1],z:b[2]},programUniforms:D}),getShaderSource:V}}}),yl,Oh,B_=L(()=>{"use strict";re(),lt(),ae(),Vt(),Ta(),R_(),ka(),yl=(e,t,r,i,n=!1,a,s=4,o=4,l=4,d="f32")=>{let c=D=>{switch(D){case 1:return"resData = x[xIndex];";case 3:return`resData = vec3<${d}>(x[xIndex], x[xIndex + 1], x[xIndex + 2]);`;case 4:return"resData = x[xIndex / 4];";default:throw new Error(`innerElementSize ${D} is not supported.`)}},h=D=>{switch(D){case 1:return"return w[row * i32(uniforms.w_shape[3]) + colIn];";case 4:return"return w[row * i32(uniforms.w_shape[3]) / 4 + colIn];";default:throw new Error(`innerElementSize ${D} is not supported.`)}},m=e?`
+    let coord = vec4<i32>(batch, xRow, xCol, xCh);
+    `:`
+    let coord = vec4<i32>(batch, xCh, xRow, xCol);
+    `,y=e?`
+    let coords = vec4<i32>(
+      batch,
+      row / outWidth,
+      row % outWidth,
+      col);
+    `:`
+    let coords = vec4<i32>(
+      batch,
+      row,
+      col / outWidth,
+      col % outWidth);
+    `,_=e?"i32(uniforms.x_shape[1])":"i32(uniforms.x_shape[2])",w=e?"i32(uniforms.x_shape[2])":"i32(uniforms.x_shape[3])",S=e?"row":"col",x=e?"col":"row",b=`
+    let inChannels = i32(uniforms.w_shape[2]);
+    let outWidth = ${e?"i32(uniforms.result_shape[2])":"i32(uniforms.result_shape[3])"};
+    let outRow = ${S} / outWidth;
+    let outCol = ${S} % outWidth;
+
+    let WRow = ${x} / (i32(uniforms.w_shape[1]) * inChannels);
+    let WCol = ${x} / inChannels % i32(uniforms.w_shape[1]);
+    let xRow = outRow * uniforms.stride[0] + uniforms.dilation[0] * WRow - uniforms.pad[0];
+    let xCol = outCol * uniforms.stride[1] + uniforms.dilation[1] * WCol - uniforms.pad[1];
+    let xCh = ${x} % inChannels;
+    var resData = ${Ae(s,d)}(0.0);
+    // The bounds checking is always needed since we use it to pad zero for
+    // the 'same' padding type.
+    if (xRow >= 0 && xRow < ${_} && xCol >= 0 && xCol < ${w}) {
+      ${m}
+      let xIndex = getIndexFromCoords4D(coord, vec4<i32>(uniforms.x_shape));
+      ${c(s)}
+    }
+    return resData;`,E=e?t&&i?`
+    let col = colIn * ${s};
+    ${b}`:`
+    let col = colIn * ${s};
+    if (row < uniforms.dim_a_outer && col < uniforms.dim_inner) {
+      ${b}
+    }
+    return ${Ae(s,d)}(0.0);`:i&&r?`
+    let col = colIn * ${s};
+    ${b}`:`
+    let col = colIn * ${s};
+    if (row < uniforms.dim_inner && col < uniforms.dim_b_outer) {
+      ${b}
+    }
+    return ${Ae(s,d)}(0.0);`,T=e?i&&r?h(o):`
+    let col = colIn * ${o};
+    if (row < uniforms.dim_inner && col < uniforms.dim_b_outer) {
+      ${h(o)}
+    }
+    return ${Ae(o,d)}(0.0);`:`
+    let col = colIn * ${o};
+    if (row < uniforms.dim_inner && col < uniforms.dim_a_outer) {
+      ${h(o)}
+    }
+    return ${Ae(o,d)}(0.0);`,k=Ae(l,d),C=Ae(e?s:o,d),z=Ae(e?o:s,d),$=Lt(a,k,d);return`
+    fn mm_readA(batch: i32, row : i32, colIn : i32) -> ${C} {
+      ${e?E:T}
+    }
+
+    fn mm_readB(batch: i32, row : i32, colIn : i32) -> ${z} {
+      ${e?T:E}
+    }
+
+    fn mm_write(batch: i32, row : i32, colIn : i32, valueIn : ${k}) {
+      let col = colIn * ${l};
+      if (row < uniforms.dim_a_outer && col < uniforms.dim_b_outer)
+      {
+      var value = valueIn;
+      let outWidth = ${e?"i32(uniforms.result_shape[2])":"i32(uniforms.result_shape[3])"};
+      ${y}
+      ${Ch(n)}
+      ${$}
+      setOutputAtCoords(coords[0], coords[1], coords[2], coords[3], value);
+      }
+    }`},Oh=(e,t,r,i,n,a,s,o,l)=>{let d=t.format==="NHWC",c=d?e[0].dims[3]:e[0].dims[1],h=r[0],m=d?r[2]:r[3],y=d?r[1]:r[2],_=d?r[3]:r[1],w=d&&(c%4===0||c%3===0)&&_%4===0,S=d?_:m*y,x=d?m*y:_,b=[8,8,1],E=i<=8?[4,1,1]:[4,4,1],T=[Math.ceil(S/b[0]/E[0]),Math.ceil(x/b[1]/E[1]),Math.ceil(h/b[2]/E[2])];pe("verbose",()=>`[conv2d_mm_webgpu] dispatch = ${T}`);let k=w?d&&c%4!==0?3:4:1,C=b[1]*E[1],z=b[0]*E[0],$=Math.max(b[0]*k,b[1]),D=i%C===0,W=n%z===0,F=a%$===0,V=w?[k,4,4]:[1,1,1],P=[{type:6,data:i},{type:6,data:n},{type:6,data:a},{type:6,data:[t.pads[0],t.pads[1]]},{type:6,data:t.strides},{type:6,data:t.dilations}];Ut(t,P),P.push(...Y(e[0].dims,e[1].dims));let j=["rank","rank"];s&&(P.push(...Y(e[2].dims)),j.push("rank")),P.push(...Y(r));let O=U=>{let J=[{name:"dim_a_outer",type:"i32"},{name:"dim_b_outer",type:"i32"},{name:"dim_inner",type:"i32"},{name:"pad",type:"i32",length:2},{name:"stride",type:"i32",length:2},{name:"dilation",type:"i32",length:2}];Wt(t,J);let te=w?4:1,X=Ce(e[0].dataType),se=`
+      fn setOutputAtIndex(flatIndex : i32, value : ${w?`vec4<${X}>`:X}) {
+        result[flatIndex] = ${w?`vec4<${X}>`:X}(value);
+      }
+      fn setOutputAtCoords(d0 : i32, d1 : i32, d2 : i32, d3 : i32, value : ${w?`vec4<${X}>`:X}) {
+        let flatIndex = getOutputIndexFromCoords(vec4<i32>(d0, d1, d2, d3));
+        setOutputAtIndex(flatIndex ${w?"/ 4":""}, value);
+      }`,N=M("x",e[0].dataType,e[0].dims.length,k===3?1:k),ee=M("w",e[1].dataType,e[1].dims.length,te),Q=[N,ee],H=K("result",e[0].dataType,r.length,te);if(s){let $e=M("bias",e[2].dataType,e[2].dims.length,te);Q.push($e),se+=`
+        fn getBiasByOutputCoords(coords : vec4<i32>) -> ${w?`vec4<${X}>`:X} {
+          return bias[coords.${d?"w":"y"}${w?"/ 4":""}];
+        }`}return`
+        ${zh("uniforms.result_strides")}
+        //struct Uniforms { xShape : vec4<i32>, wShape : vec4<i32>, outShape : vec4<i32>,
+        //  outShapeStrides: vec3<i32>, filterDims : vec2<i32>, pad : vec2<i32>, stride : vec2<i32>,
+        //  dilation : vec2<i32>, dimAOuter : i32, dimBOuter : i32, dimInner : i32 };
+        ${U.registerUniforms(J).declareVariables(...Q,H)}
+        ${se}
+        ${yl(d,D,W,F,s,t,V[0],V[1],V[2],X)}
+        ${w?ea(E,b,X,void 0,!d,$):ta(E,b,X,void 0,!d,$,!1,void 0,o)}`};return{name:"Conv2DMatMul",shaderCache:{hint:`${t.cacheKey};${k};${w};${D};${W};${F};${C};${z};${$}`,inputDependencies:j},getRunData:()=>({outputs:[{dims:l?l(r):r,dataType:e[0].dataType}],dispatchGroup:{x:T[0],y:T[1],z:T[2]},programUniforms:P}),getShaderSource:O}}}),bl,yn,hr,wl,bn,$l,Ah,Rh,M_=L(()=>{"use strict";re(),lt(),ne(),ae(),Vt(),Ta(),bl=e=>{let t=1;for(let r=0;r<e.length;r++)t*=e[r];return t},yn=e=>typeof e=="number"?[e,e,e]:e,hr=(e,t)=>t<=1?e:e+(e-1)*(t-1),wl=(e,t,r,i=1)=>{let n=hr(t,i);return Math.floor((e[0]*(r-1)-r+n)/2)},bn=(e,t,r,i,n)=>{n==null&&(n=wl(e,t[0],i[0]));let a=[0,0,0,r];for(let s=0;s<3;s++)e[s]+2*n>=t[s]&&(a[s]=Math.trunc((e[s]-t[s]+2*n)/i[s]+1));return a},$l=(e,t,r,i,n,a,s,o,l,d)=>{let c,h,m,y;if(e==="VALID"&&(e=0),typeof e=="number"){c={top:e,bottom:e,left:e,right:e,front:e,back:e};let _=bn([t,r,i,1],[o,l,d],1,[n,a,s],e);h=_[0],m=_[1],y=_[2]}else if(Array.isArray(e)){if(!e.every((w,S,x)=>w===x[0]))throw Error(`Unsupported padding parameter: ${e}`);c={top:e[0],bottom:e[1],left:e[2],right:e[3],front:e[4],back:e[5]};let _=bn([t,r,i,1],[o,l,d],1,[n,a,s],e[0]);h=_[0],m=_[1],y=_[2]}else if(e==="SAME_UPPER"){h=Math.ceil(t/n),m=Math.ceil(r/a),y=Math.ceil(i/s);let _=(h-1)*n+o-t,w=(m-1)*a+l-r,S=(y-1)*s+d-i,x=Math.floor(_/2),b=_-x,E=Math.floor(w/2),T=w-E,k=Math.floor(S/2),C=S-k;c={top:E,bottom:T,left:k,right:C,front:x,back:b}}else throw Error(`Unknown padding parameter: ${e}`);return{padInfo:c,outDepth:h,outHeight:m,outWidth:y}},Ah=(e,t,r,i,n,a=!1,s="channelsLast")=>{let o,l,d,c,h;if(s==="channelsLast")[o,l,d,c,h]=e;else if(s==="channelsFirst")[o,h,l,d,c]=e;else throw new Error(`Unknown dataFormat ${s}`);let[m,,y,_,w]=t,[S,x,b]=yn(r),[E,T,k]=yn(i),C=hr(y,E),z=hr(_,T),$=hr(w,k),{padInfo:D,outDepth:W,outHeight:F,outWidth:V}=$l(n,l,d,c,S,x,b,C,z,$),P=a?m*h:m,j=[0,0,0,0,0];return s==="channelsFirst"?j=[o,P,W,F,V]:s==="channelsLast"&&(j=[o,W,F,V,P]),{batchSize:o,dataFormat:s,inDepth:l,inHeight:d,inWidth:c,inChannels:h,outDepth:W,outHeight:F,outWidth:V,outChannels:P,padInfo:D,strideDepth:S,strideHeight:x,strideWidth:b,filterDepth:y,filterHeight:_,filterWidth:w,effectiveFilterDepth:C,effectiveFilterHeight:z,effectiveFilterWidth:$,dilationDepth:E,dilationHeight:T,dilationWidth:k,inShape:e,outShape:j,filterShape:t}},Rh=(e,t,r,i,n,a)=>{let s=a==="channelsLast",o=s?e[0].dims[3]:e[0].dims[1],l=!1,d=[64,1,1],c={x:r.map((b,E)=>E)},h=[Math.ceil(bl(c.x.map(b=>r[b]))/d[0]),1,1];pe("verbose",()=>`[conv3d_naive_webgpu] dispatch = ${h}`);let m=l?s&&o%4!==0?3:4:1,y=R.size(r),_=[{type:12,data:y},{type:12,data:i},{type:12,data:n},{type:12,data:t.strides},{type:12,data:t.dilations}];Ut(t,_),_.push(...Y(e[0].dims,e[1].dims));let w=["rank","rank"],S=e.length===3;S&&(_.push(...Y(e[2].dims)),w.push("rank")),_.push(...Y(r));let x=b=>{let E=[{name:"output_size",type:"u32"},{name:"filter_dims",type:"u32",length:i.length},{name:"pads",type:"u32",length:n.length},{name:"strides",type:"u32",length:t.strides.length},{name:"dilations",type:"u32",length:t.dilations.length}];Wt(t,E);let T=l?4:1,k=Ce(e[0].dataType),C=M("x",e[0].dataType,e[0].dims.length,m===3?1:m),z=M("W",e[1].dataType,e[1].dims.length,T),$=[C,z],D=K("result",e[0].dataType,r.length,T),W="";if(S){let P=M("bias",e[2].dataType,e[2].dims.length,T);$.push(P),W+=`
+        fn getBiasByOutputCoords(coords : array<u32, 5>) -> ${l?`vec4<${k}>`:k} {
+          return bias[${s?Z("coords",4,5):Z("coords",1,5)}${l?"/ 4":""}];
+        }`}let F=Ae(m,k),V=Lt(t,F,k);return`
+            ${W}
+            fn getX(d0 : u32, d1 : u32, d2 : u32, d3 : u32, d4 : u32) -> f32 {
+              let aIndices = array<u32, 5>(d0, d1, d2, d3, d4);
+              return ${C.getByIndices("aIndices")};
+            }
+            fn getW(d0 : u32, d1 : u32, d2 : u32, d3 : u32, d4 : u32) -> f32 {
+              let aIndices = array<u32, 5>(d0, d1, d2, d3, d4);
+              return ${z.getByIndices("aIndices")};
+            }
+          ${b.registerUniforms(E).declareVariables(...$,D)}
+          ${b.mainStart()}
+          ${b.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+              let coords = ${D.offsetToIndices("global_idx")};
+              let batch = ${Z("coords",0,C.rank)};
+              let d2 = ${s?Z("coords",C.rank-1,C.rank):Z("coords",1,C.rank)};
+              let xFRCCorner = vec3<u32>(${s?Z("coords",1,C.rank):Z("coords",2,C.rank)},
+              ${s?Z("coords",2,C.rank):Z("coords",3,C.rank)},
+              ${s?Z("coords",3,C.rank):Z("coords",4,C.rank)}) * uniforms.strides - uniforms.pads;
+              let xFCorner = xFRCCorner.x;
+              let xRCorner = xFRCCorner.y;
+              let xCCorner = xFRCCorner.z;
+              let xShapeY = ${s?Z("uniforms.x_shape",1,C.rank):Z("uniforms.x_shape",2,C.rank)};
+              let xShapeZ = ${s?Z("uniforms.x_shape",2,C.rank):Z("uniforms.x_shape",3,C.rank)};
+              let xShapeW = ${s?Z("uniforms.x_shape",3,C.rank):Z("uniforms.x_shape",4,C.rank)};
+              let xShapeU = ${s?Z("uniforms.x_shape",4,C.rank):Z("uniforms.x_shape",1,C.rank)};
+              let inputDepthNearestVec4 = (xShapeU / 4) * 4;
+              let inputDepthVec4Remainder = xShapeU % 4;
+
+              var value = 0.0;
+              for (var wF = 0u; wF < uniforms.filter_dims[0]; wF++) {
+                let xF = xFCorner + wF * uniforms.dilations[0];
+                if (xF < 0 || xF >= xShapeY) {
+                  continue;
+                }
+
+                for (var wR = 0u; wR < uniforms.filter_dims[1]; wR++) {
+                  let xR = xRCorner + wR * uniforms.dilations[1];
+                  if (xR < 0 || xR >= xShapeZ) {
+                    continue;
+                  }
+
+                  for (var wC = 0u; wC < uniforms.filter_dims[2]; wC++) {
+                    let xC = xCCorner + wC * uniforms.dilations[2];
+                    if (xC < 0 || xC >= xShapeW) {
+                      continue;
+                    }
+
+                    for (var d1 = 0u; d1 < inputDepthNearestVec4; d1 += 4) {
+                      ${s?`let xValues = vec4<f32>(
+                               getX(batch, xF, xR, xC, d1),
+                               getX(batch, xF, xR, xC, d1 + 1),
+                               getX(batch, xF, xR, xC, d1 + 2),
+                               getX(batch, xF, xR, xC, d1 + 3));
+                            `:`let xValues = vec4<f32>(
+                               getX(batch, d1, xF, xR, xC),
+                               getX(batch, d1 + 1, xF, xR, xC),
+                               getX(batch, d1 + 2, xF, xR, xC),
+                               getX(batch, d1 + 3, xF, xR, xC));
+                            `}
+                            let wValues = vec4<f32>(
+                              getW(d2, d1, wF, wR, wC),
+                              getW(d2, d1 + 1, wF, wR, wC),
+                              getW(d2, d1 + 2, wF, wR, wC),
+                              getW(d2, d1 + 3, wF, wR, wC));
+                      value += dot(xValues, wValues);
+                    }
+                    if (inputDepthVec4Remainder == 1) {
+                        ${s?`value += getX(batch, xF, xR, xC, inputDepthNearestVec4)
+                          * getW(d2, inputDepthNearestVec4, wF, wR, wC);`:`value += getX(batch, inputDepthNearestVec4, xF, xR, xC)
+                          * getW(d2, inputDepthNearestVec4, wF, wR, wC);`}
+                    } else if (inputDepthVec4Remainder == 2) {
+                      ${s?`let xValues = vec2<f32>(
+                        getX(batch, xF, xR, xC, inputDepthNearestVec4),
+                        getX(batch, xF, xR, xC, inputDepthNearestVec4 + 1));
+                      `:`let xValues = vec2<f32>(
+                        getX(batch, inputDepthNearestVec4, xF, xR, xC),
+                        getX(batch, inputDepthNearestVec4 + 1, xF, xR, xC));
+                    `}
+                    let wValues = vec2<f32>(
+                      getW(d2, inputDepthNearestVec4, wF, wR, wC),
+                      getW(d2, inputDepthNearestVec4 + 1, wF, wR, wC));
+                      value += dot(xValues, wValues);
+                    } else if (inputDepthVec4Remainder == 3) {
+                      ${s?`let xValues = vec3<f32>(
+                        getX(batch, xF, xR, xC, inputDepthNearestVec4),
+                        getX(batch, xF, xR, xC, inputDepthNearestVec4 + 1),
+                        getX(batch, xF, xR, xC, inputDepthNearestVec4 + 2));
+                      `:`let xValues = vec3<f32>(
+                        getX(batch, inputDepthNearestVec4, xF, xR, xC),
+                        getX(batch, inputDepthNearestVec4 + 1, xF, xR, xC),
+                        getX(batch, inputDepthNearestVec4 + 2, xF, xR, xC));
+                    `}
+                    let wValues = vec3<f32>(
+                      getW(d2, inputDepthNearestVec4, wF, wR, wC),
+                      getW(d2, inputDepthNearestVec4 + 1, wF, wR, wC),
+                      getW(d2, inputDepthNearestVec4 + 2, wF, wR, wC));
+                      value += dot(xValues, wValues);
+                    }
+                  }
+                }
+              }
+              ${S?"value = value + getBiasByOutputCoords(coords)":""};
+              ${V}
+              result[global_idx] = f32(value);
+          }`};return{name:"Conv3DNaive",shaderCache:{hint:`${t.cacheKey};${s};${m};${S}`,inputDependencies:w},getRunData:()=>({outputs:[{dims:r,dataType:e[0].dataType}],dispatchGroup:{x:h[0],y:h[1],z:h[2]},programUniforms:_}),getShaderSource:x}}}),Bh,Mh,D_=L(()=>{"use strict";re(),ne(),ae(),Vt(),Bh=(e,t,r,i)=>{let n=e.length>2,a=n?"value += b[output_channel];":"",s=e[0].dims,o=e[1].dims,l=t.format==="NHWC",d=l?r[3]:r[1],c=d/t.group,h=l&&c>=4?Ee(d):1,m=R.size(r)/h,y=[{type:12,data:m},{type:12,data:t.dilations},{type:12,data:[t.strides[0],t.strides[1]]},{type:12,data:[t.pads[0],t.pads[1]]},{type:12,data:c}];Ut(t,y),y.push(...Y(s,[o[0],o[1],o[2],o[3]/h]));let _=n?["rank","rank","rank"]:["rank","rank"];y.push(...Y([r[0],r[1],r[2],r[3]/h]));let w=S=>{let x=K("output",e[0].dataType,r.length,h),b=Ce(x.type.tensor),E=Lt(t,x.type.value,b),T=M("x",e[0].dataType,s.length),k=M("w",e[1].dataType,o.length,h),C=[T,k];n&&C.push(M("b",e[2].dataType,e[2].dims,h));let z=[{name:"output_size",type:"u32"},{name:"dilations",type:"u32",length:t.dilations.length},{name:"strides",type:"u32",length:2},{name:"pads",type:"u32",length:2},{name:"output_channels_per_group",type:"u32"}];Wt(t,z);let $=l?`
+      for (var wHeight: u32 = 0u; wHeight < uniforms.w_shape[0]; wHeight++) {
+        let xHeight = xRCCorner.x + wHeight * uniforms.dilations[0];
+
+        if (xHeight < 0u || xHeight >= uniforms.x_shape[1]) {
+          continue;
+        }
+
+        for (var wWidth: u32 = 0u; wWidth < uniforms.w_shape[1]; wWidth++) {
+          let xWidth = xRCCorner.y + wWidth * uniforms.dilations[1];
+          if (xWidth < 0u || xWidth >= uniforms.x_shape[2]) {
+            continue;
+          }
+
+          for (var wInChannel: u32 = 0u; wInChannel < uniforms.w_shape[2]; wInChannel++) {
+            let input_channel = in_channel_offset + wInChannel;
+            let xVal = ${T.get("batch","xHeight","xWidth","input_channel")};
+            let wVal = ${k.get("wHeight","wWidth","wInChannel","output_channel")};
+            value += xVal * wVal;
+          }
+        }
+      }
+      `:`
+      for (var wInChannel: u32 = 0u; wInChannel < uniforms.w_shape[1]; wInChannel++) {
+        let input_channel = in_channel_offset + wInChannel;
+        for (var wHeight: u32 = 0u; wHeight < uniforms.w_shape[2]; wHeight++) {
+          let xHeight = xRCCorner.x + wHeight * uniforms.dilations[0];
+
+          if (xHeight < 0u || xHeight >= uniforms.x_shape[2]) {
+            continue;
+          }
+
+          for (var wWidth: u32 = 0u; wWidth < uniforms.w_shape[3]; wWidth++) {
+            let xWidth = xRCCorner.y + wWidth * uniforms.dilations[1];
+            if (xWidth < 0u || xWidth >= uniforms.x_shape[3]) {
+              continue;
+            }
+
+            let xVal = ${T.get("batch","input_channel","xHeight","xWidth")};
+            let wVal = ${k.get("output_channel","wInChannel","wHeight","wWidth")};
+            value += xVal * wVal;
+          }
+        }
+      }
+      `;return`
+  ${S.registerUniforms(z).declareVariables(...C,x)}
+
+  ${S.mainStart()}
+    ${S.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+
+    let outputIndices = ${x.offsetToIndices("global_idx")};
+    let batch: u32 = outputIndices[0];
+    let output_channel: u32 = outputIndices[${l?3:1}];
+    let xRCCorner: vec2<u32> = vec2<u32>(outputIndices[${l?1:2}], outputIndices[${l?2:3}]) * uniforms.strides - uniforms.pads;
+    let group_id: u32 = output_channel * ${h} / uniforms.output_channels_per_group;
+    var in_channel_offset = group_id * uniforms.w_shape[${l?2:1}];
+
+    var value: ${x.type.value} = ${x.type.value}(0);
+    ${$}
+    ${a}
+    ${E}
+    ${x.setByOffset("global_idx","value")}
+  }`};return{name:"GroupedConv",shaderCache:{hint:`${t.cacheKey}_${h}`,inputDependencies:_},getRunData:()=>({outputs:[{dims:i?i(r):r,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(m/64)},programUniforms:y}),getShaderSource:w}},Mh=(e,t,r,i)=>{let n=e.length>2,a=Ee(r[3]),s=Ee(r[2]),o=R.size(r)/a/s,l=[e[0].dims[0],e[0].dims[1],e[0].dims[2],e[0].dims[3]/a],d=[e[1].dims[0],e[1].dims[1],e[1].dims[2],e[1].dims[3]/a],c=[r[0],r[1],r[2],r[3]/a],h=[{type:12,data:o},{type:6,data:[t.strides[0],t.strides[1]]},{type:6,data:[t.pads[0],t.pads[1]]}];Ut(t,h),h.push(...Y(l,d,c));let m=(s-1)*t.strides[1]+d[1],y=_=>{let w=K("output",e[0].dataType,c.length,a),S=Ce(w.type.tensor),x=Lt(t,w.type.value,S),b=M("x",e[0].dataType,l.length,a),E=M("w",e[1].dataType,d.length,a),T=[b,E];n&&T.push(M("b",e[2].dataType,e[2].dims,a));let k=n?"value += b[output_channel];":"",C=[{name:"output_size",type:"u32"},{name:"strides",type:"i32",length:2},{name:"pads",type:"i32",length:2}];return Wt(t,C),`
+  ${_.registerUniforms(C).declareVariables(...T,w)}
+  ${_.mainStart()}
+    ${_.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+    let width0 = uniforms.output_shape[3];
+    let output_channel = global_idx % width0;
+    var index1 = global_idx / width0;
+    let width1 = uniforms.output_shape[2] / ${s}u;
+    let col = (index1 % width1) * ${s}u;
+    index1 = index1 / width1;
+    let row = index1 % uniforms.output_shape[1];
+    let batch = index1 / uniforms.output_shape[1];
+
+    let x_corner = vec2<i32>(i32(row), i32(col)) * uniforms.strides - uniforms.pads;
+
+    var x_vals: array<${b.type.value}, ${m}>;
+    var values: array<${w.type.value}, ${s}>;
+    let input_channel = output_channel;
+    // Use constant instead of uniform can give better performance for w's height/width.
+    for (var w_height: u32 = 0u; w_height < ${d[0]}; w_height++) {
+      let x_height = x_corner.x + i32(w_height);
+      if (x_height >= 0 && u32(x_height) < uniforms.x_shape[1]) {
+        for (var i = 0; i < ${m}; i++) {
+          let x_width = x_corner.y + i;
+          if (x_width >= 0 && u32(x_width) < uniforms.x_shape[2]) {
+            x_vals[i] = ${b.get("batch","u32(x_height)","u32(x_width)","input_channel")};
+          } else {
+            x_vals[i] = ${b.type.value}(0);
+          }
+        }
+        for (var w_width: u32 = 0u; w_width < ${d[1]}; w_width++) {
+          let w_val = ${E.get("w_height","w_width","0","output_channel")};
+          for (var i = 0u; i < ${s}u; i++) {
+            values[i] = fma(x_vals[i * u32(uniforms.strides[1]) + w_width], w_val, values[i]);
+          }
+        }
+      }
+    }
+
+    for (var i = 0u; i < ${s}u; i++) {
+      var value = values[i];
+      ${k}
+      ${x}
+      ${w.set("batch","row","col + i","output_channel","value")};
+    }
+  }`};return{name:"GroupedConv-Vectorize",shaderCache:{hint:`${t.cacheKey};${a};${s};${m};${d[0]};${d[1]}`,inputDependencies:n?["rank","rank","type"]:["rank","rank"]},getRunData:()=>({outputs:[{dims:i?i(r):r,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(o/64)},programUniforms:h}),getShaderSource:y}}}),vl,Yr,xl,Jr,ra,wn,Sl,Tl,ia,N_=L(()=>{"use strict";ne(),B_(),M_(),ka(),D_(),Vt(),Ia(),vt(),vl=(e,t,r,i,n,a)=>{let s=e[0],o=e.slice(a?1:2,a?3:4),l=o.length,d=t[0],c=t.slice(2).map((m,y)=>m+(m-1)*(r[y]-1)),h=o.map((m,y)=>m+i[y]+i[y+l]).map((m,y)=>Math.floor((m-c[y]+n[y])/n[y]));return h.splice(0,0,s),h.splice(a?3:1,0,d),h},Yr=[2,3,1,0],xl=(e,t)=>{if(!e||e.length!==2&&e.length!==3)throw new Error("Conv requires 2 or 3 inputs");if(e[0].dims.length>5)throw new Error("greater than 5D is not supported");if(e[0].dims.length!==e[1].dims.length)throw new Error("filter does not have same dimension as input");let r=e[0].dims[t.format==="NHWC"?e[0].dims.length-1:1],i=e[1].dims[1]*t.group;if(r!==i)throw new Error("FILTER_IN_CHANNEL should be equal to DATA_CHANNEL");if(e.length===3&&(e[2].dims.length!==1||e[1].dims[0]!==e[2].dims[0]))throw new Error("invalid bias");let n=e[0].dims.length-2;if(t.dilations.length!==n)throw new Error(`dilations should be ${n}D`);if(t.strides.length!==n)throw new Error(`strides should be ${n}D`);if(t.pads.length!==n*2)throw new Error(`pads should be ${n*2}D`);if(t.kernelShape.length!==0&&t.kernelShape.length!==e[1].dims.length-2)throw new Error("invalid kernel shape")},Jr=(e,t)=>{let r=e.kernelShape.slice();r.length<t[1].dims.length-2&&r.push(...Array(t[1].dims.length-2-r.length).fill(0));for(let a=2;a<t[1].dims.length;++a)r[a-2]===0&&(r[a-2]=t[1].dims[a]);let i=e.pads.slice();ui.adjustPadsBasedOnAutoPad(t[0].dims,e.strides,e.dilations,r,i,e.format==="NHWC",e.autoPad);let n=Object.assign({},e);return Object.assign(n,{kernelShape:r,pads:i}),n},ra=e=>{let t=Sa(e),r=e.format,i=["NOTSET","VALID","SAME_UPPER","SAME_LOWER"][e.auto_pad],n=e.dilations,a=e.group,s=e.kernel_shape,o=e.pads,l=e.strides,d=e.w_is_const();return{autoPad:i,format:r,dilations:n,group:a,kernelShape:s,pads:o,strides:l,wIsConst:d,...t,cacheKey:`${e.format};${t.activation};`}},wn=(e,t,r,i)=>{let n=r.format==="NHWC",a=vl(t[0].dims,t[1].dims,r.dilations,r.pads,r.strides,n);if(r.group!==1){let C=[t[0]];if(n){let z=e.kernelCustomData.wT??e.compute(Le(t[1],Yr),{inputs:[1],outputs:[r.wIsConst?-2:-1]})[0];r.wIsConst&&!e.kernelCustomData.wT&&(e.kernelCustomData.wT=z),C.push(z)}else C.push(t[1]);t.length===3&&C.push(t[2]),!e.adapterInfo.isArchitecture("ampere")&&n&&t[1].dims[0]===r.group&&t[1].dims[1]===1&&r.dilations[0]===1&&r.dilations[1]===1?e.compute(Mh(C,r,a,i),{inputs:C}):e.compute(Bh(C,r,a,i),{inputs:C});return}let s=t.length===3,o=t[0].dims[n?1:2],l=t[0].dims[n?2:3],d=t[0].dims[n?3:1],c=t[1].dims[2],h=t[1].dims[3],m=a[n?1:2],y=a[n?2:3],_=a[n?3:1],w=n&&c===o&&h===l&&r.pads[0]===0&&r.pads[1]===0;if(w||c===1&&h===1&&r.dilations[0]===1&&r.dilations[1]===1&&r.strides[0]===1&&r.strides[1]===1&&r.pads[0]===0&&r.pads[1]===0){let C=a[0],z,$,D,W=[];if(n){let P=e.kernelCustomData.wT??e.compute(Le(t[1],Yr),{inputs:[1],outputs:[r.wIsConst?-2:-1]})[0];if(r.wIsConst&&!e.kernelCustomData.wT&&(e.kernelCustomData.wT=P),w){let j=o*l*d;z=t[0].reshape([1,C,j]),$=P.reshape([1,j,_]),D=[1,C,_]}else z=t[0].reshape([C,o*l,d]),$=P.reshape([1,d,_]),D=[C,m*y,_];W.push(z),W.push($)}else z=t[0].reshape([C,d,o*l]),$=t[1].reshape([1,_,d]),D=[C,_,m*y],W.push($),W.push(z);s&&W.push(t[2]);let F=D[2],V=W[0].dims[W[0].dims.length-1];F<8&&V<8?e.compute(Ea(W,r,a,D,n,i),{inputs:W}):e.compute(di(W,r,a,D,n,i),{inputs:W});return}let S=!0,x=e.kernelCustomData.wT??e.compute(Le(t[1],Yr),{inputs:[1],outputs:[r.wIsConst?-2:-1]})[0];r.wIsConst&&!e.kernelCustomData.wT&&(e.kernelCustomData.wT=x);let b=[t[0],x];s&&b.push(t[2]);let E=n?m*y:_,T=n?_:m*y,k=c*h*d;e.compute(Oh(b,r,a,E,T,k,s,S,i),{inputs:b})},Sl=(e,t)=>{let r=t.format==="NHWC",i=[e.inputs[0].reshape(r?[e.inputs[0].dims[0],1,e.inputs[0].dims[1],e.inputs[0].dims[2]]:[e.inputs[0].dims[0],e.inputs[0].dims[1],1,e.inputs[0].dims[2]]),e.inputs[1].reshape([e.inputs[1].dims[0],e.inputs[1].dims[1],1,e.inputs[1].dims[2]])];e.inputs.length===3&&i.push(e.inputs[2]);let n=[0,t.pads[0],0,t.pads[1]],a=[1].concat(t.strides),s=[1].concat(t.dilations),o=[1].concat(t.kernelShape),l=Jr({...t,pads:n,strides:a,dilations:s,kernelShape:o},i);wn(e,i,l,d=>r?[d[0],d[2],d[3]]:[d[0],d[1],d[3]])},Tl=(e,t,r)=>{let i=r.format==="NHWC"?"channelsLast":"channelsFirst",n=Jr(r,t),a=r.autoPad==="NOTSET"?r.pads:r.autoPad,s=Ah(t[0].dims,t[1].dims,r.strides,r.dilations,a,!1,i);e.compute(Rh(t,n,s.outShape,[s.filterDepth,s.filterHeight,s.filterWidth],[s.padInfo.front,s.padInfo.top,s.padInfo.left],i))},ia=(e,t)=>{if(xl(e.inputs,t),e.inputs[0].dims.length===3)Sl(e,t);else if(e.inputs[0].dims.length===5)Tl(e,e.inputs,t);else{let r=Jr(t,e.inputs);wn(e,e.inputs,r)}}}),Dh,P_=L(()=>{"use strict";re(),lt(),ne(),ae(),Dh=(e,t,r)=>{let i=e.length>2,n=t.outputShape,a=t.format==="NHWC",s=t.group,o=e[1].dims,l=o[2]/s,d=o[3],c=a?Ee(l):1,h=a&&d===1&&l>=4,m=h?Math.floor(l/4)*4:Math.floor(l/c)*c,y=l-m,_=a?Ee(d):1,w=a?d===1?c:_:1,S=R.size(n)/_,x=[Math.ceil(S/64),1,1];pe("verbose",()=>`[conv2d_backprop_webgpu] dispatch = ${x}`);let b=["rank","rank"],E=[t.strides[0],t.strides[1]],T=[t.kernelShape[a?1:2],t.kernelShape[a?2:3]],k=[t.dilations[0],t.dilations[1]],C=[T[0]+(t.dilations[0]<=1?0:(t.kernelShape[a?1:2]-1)*(t.dilations[0]-1)),T[1]+(t.dilations[1]<=1?0:(t.kernelShape[a?2:3]-1)*(t.dilations[1]-1))],z=[C[0]-1-Math.floor((t.pads[0]+t.pads[2])/2),C[1]-1-Math.floor((t.pads[1]+t.pads[3])/2)],$=[{type:12,data:S},{type:12,data:E},{type:12,data:T},{type:12,data:k},{type:12,data:C},{type:6,data:z},{type:12,data:m},{type:12,data:l},{type:12,data:d},...Y(e[0].dims,e[1].dims)];i&&($.push(...Y(e[2].dims)),b.push("rank")),$.push(...Y(n));let D=W=>{let F=[{name:"output_size",type:"u32"},{name:"strides",type:"u32",length:E.length},{name:"filter_dims",type:"u32",length:T.length},{name:"dilations",type:"u32",length:T.length},{name:"effective_filter_dims",type:"u32",length:C.length},{name:"pads",type:"i32",length:z.length},{name:"input_channels_per_group_int",type:"u32"},{name:"input_channels_per_group",type:"u32"},{name:"output_channels_per_group",type:"u32"}],V=Ce(e[0].dataType),P=a?1:2,j=a?2:3,O=a?3:1,U=M("W",e[1].dataType,e[1].dims.length,w),J=M("Dy",e[0].dataType,e[0].dims.length,c),te=[J,U];i&&te.push(M("bias",e[2].dataType,[n[O]].length,_));let X=K("result",e[0].dataType,n.length,_),se=()=>{let Q="";if(h)c===4?Q+=`
+        let xValue = ${J.getByOffset("x_offset")};
+        let wValue = ${U.getByOffset("w_offset")};
+        dotProd = dotProd + dot(xValue, wValue);
+        x_offset += 1u;
+        w_offset += 1u;`:c===2?Q+=`
+          dotProd = dotProd + dot(vec4<${V}>(${J.getByOffset("x_offset")}, ${J.getByOffset("x_offset + 1u")}), vec4<${V}>(${U.getByOffset("w_offset")}, ${U.getByOffset("w_offset + 1u")}));
+          x_offset += 2u;
+          w_offset += 2u;`:c===1&&(Q+=`
+          dotProd = dotProd + dot(vec4<${V}>(${J.getByOffset("x_offset")}, ${J.getByOffset("x_offset + 1u")}, ${J.getByOffset("x_offset + 2u")}, ${J.getByOffset("x_offset + 3u")}), vec4<${V}>(${U.getByOffset("w_offset")}, ${U.getByOffset("w_offset + 1u")}, ${U.getByOffset("w_offset + 2u")}, ${U.getByOffset("w_offset + 3u")}));
+          x_offset += 4u;
+          w_offset += 4u;`);else if(Q+=`
+                  let xValue = ${a?J.getByOffset(`${J.indicesToOffset(`${J.type.indices}(batch, idyR, idyC, inputChannel)`)} / ${c}`):J.get("batch","inputChannel","idyR","idyC")};
+        `,c===1)Q+=`
+          let w_offset = ${U.indicesToOffset(`${U.type.indices}(u32(wRPerm), u32(wCPerm), inputChannel, wOutChannel)`)};
+          let wValue = ${U.getByOffset(`w_offset / ${w}`)};
+          dotProd = dotProd + xValue * wValue;`;else for(let H=0;H<c;H++)Q+=`
+            let wValue${H} = ${U.getByOffset(`${U.indicesToOffset(`${U.type.indices}(u32(wRPerm), u32(wCPerm), inputChannel + ${H}, wOutChannel)`)} / ${w}`)};
+            dotProd = dotProd + xValue[${H}] * wValue${H};`;return Q},N=()=>{if(y===0)return"";if(!h)throw new Error(`packInputAs4 ${h} is not true.`);let Q="";if(c===1){Q+="dotProd = dotProd";for(let H=0;H<y;H++)Q+=`
+            + ${J.getByOffset(`x_offset + ${H}`)} * ${U.getByOffset(`w_offset + ${H}`)}`;Q+=";"}else if(c===2){if(y!==2)throw new Error(`Invalid inputChannelsRemainder ${y}.`);Q+=`
+          let xValue = ${J.getByOffset("x_offset")};
+          let wValue = ${U.getByOffset("w_offset")};
+          dotProd = dotProd + dot(xValue, wValue);`}return Q},ee=`
+            let outputIndices = ${X.offsetToIndices(`global_idx * ${_}`)};
+            let batch = ${X.indicesGet("outputIndices",0)};
+            let d1 = ${X.indicesGet("outputIndices",O)};
+            let r = ${X.indicesGet("outputIndices",P)};
+            let c = ${X.indicesGet("outputIndices",j)};
+            let dyCorner = vec2<i32>(i32(r), i32(c)) - uniforms.pads;
+            let dyRCorner = dyCorner.x;
+            let dyCCorner = dyCorner.y;
+            let groupId = d1 / uniforms.output_channels_per_group;
+            let wOutChannel = d1 - groupId * uniforms.output_channels_per_group;
+            // Convolve dy(?, ?, d2) with w(:, :, d1, d2) to compute dx(xR, xC, d1).
+            // ? = to be determined. : = across all values in that axis.
+            var dotProd = ${X.type.value}(0.0);
+            var wR: u32 = 0;
+            if (uniforms.dilations.x == 1) {
+              // Minimum wR >= 0 that satisfies (dyRCorner + wR) % (uniforms.strides.x) == 0
+              wR = u32(((dyRCorner + i32(uniforms.strides.x) - 1) / i32(uniforms.strides.x)) * i32(uniforms.strides.x) - dyRCorner);
+            }
+            for (; wR < uniforms.effective_filter_dims.x; wR = wR + 1) {
+              if (wR % uniforms.dilations.x != 0) {
+                continue;
+              }
+              let dyR = (${V}(dyRCorner) + ${V}(wR)) / ${V}(uniforms.strides[0]);
+              let wRPerm = uniforms.filter_dims.x - 1 - wR / uniforms.dilations.x;
+              if (dyR < 0.0 || dyR >= ${V}(uniforms.Dy_shape[${P}]) || fract(dyR) > 0.0 ||
+                  wRPerm < 0) {
+                continue;
+              }
+              let idyR: u32 = u32(dyR);
+              var wC: u32 = 0;
+              if (uniforms.dilations.y == 1) {
+                // Minimum wC >= 0 that satisfies (dyCCorner + wC) % (uniforms.strides.y) == 0
+                wC = u32(((dyCCorner + i32(uniforms.strides.y) - 1) / i32(uniforms.strides.y)) * i32(uniforms.strides.y) - dyCCorner);
+              }
+              for (; wC < uniforms.effective_filter_dims.y; wC = wC + 1) {
+                if (wC % uniforms.dilations.y != 0) {
+                  continue;
+                }
+                let dyC = (${V}(dyCCorner) + ${V}(wC)) / ${V}(uniforms.strides.y);
+                let wCPerm = uniforms.filter_dims.y - 1 - wC / uniforms.dilations.y;
+                if (dyC < 0.0 || dyC >= ${V}(uniforms.Dy_shape[${j}]) ||
+                    fract(dyC) > 0.0 || wCPerm < 0) {
+                  continue;
+                }
+                let idyC: u32 = u32(dyC);
+                var inputChannel = groupId * uniforms.input_channels_per_group;
+                ${h?`
+                var x_offset = ${J.indicesToOffset(`${J.type.indices}(batch, idyR, idyC, inputChannel)`)} / ${c};
+                var w_offset = ${U.indicesToOffset(`${U.type.indices}(wRPerm, wCPerm, inputChannel, wOutChannel)`)} / ${w};
+                  `:""}
+                for (var d2: u32 = 0; d2 < uniforms.input_channels_per_group_int; d2 = d2 + ${h?4:c}) {
+                  ${se()}
+                  inputChannel = inputChannel + ${h?4:c};
+                }
+                ${N()}
+                wC = wC + uniforms.strides.y - 1;
+              }
+              wR = wR + uniforms.strides[0] - 1;
+            }
+            let value = dotProd${i?` + bias[d1 / ${_}]`:""};
+            ${X.setByOffset("global_idx","value")};
+          `;return`
+    ${W.registerUniforms(F).declareVariables(...te,X)}
+      ${W.mainStart()}
+      ${W.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")};
+    ${ee}}`};return{name:"ConvTranspose2D",shaderCache:{hint:`${t.cacheKey};${c}${w}${_}${h}${y}`,inputDependencies:b},getRunData:()=>({dispatchGroup:{x:x[0],y:x[1],z:x[2]},outputs:[{dims:r?r(n):n,dataType:e[0].dataType}],programUniforms:$}),getShaderSource:D}}}),El,Il,kl,$n,Nh,Cl,vn,zl,Ph,L_=L(()=>{"use strict";P_(),Vt(),vt(),El=(e,t,r,i,n,a)=>(e-1)*t+r+(i-1)*n+1-a,Il=(e,t,r,i,n)=>{let a=Math.floor(e/2);t==="SAME_UPPER"?(r[i]=a,r[n]=e-a):t==="SAME_LOWER"&&(r[i]=e-a,r[n]=a)},kl=(e,t,r,i,n,a,s,o,l,d)=>{let c=e.length-2,h=d.length===0;l.length<c&&l.push(...Array(c-l.length).fill(0));let m=e[0],y=t[o?3:1]*n;for(let _=0,w=e.length-c-(o?1:0);_<c;++_,++w){let S=e[w],x=h?S*s[_]:d[_],b=El(S,s[_],a[_],t[w],r[_],x);Il(b,i,a,_,_+c),h&&d.push(s[_]*(S-1)+l[_]+(t[w]-1)*r[_]+1-a[_]-a[_+c])}d.splice(0,0,m),d.splice(o?3:1,0,y)},$n=(e,t)=>{let r=e.kernelShape.slice();if(e.kernelShape.length===0||e.kernelShape.reduce((h,m)=>h*m,1)===0){r.length=0;for(let h=2;h<t[1].dims.length;++h)r.push(t[1].dims[h])}let i=e.format==="NHWC";r.splice(0,0,t[1].dims[0]),r.splice(i?3:1,0,t[1].dims[1]);let n=e.pads.slice(),a=e.outputShape.slice(),s=e.outputPadding.slice(),o=t[0].dims,l=e.dilations.slice();if(l.reduce((h,m)=>h+m,0)===0){let h=t[0].dims.length-2;l=new Array(h).fill(1)}let d=e.strides.slice();if(d.reduce((h,m)=>h+m,0)===0){let h=t[0].dims.length-2;d=new Array(h).fill(1)}kl(o,r,l,e.autoPad,e.group,n,d,i,s,a);let c=Object.assign({},e);return Object.assign(c,{kernelShape:r,pads:n,outputPadding:s,outputShape:a,dilations:l,strides:d}),c},Nh=e=>{let t=Sa(e),r=e.format,i=["NOTSET","VALID","SAME_UPPER","SAME_LOWER"][typeof e.autoPad>"u"?0:e.autoPad],n=e.dilations,a=e.group??1,s=e.kernelShape,o=e.pads,l=e.strides,d=e.wIsConst(),c=e.outputPadding,h=e.outputShape;return{autoPad:i,format:r,dilations:n,group:a,kernelShape:s,outputPadding:c,outputShape:h,pads:o,strides:l,wIsConst:d,...t,cacheKey:`${e.format};${t.activation};`}},Cl=(e,t)=>{if(!e||e.length!==2&&e.length!==3)throw new Error("Conv requires 2 or 3 inputs");if(e[0].dims.length!==4&&e[0].dims.length!==3)throw new Error("currently only support 2-dimensional conv");if(e[0].dims.length!==e[1].dims.length)throw new Error("filter does not have same dimension as input");let r=e[0].dims[t.format==="NHWC"?e[0].dims.length-1:1],i=e[1].dims[0];if(r!==i)throw new Error("FILTER_IN_CHANNEL should be equal to DATA_CHANNEL");let n=e[1].dims[1]*t.group;if(e.length===3&&(e[2].dims.length!==1||e[2].dims[0]!==n))throw new Error("invalid bias");let a=e[0].dims.length-2;if(t.dilations.reduce((s,o)=>s+o,0)>0&&t.dilations.length!==a)throw new Error(`dilations should be ${a}D`);if(t.strides.reduce((s,o)=>s+o,0)>0&&t.strides.length!==a)throw new Error(`strides should be ${a}D`);if(t.pads.reduce((s,o)=>s+o,0)>0&&t.pads.length!==a*2)throw new Error(`pads should be ${a*2}D`);if(t.outputPadding.length!==a&&t.outputPadding.length!==0)throw new Error(`output_padding should be ${a}D`);if(t.kernelShape.reduce((s,o)=>s+o,0)>0&&t.kernelShape.length!==0&&t.kernelShape.length!==e[1].dims.length-2)throw new Error("invalid kernel shape");if(t.outputShape.length!==0&&t.outputShape.length!==e[0].dims.length-2)throw new Error("invalid output shape")},vn=(e,t,r,i)=>{let n=e.kernelCustomData.wT??e.compute(Le(t[1],[2,3,0,1]),{inputs:[1],outputs:[r.wIsConst?-2:-1]})[0];r.wIsConst&&!e.kernelCustomData.wT&&(e.kernelCustomData.wT=n);let a=[t[0],n];t.length===3&&a.push(t[2]),e.compute(Dh(a,r,i),{inputs:a})},zl=(e,t)=>{let r=t.format==="NHWC",i=[e.inputs[0].reshape(r?[e.inputs[0].dims[0],1,e.inputs[0].dims[1],e.inputs[0].dims[2]]:[e.inputs[0].dims[0],e.inputs[0].dims[1],1,e.inputs[0].dims[2]]),e.inputs[1].reshape([e.inputs[1].dims[0],e.inputs[1].dims[1],1,e.inputs[1].dims[2]])];e.inputs.length===3&&i.push(e.inputs[2]);let n=t.kernelShape;(n.length===0||n[0]===0)&&(n=[e.inputs[1].dims[2]]);let a=t.dilations;(a.length===0||a[0]===0)&&(a=[1]);let s=t.strides;(s.length===0||s[0]===0)&&(s=[1]);let o=t.pads;o.length===0&&(o=[0,0]),o=[0,o[0],0,o[1]],s=[1].concat(s),a=[1].concat(a),n=[1].concat(n);let l=t.outputPadding;l=[0].concat(l);let d=$n({...t,pads:o,strides:s,dilations:a,kernelShape:n,outputPadding:l},i);vn(e,i,d,c=>r?[c[0],c[2],c[3]]:[c[0],c[1],c[3]])},Ph=(e,t)=>{if(Cl(e.inputs,t),e.inputs[0].dims.length===3)zl(e,t);else{let r=$n(t,e.inputs);vn(e,e.inputs,r)}}}),Ol,Lh,Uh,U_=L(()=>{"use strict";re(),ne(),Ie(),ae(),Ol=(e,t,r,i)=>{let n=R.size(t),a=t.length,s=M("input",e,a),o=K("output",e,a),l=r.dataType===6?r.getInt32Array()[0]:Number(r.getBigInt64Array()[0]),d=R.normalizeAxis(l,a),c=h=>{let m=` i32(${s.indicesGet("inputIndices","uniforms.axis")}) `,y=Z("uniforms.input_shape","uniforms.axis",a),_=i.reverse?m+(i.exclusive?" + 1":""):"0",w=i.reverse?y:m+(i.exclusive?"":" + 1");return`
+                ${h.registerUniform("outputSize","u32").registerUniform("axis","u32").declareVariables(s,o)}
+                ${h.mainStart()}
+                  ${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+                  var inputIndices = ${o.offsetToIndices("global_idx")};
+                  var sum = ${o.type.value}(0);
+                  let first : i32 = ${_};
+                  let last : i32 = ${w};
+                  for (var i : i32 = first; i < last; i++) {
+                    ${s.indicesSet("inputIndices","uniforms.axis","u32(i)")};
+                    sum = sum + ${s.getByIndices("inputIndices")};
+                  }
+                  ${o.setByOffset("global_idx","sum")};
+                }`};return{name:"CumSum",shaderCache:{hint:i.cacheKey,inputDependencies:["rank"]},getRunData:()=>({outputs:[{dims:t,dataType:e}],dispatchGroup:{x:Math.ceil(n/64)},programUniforms:[{type:12,data:n},{type:12,data:d},...Y(t,t)]}),getShaderSource:c}},Lh=(e,t)=>{let r=e.inputs[0].dims,i=e.inputs[0].dataType,n=e.inputs[1];e.compute(Ol(i,r,n,t),{inputs:[0]})},Uh=e=>{let t=e.exclusive===1,r=e.reverse===1;return me({exclusive:t,reverse:r})}}),Al,Rl,Bl,Wh,qh,W_=L(()=>{"use strict";re(),ne(),Ie(),ae(),Al=e=>{if(!e||e.length!==1)throw new Error("DepthToSpace requires 1 input.");if(e[0].dims.length!==4)throw new Error("DepthToSpace requires 4D input.")},Rl=(e,t,r,i)=>{let n=[];n.push(`fn perm(i: ${i.type.indices}) -> ${r.type.indices} {
+    var a: ${r.type.indices};`);for(let a=0;a<t;++a)n.push(r.indicesSet("a",e[a],`i[${a}]`));return n.push("return a;}"),n.join(`
+`)},Bl=(e,t)=>{let r,i,n,a,s,o,l=t.format==="NHWC",d=t.blocksize,c=t.mode==="DCR";l?([r,i,n,a]=e.dims,s=c?[r,i,n,d,d,a/d**2]:[r,i,n,a/d**2,d,d],o=c?[0,1,3,2,4,5]:[0,1,4,2,5,3]):([r,i,n,a]=[e.dims[0],e.dims[2],e.dims[3],e.dims[1]],s=c?[r,d,d,a/d**2,i,n]:[r,a/d**2,d,d,i,n],o=c?[0,3,4,1,5,2]:[0,1,4,2,5,3]);let h=e.reshape(s),m=h.dims.length,y=e.dataType,_=M("a",y,m),w=K("output",y,m),S=x=>`
+  ${x.registerUniform("output_size","u32").declareVariables(_,w)}
+
+  ${Rl(o,m,_,w)}
+
+  ${x.mainStart()}
+    ${x.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+
+    let indices = ${w.offsetToIndices("global_idx")};
+    let aIndices = perm(indices);
+
+    ${w.setByOffset("global_idx",_.getByIndices("aIndices"))}
+  }`;return{name:"DepthToSpace",shaderCache:{hint:`${e.dims};${t.blocksize};${t.mode}`,inputDependencies:["rank"]},getRunData:x=>{let b=l?[r,i*d,n*d,a/d**2]:[r,a/d**2,i*d,n*d],E=R.size(b),T=h.dims,k=R.sortBasedOnPerm(T,o);return{outputs:[{dims:b,dataType:x[0].dataType}],dispatchGroup:{x:Math.ceil(E/64)},programUniforms:[{type:12,data:E},...Y(T,k)]}},getShaderSource:S}},Wh=(e,t)=>{Al(e.inputs),e.compute(Bl(e.inputs[0],t))},qh=e=>me({blocksize:e.blocksize,mode:e.mode,format:e.format})}),ei,fr,xn,Ml,Dl,Nl,Pl,Sn,Ll,Vh,Gh,q_=L(()=>{"use strict";re(),ne(),Ie(),ae(),ei="[a-zA-Z]|\\.\\.\\.",fr="("+ei+")+",xn="^"+fr+"$",Ml="("+fr+",)*"+fr,Dl="^"+Ml+"$",Nl=class{constructor(e=-1){this.symbolToIndices=new Map,this.inputIndex=e}addSymbol(e,t){let r=this.symbolToIndices.get(e);r===void 0?r=[t]:r.push(t),this.symbolToIndices.set(e,r)}},Pl=class{constructor(e,t){this.equation=t,this.hasEllipsis=!1,this.symbolToInfo=new Map,this.lhs=new Array,this.outputDims=[];let[r,i]=t.includes("->")?t.split("->",2):[t,""];if(!r.match(RegExp(Dl)))throw new Error("Invalid LHS term");if(r.split(",").forEach((n,a)=>{let s=e[a].dims.slice();if(!n.match(RegExp(xn)))throw new Error("Invalid LHS term");let o=this.processTerm(n,!0,s,a);this.lhs.push(o)}),i==="")i+=[...this.symbolToInfo.entries()].filter(([n,a])=>a.count===1||n==="...").map(([n])=>n).join("");else if(!i.match(RegExp(fr)))throw new Error("Invalid RHS");i.match(RegExp(ei,"g"))?.forEach(n=>{if(n==="...")this.outputDims=this.outputDims.concat(this.ellipsisDims);else{let a=this.symbolToInfo.get(n);if(a===void 0)throw new Error("Invalid RHS symbol");this.outputDims.push(a.dimValue)}}),this.rhs=this.processTerm(i,!1,this.outputDims)}addSymbol(e,t,r){let i=this.symbolToInfo.get(e);if(i!==void 0){if(i.dimValue!==t&&i.count!==1)throw new Error("Dimension mismatch");i.count++,i.inputIndices.push(r)}else i={count:1,dimValue:t,inputIndices:[r]};this.symbolToInfo.set(e,i)}processTerm(e,t,r,i=-1){let n=r.length,a=!1,s=[],o=0;if(!e.match(RegExp(xn))&&!t&&e!=="")throw new Error("Invalid LHS term");let l=e.match(RegExp(ei,"g")),d=new Nl(i);return l?.forEach((c,h)=>{if(c==="..."){if(a)throw new Error("Only one ellipsis is allowed per input term");a=!0;let m=n-l.length+1;if(m<0)throw new Error("Ellipsis out of bounds");if(s=r.slice(o,o+m),this.hasEllipsis){if(this.ellipsisDims.length!==s.length||this.ellipsisDims.toString()!==s.toString())throw new Error("Ellipsis dimensions mismatch")}else if(t)this.hasEllipsis=!0,this.ellipsisDims=s;else throw new Error("Ellipsis must be specified in the LHS");for(let y=0;y<s.length;y++){let _=String.fromCharCode(48+y);d.addSymbol(_,h+y),this.addSymbol(_,r[o++],i)}}else d.addSymbol(c,h+(this.hasEllipsis?this.ellipsisDims.length-1:0)),this.addSymbol(c,r[o++],i)}),d}},Sn=e=>e+"_max",Ll=(e,t,r,i)=>{let n=e.map(d=>d.length).map((d,c)=>M(`input${c}`,t,d)),a=R.size(i),s=K("output",t,i.length),o=[...r.symbolToInfo.keys()].filter(d=>!r.rhs.symbolToIndices.has(d)),l=d=>{let c=[],h="var prod = 1.0;",m="var sum = 0.0;",y="sum += prod;",_=[],w=[],S=[],x=[],b=r.symbolToInfo.size===r.rhs.symbolToIndices.size;r.symbolToInfo.forEach((T,k)=>{if(r.rhs.symbolToIndices.has(k)){let C=r.rhs.symbolToIndices.get(k)?.[0];C!==void 0&&r.lhs.forEach((z,$)=>{if(T.inputIndices.includes($)){let D=z.symbolToIndices.get(k);if(D===void 0)throw new Error("Invalid symbol error");D.forEach(W=>{c.push(`${n[$].indicesSet(`input${$}Indices`,W,s.indicesGet("outputIndices",C))}`)})}})}else r.lhs.forEach((C,z)=>{if(T.inputIndices.includes(z)){let $=C.symbolToIndices.get(k);if($===void 0)throw new Error("Invalid symbol error");$.forEach(D=>{_.push(`${n[z].indicesSet(`input${z}Indices`,D,`${k}`)}`)}),x.push(`prod *= ${n[z].getByIndices(`input${z}Indices`)};`)}}),w.push(`for(var ${k}: u32 = 0; ${k} < uniforms.${Sn(k)}; ${k}++) {`),S.push("}")});let E=b?[...c,`let sum = ${n.map((T,k)=>T.getByIndices(`input${k}Indices`)).join(" * ")};`]:[...c,m,...w,..._,h,...x,y,...S];return`
+            ${d.registerUniforms(o.map(T=>({name:`${Sn(T)}`,type:"u32"}))).registerUniform("outputSize","u32").declareVariables(...n,s)}
+
+            ${d.mainStart()}
+            ${d.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+            var outputIndices = ${s.offsetToIndices("global_idx")};
+            ${n.map((T,k)=>`var input${k}Indices: ${n[k].type.indices};`).join(`
+`)}
+            ${E.join(`
+`)};
+            ${s.setByOffset("global_idx","sum")};
+          }`};return{name:"Einsum",shaderCache:{hint:r.equation,inputDependencies:e.map(()=>"rank")},getRunData:()=>{let d=o.filter(h=>r.symbolToInfo.has(h)).map(h=>({type:12,data:r.symbolToInfo.get(h)?.dimValue||0}));d.push({type:12,data:a});let c=e.map((h,m)=>[...Y(h)]).reduce((h,m)=>h.concat(m),d);return c.push(...Y(i)),{outputs:[{dims:i,dataType:t}],dispatchGroup:{x:Math.ceil(a/64)},programUniforms:c}},getShaderSource:l}},Vh=(e,t)=>{let r=new Pl(e.inputs,t.equation),i=r.outputDims,n=e.inputs.map((a,s)=>a.dims);e.compute(Ll(n,e.inputs[0].dataType,r,i))},Gh=e=>{let t=e.equation.replace(/\s+/g,"");return me({equation:t})}}),Ul,Tn,Wl,ql,Fh,V_=L(()=>{"use strict";re(),ne(),ae(),Ul=e=>{if(!e||e.length!==2)throw new Error("Expand requires 2 input.");let t=e[0].dims,r=Array.from(e[1].getBigInt64Array(),Number),i=r.length<t.length?0:r.length-t.length,n=t.length<r.length?0:t.length-r.length;for(;i<r.length&&n<t.length;++i,++n)if(r[i]!==t[n]&&r[i]!==1&&t[n]!==1)throw new Error("Expand requires shape to be broadcastable to input")},Tn=(e,t)=>{let r=e.length-t.length,i=[];for(let n=0;n<r;++n)i.push(e[n]);for(let n=0;n<t.length;++n)i.push(t[n]===1?e[n+r]:t[n]);return i},Wl=(e,t)=>e.length>t.length?Tn(e,t):Tn(t,e),ql=e=>{let t=e[0].dims,r=Array.from(e[1].getBigInt64Array(),Number),i=Wl(t,r),n=e[0].dataType,a=n===9||R.size(t)===1,s=n===9||t.length>0&&t[t.length-1]%4===0?4:1,o=a||i.length>0&&i[i.length-1]%4===0?4:1,l=Math.ceil(R.size(i)/o),d=h=>{let m=M("input",n,t.length,s),y=K("output",n,i.length,o),_;if(n===9){let w=(S,x,b="")=>`
+          let outputIndices${x} = ${y.offsetToIndices(`outputOffset + ${x}u`)};
+          let offset${x} = ${m.broadcastedIndicesToOffset(`outputIndices${x}`,y)};
+          let index${x} = offset${x} / 4u;
+          let component${x} = offset${x} % 4u;
+          ${S}[${x}] = ${b}(${m.getByOffset(`index${x}`)}[component${x}]);
+        `;_=`
+        let outputOffset = global_idx * ${o};
+        var data = vec4<u32>(0);
+        ${w("data",0,"u32")}
+        ${w("data",1,"u32")}
+        ${w("data",2,"u32")}
+        ${w("data",3,"u32")}
+        ${y.setByOffset("global_idx","data")}
+      }`}else _=`
+        let outputIndices = ${y.offsetToIndices(`global_idx * ${o}`)};
+        let inputOffset = ${m.broadcastedIndicesToOffset("outputIndices",y)};
+        let data = ${y.type.value}(${m.getByOffset(`inputOffset / ${s}`)});
+        ${y.setByOffset("global_idx","data")}
+      }`;return`
+    ${h.registerUniform("vec_size","u32").declareVariables(m,y)}
+    ${h.mainStart()}
+    ${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+    ${_}`},c=[{type:12,data:l},...Y(t,i)];return{name:"Expand",shaderCache:{hint:`${i.length};${s}${o}`,inputDependencies:["rank"]},getShaderSource:d,getRunData:()=>({outputs:[{dims:i,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(l/64)},programUniforms:c})}},Fh=e=>{Ul(e.inputs),e.compute(ql(e.inputs),{inputs:[0]})}}),Vl,Hh,G_=L(()=>{"use strict";re(),ne(),ae(),xa(),Vl=e=>{let t=e[0].dataType,r=R.size(e[0].dims),i=R.size(e[1].dims),n=i%4===0,a=s=>{let o=M("x",t,[1],4),l=M("bias",t,[1],4),d=K("y",t,[1],4),c=[{name:"output_vec_size",type:"u32"},{name:"bias_size",type:"u32"}],h=y=>`
+      let bias${y}_offset: u32 = (global_idx * 4 + ${y}) % uniforms.bias_size;
+      let bias${y} = ${l.getByOffset(`bias${y}_offset / 4`)}[bias${y}_offset % 4];`,m=n?`
+      let bias = ${l.getByOffset("global_idx % (uniforms.bias_size / 4)")};`:`${h(0)}${h(1)}${h(2)}${h(3)}
+      let bias = ${o.type.value}(bias0, bias1, bias2, bias3);`;return`${s.registerUniforms(c).declareVariables(o,l,d)}
+
+    ${Yn(Be(t))}
+
+    ${s.mainStart(Zt)}
+      ${s.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_vec_size")}
+
+      let x = ${o.getByOffset("global_idx")};
+      ${m}
+      let x_in = x + bias;
+      ${d.setByOffset("global_idx",Jn("x_in"))}
+    }`};return{name:"FastGeluWithBias",shaderCache:{hint:`${n}`,inputDependencies:["type","type"]},getShaderSource:a,getRunData:s=>({outputs:[{dims:s[0].dims,dataType:s[0].dataType}],programUniforms:[{type:12,data:Math.ceil(r/4)},{type:12,data:i}],dispatchGroup:{x:Math.ceil(r/Zt/4)}})}},Hh=e=>{e.inputs.length<2||R.size(e.inputs[1].dims)===0?ch(e):e.compute(Vl(e.inputs))}}),Gl,Fl,jh,Kh,F_=L(()=>{"use strict";re(),ne(),Ie(),ae(),Gl=e=>{if(!e||e.length!==2)throw new Error("Gather requires 2 inputs.")},Fl=(e,t)=>{let r=e[0].dims,i=e[1].dims,n=r.length,a=R.normalizeAxis(t.axis,n),s=r.slice(0);s.splice(a,1,...i);let o=r[a],l=e[0].dataType===9?4:1,d=Math.ceil(R.size(s)/l),c=[{type:12,data:d},{type:6,data:o},{type:12,data:a},...Y(e[0].dims,e[1].dims,s)],h=m=>{let y=M("data",e[0].dataType,e[0].dims.length,l),_=M("inputIndices",e[1].dataType,e[1].dims.length),w=K("output",e[0].dataType,s.length,l),S=b=>{let E=i.length,T=`var indicesIndices${b}  = ${_.type.indices}(0);`;for(let k=0;k<E;k++)T+=`${E>1?`indicesIndices${b}[${k}]`:`indicesIndices${b}`} = ${s.length>1?`outputIndices${b}[uniforms.axis + ${k}]`:`outputIndices${b}`};`;T+=`
+          var idx${b} = ${_.getByIndices(`indicesIndices${b}`)};
+          if (idx${b} < 0) {
+            idx${b} = idx${b} + uniforms.axisDimLimit;
+          }
+          var dataIndices${b} : ${y.type.indices};
+        `;for(let k=0,C=0;k<n;k++)k===a?(T+=`${n>1?`dataIndices${b}[${k}]`:`dataIndices${b}`} = u32(idx${b});`,C+=E):(T+=`${n>1?`dataIndices${b}[${k}]`:`dataIndices${b}`} = ${s.length>1?`outputIndices${b}[${C}]`:`outputIndices${b}`};`,C++);return T},x;if(e[0].dataType===9){let b=(E,T,k="")=>`
+          let outputIndices${T} = ${w.offsetToIndices(`outputOffset + ${T}u`)};
+          ${S(T)};
+          let offset${T} = ${y.indicesToOffset(`dataIndices${T}`)};
+          let index${T} = offset${T} / 4u;
+          let component${T} = offset${T} % 4u;
+          ${E}[${T}] = ${k}(${y.getByOffset(`index${T}`)}[component${T}]);
+        `;x=`
+        let outputOffset = global_idx * ${l};
+        var value = vec4<u32>(0);
+        ${b("value",0,"u32")}
+        ${b("value",1,"u32")}
+        ${b("value",2,"u32")}
+        ${b("value",3,"u32")}
+        ${w.setByOffset("global_idx","value")}
+      `}else x=`
+      let outputIndices = ${w.offsetToIndices("global_idx")};
+      ${S("")};
+      let value = ${y.getByIndices("dataIndices")};
+      ${w.setByOffset("global_idx","value")};
+      `;return`
+      ${m.registerUniform("outputSize","u32").registerUniform("axisDimLimit","i32").registerUniform("axis","u32").declareVariables(y,_,w)}
+      ${m.mainStart()}
+        ${m.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+        ${x}
+      }`};return{name:"Gather",shaderCache:{hint:t.cacheKey,inputDependencies:["rank","rank"]},getRunData:()=>({outputs:[{dims:s,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(d/64)},programUniforms:c}),getShaderSource:h}},jh=e=>me({axis:e.axis}),Kh=(e,t)=>{let r=e.inputs;Gl(r),e.compute(Fl(e.inputs,t))}}),Hl,Xh,Zh,H_=L(()=>{"use strict";re(),ne(),ae(),Hl=(e,t,r,i,n,a,s,o,l)=>{let d=[{type:12,data:a},{type:12,data:i},{type:12,data:n},{type:12,data:r},{type:12,data:s},{type:12,data:o},{type:12,data:l}],c=[a];d.push(...Y(t.dims,c));let h=m=>{let y=M("indices_data",t.dataType,t.dims.length),_=K("input_slice_offsets_data",12,1,1),w=[y,_],S=[{name:"output_size",type:"u32"},{name:"batch_dims",type:"u32"},{name:"input_dims",type:"u32",length:n.length},{name:"sizes_from_slice_dims_data",type:"u32",length:r.length},{name:"num_slices_per_batch",type:"u32"},{name:"input_batch_stride",type:"u32"},{name:"num_slice_dims",type:"u32"}];return`
+  ${m.registerUniforms(S).declareVariables(...w)}
+  ${m.mainStart()}
+    ${m.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+    let batch_idx = global_idx / uniforms.num_slices_per_batch;
+    let base_offset = batch_idx * uniforms.input_batch_stride;
+
+    let slice_indices_base_offset = global_idx * uniforms.num_slice_dims;
+    var relative_slice_offset = 0;
+    for (var dim_idx = 0u; dim_idx < uniforms.num_slice_dims; dim_idx ++) {
+      var index = i32(indices_data[dim_idx + slice_indices_base_offset].x);
+      let input_dim_idx = uniforms.batch_dims + dim_idx;
+      if (index < 0) {
+        ${n.length===1?"index += i32(uniforms.input_dims);":"index += i32(uniforms.input_dims[input_dim_idx]);"}
+      }
+      ${r.length===1?"relative_slice_offset += index * i32(uniforms.sizes_from_slice_dims_data);":"relative_slice_offset += index * i32(uniforms.sizes_from_slice_dims_data[dim_idx]);"}
+    }
+
+    input_slice_offsets_data[global_idx] =  base_offset + u32(relative_slice_offset);
+  }`};return e.compute({name:"computeSliceOffsets",shaderCache:{hint:`${n.length}_${r.length}`,inputDependencies:["rank"]},getRunData:()=>({outputs:[{dims:c,dataType:e.inputs[1].dataType}],dispatchGroup:{x:Math.ceil(a/64)},programUniforms:d}),getShaderSource:h},{inputs:[t],outputs:[-1]})[0]},Xh=(e,t)=>{let r=e.inputs,i=r[0].dims,n=r[0].dataType,a=r[1].dims,s=a[a.length-1],o=R.sizeToDimension(a,a.length-1),l=R.sizeFromDimension(i,t.batchDims+s),d=R.sizeToDimension(i,t.batchDims),c=R.sizeFromDimension(i,t.batchDims),h=o/d,m=new Array(s),y=l;for(let T=0;T<s;++T)m[s-1-T]=y,y*=i[t.batchDims+s-1-T];let _=Hl(e,r[1],m,t.batchDims,i,o,h,c,s),w=t.batchDims+s;if(w>i.length)throw new Error("last dimension of indices must not be larger than rank of input tensor");let S=a.slice(0,-1).concat(i.slice(w)),x=R.size(S),b=[{type:12,data:x},{type:12,data:l},...Y(r[0].dims,_.dims,S)],E=T=>{let k=M("data",r[0].dataType,r[0].dims.length),C=M("slice_offsets",12,_.dims.length),z=K("output",r[0].dataType,S.length);return`
+          ${T.registerUniform("output_size","u32").registerUniform("slice_size","u32").declareVariables(k,C,z)}
+            ${T.mainStart()}
+            ${T.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+          let slice_offset = slice_offsets[global_idx / uniforms.slice_size];
+          output[global_idx] = data[u32(slice_offset) + global_idx % uniforms.slice_size];
+        }`};e.compute({name:"GatherND",shaderCache:{hint:t.cacheKey,inputDependencies:["rank","rank"]},getRunData:()=>({outputs:[{dims:S,dataType:n}],dispatchGroup:{x:Math.ceil(x/64)},programUniforms:b}),getShaderSource:E},{inputs:[r[0],_]})},Zh=e=>({batchDims:e.batch_dims,cacheKey:""})}),jl,Kl,Qh,Yh,j_=L(()=>{"use strict";re(),ne(),Ie(),ae(),jl=(e,t)=>{if(e.length<3||e.length>4)throw new Error("GatherBlockQuantized requires 3 or 4 inputs.");let r=R.normalizeAxis(t.quantizeAxis,e[0].dims.length),i=t.blockSize,n=e[0],a=e[2],s=e.length===4?e[3]:void 0;if(a.dims.length!==n.dims.length||!n.dims.map((o,l)=>l===r?Math.ceil(o/i)===a.dims[l]:o===a.dims[l]).reduce((o,l)=>o&&l,!0))throw new Error("Scales must have the same rank as the input tensor and the dims should match except on gatherAxis.");if(s){if(s.dataType!==n.dataType)throw new Error("Zero point must have the same data type as the input tensor.");if(s.dims.length!==a.dims.length||!s.dims.map((o,l)=>o===a.dims[l]).reduce((o,l)=>o&&l,!0))throw new Error("Zero point must have the same rank as the input tensor and the dims should match except on quantizeAxis.")}},Kl=(e,t)=>{let r=e[0].dims,i=e[1].dims,n=r.length,a=R.normalizeAxis(t.gatherAxis,n),s=R.normalizeAxis(t.quantizeAxis,n),o=r.slice(0);o.splice(a,1,...i);let l=R.size(o),d=e[2].dataType,c=e[0].dataType===22,h=[{type:12,data:l},{type:12,data:s},{type:12,data:a},{type:12,data:t.blockSize},...Y(...e.map((y,_)=>y.dims),o)],m=y=>{let _=M("data",e[0].dataType,e[0].dims.length),w=M("inputIndices",e[1].dataType,e[1].dims.length),S=M("scales",e[2].dataType,e[2].dims.length),x=e.length>3?M("zeroPoint",e[3].dataType,e[3].dims.length):void 0,b=K("output",d,o.length),E=[_,w,S];x&&E.push(x);let T=[{name:"output_size",type:"u32"},{name:"quantize_axis",type:"u32"},{name:"gather_axis",type:"u32"},{name:"block_size",type:"u32"}];return`
+        ${y.registerUniforms(T).declareVariables(...E,b)}
+        ${y.mainStart()}
+        let output_indices = ${b.offsetToIndices("global_idx")};
+        var indices_indices = ${w.type.indices}(0);
+        ${i.length>1?`
+          for (var i: u32 = 0; i < ${i.length}; i++) {
+            let index = ${b.indicesGet("output_indices","uniforms.gather_axis + i")};
+            ${w.indicesSet("indices_indices","i","index")};
+          }`:`indices_indices = ${b.indicesGet("output_indices","uniforms.gather_axis")};`};
+        var data_indices = ${_.type.indices}(0);
+        for (var i: u32 = 0; i < uniforms.gather_axis; i++) {
+          let index = ${b.indicesGet("output_indices","i")};
+          ${_.indicesSet("data_indices","i","index")};
+        }
+        var index_from_indices = ${w.getByIndices("indices_indices")};
+        if (index_from_indices < 0) {
+          index_from_indices += ${r[a]};
+        }
+        ${_.indicesSet("data_indices","uniforms.gather_axis","u32(index_from_indices)")};
+        for (var i = uniforms.gather_axis + 1; i < ${o.length}; i++) {
+          let index = ${b.indicesGet("output_indices",`i + ${i.length} - 1`)};
+          ${_.indicesSet("data_indices","i","index")};
+        }
+        let data_offset = ${_.indicesToOffset("data_indices")};
+        let data_index = data_offset % 8;
+        // Convert 4-bit packed data to 8-bit packed data.
+        let packed_4bit_quantized_data = ${_.getByOffset("data_offset / 8")};
+        let packed_8bit_quantized_data = (packed_4bit_quantized_data >> (4 * (data_index % 2))) & 0x0f0f0f0f;
+        let quantized_data_vec = ${c?"unpack4xI8":"unpack4xU8"}(u32(packed_8bit_quantized_data));
+        let quantized_data = quantized_data_vec[data_index / 2];
+        var scale_indices = data_indices;
+        let quantize_axis_index = ${S.indicesGet("data_indices","uniforms.quantize_axis")} / uniforms.block_size;
+        ${S.indicesSet("scale_indices","uniforms.quantize_axis","quantize_axis_index")};
+        var scale = ${S.getByIndices("scale_indices")};
+        ${x?`
+              let zero_point_indices = scale_indices;
+              let zero_point_offset = ${x.indicesToOffset("zero_point_indices")};
+              let zero_point_index = zero_point_offset % 8;
+              let packed_4bit_zero_points = ${x.getByOffset("zero_point_offset / 8")};
+              let packed_8bit_zero_points = (packed_4bit_zero_points >> (4 * (zero_point_index % 2))) & 0x0f0f0f0f;
+              let zero_point_vec = ${c?"unpack4xI8":"unpack4xU8"}(u32(packed_8bit_zero_points));
+              let zero_point = zero_point_vec[zero_point_index / 2];`:"var zero_point = 0"};
+        let dequantized_data = ${Be(d)}(quantized_data - zero_point) * scale;
+        ${b.setByOffset("global_idx","dequantized_data")};
+    }`};return{name:"GatherBlockQuantized",shaderCache:{hint:`${t.cacheKey};${e.filter((y,_)=>_!==1).map(y=>y.dims.join("_")).join(";")}`,inputDependencies:Array.from({length:e.length},(y,_)=>"rank")},getRunData:()=>({outputs:[{dims:o,dataType:d}],dispatchGroup:{x:Math.ceil(l/64)},programUniforms:h}),getShaderSource:m}},Qh=(e,t)=>{let r=e.inputs;jl(r,t),e.compute(Kl(e.inputs,t))},Yh=e=>me({blockSize:e.blockSize,gatherAxis:e.gatherAxis,quantizeAxis:e.quantizeAxis})}),Xl,Zl,Jh,ef,K_=L(()=>{"use strict";re(),ne(),Ie(),ae(),Xl=e=>{if(!e||e.length!==2)throw new Error("GatherElements requires 2 inputs.");if(e[0].dims.length<1)throw new Error("GatherElements requires that the data input be rank >= 1.");if(e[0].dims.length!==e[1].dims.length)throw new Error(`GatherElements requires that the data input and
+                     indices input tensors be of same rank.`)},Zl=(e,t)=>{let r=e[0].dims,i=e[0].dataType,n=r.length,a=e[1].dims,s=e[1].dataType,o=R.normalizeAxis(t.axis,n),l=r[o],d=a.slice(0),c=R.size(d),h=M("input",i,n),m=M("indicesInput",s,a.length),y=K("output",i,d.length),_=[{type:12,data:c},{type:6,data:l},{type:12,data:o}];return _.push(...Y(r,a,d)),{name:"GatherElements",shaderCache:{inputDependencies:["rank","rank"]},getRunData:()=>({outputs:[{dims:d,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(c/64)},programUniforms:_}),getShaderSource:w=>`
+      ${w.registerUniform("outputSize","u32").registerUniform("axisDimLimit","i32").registerUniform("axis","u32").declareVariables(h,m,y)}
+      ${w.mainStart()}
+      ${w.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+
+      let outputIndices = ${y.offsetToIndices("global_idx")};
+
+      var idx = ${m.getByOffset("global_idx")};
+      if (idx < 0) {
+        idx = idx + uniforms.axisDimLimit;
+      }
+      var inputIndices = ${h.type.indices}(outputIndices);
+      ${h.indicesSet("inputIndices","uniforms.axis","u32(idx)")};
+      let value = ${h.getByIndices("inputIndices")};
+
+      ${y.setByOffset("global_idx","value")};
+  }`}},Jh=e=>me({axis:e.axis}),ef=(e,t)=>{let r=e.inputs;Xl(r),e.compute(Zl(e.inputs,t))}}),Ql,Yl,tf,rf,X_=L(()=>{"use strict";re(),ne(),ae(),Ql=e=>{if(!e)throw new Error("Input is missing");if(e.length<2||e.length>3)throw new Error("Invaid input number.");if(e.length===3&&e[2].dims.length>2)throw new Error("Invalid input shape of C");if(e[0].dataType!==e[1].dataType||e.length===3&&e[0].dataType!==e[2].dataType)throw new Error("Input types are mismatched")},Yl=(e,t)=>{let r=e[0].dims.slice(),i=e[1].dims.slice(),[n,a,s]=Jp.getShapeOfGemmResult(r,t.transA,i,t.transB,e.length===3?e[2].dims:void 0),o=[n,a];if(!o)throw new Error("Can't use gemm on the given tensors");let l=16,d=Math.ceil(a/l),c=Math.ceil(n/l),h=!0,m=R.size(o),y=[{type:12,data:h?d:m},{type:12,data:n},{type:12,data:a},{type:12,data:s},{type:1,data:t.alpha},{type:1,data:t.beta}],_=["type","type"];e.length===3&&(y.push(...Y(e[2].dims)),_.push("rank")),y.push(...Y(o));let w=x=>{let b="";t.transA&&t.transB?b="value += a[k * uniforms.M + m] * b[n * uniforms.K + k];":t.transA&&!t.transB?b="value += a[k * uniforms.M + m] * b[k * uniforms.N + n];":!t.transA&&t.transB?b="value += a[m * uniforms.K + k] * b[n * uniforms.K + k];":!t.transA&&!t.transB&&(b="value += a[m * uniforms.K + k] * b[k * uniforms.N + n];");let E=t.alpha===1?"":"value *= uniforms.alpha;",T=M("a",e[0].dataType,e[0].dims),k=M("b",e[1].dataType,e[1].dims),C=T.type.value,z=null,$=[T,k];e.length===3&&(z=M("c",e[2].dataType,e[2].dims.length),$.push(z));let D=K("output",e[0].dataType,o.length);$.push(D);let W=[{name:"output_size",type:"u32"},{name:"M",type:"u32"},{name:"N",type:"u32"},{name:"K",type:"u32"},{name:"alpha",type:"f32"},{name:"beta",type:"f32"}];return`
+  ${x.registerUniforms(W).declareVariables(...$)}
+
+  ${x.mainStart()}
+    ${x.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+
+    let m = global_idx / uniforms.N;
+    let n = global_idx % uniforms.N;
+
+    var value = ${C}(0);
+    for (var k: u32 = 0u; k < uniforms.K; k++) {
+      ${b}
+    }
+
+    ${E}
+    ${z!=null?`let cOffset = ${z.broadcastedIndicesToOffset("vec2(m, n)",D)}; value += ${C}(uniforms.beta) * ${z.getByOffset("cOffset")};`:""}
+    output[global_idx] = value;
+  }`},S=x=>{let b=M("a",e[0].dataType,e[0].dims),E=M("b",e[1].dataType,e[1].dims),T=null,k=[b,E];e.length===3&&(T=M("c",e[2].dataType,e[2].dims.length),k.push(T));let C=K("output",e[0].dataType,o.length);k.push(C);let z=[{name:"num_tile_n",type:"u32"},{name:"M",type:"u32"},{name:"N",type:"u32"},{name:"K",type:"u32"},{name:"alpha",type:"f32"},{name:"beta",type:"f32"}],$="",D="";t.transA&&t.transB?(D=`
+      var col = tile_row_start + local_id.x;
+      var row = k_start + local_id.y;
+      if (col < uniforms.M && row < uniforms.K) {
+        tile_a[local_id.y][local_id.x] = a[row * uniforms.M + col];
+      } else {
+        tile_a[local_id.y][local_id.x] = ${b.type.value}(0);
+      }
+
+      col = k_start + local_id.x;
+      row = tile_col_start + local_id.y;
+      if (col < uniforms.K && row < uniforms.N) {
+        tile_b[local_id.y][local_id.x] = b[row * uniforms.K + col];
+      } else {
+        tile_b[local_id.y][local_id.x] = ${E.type.value}(0);
+      }
+      `,$="value += tile_a[k][local_id.y] * tile_b[local_id.x][k];"):t.transA&&!t.transB?(D=`
+      var col = tile_row_start + local_id.x;
+      var row = k_start + local_id.y;
+      if (col < uniforms.M && row < uniforms.K) {
+        tile_a[local_id.y][local_id.x] = a[row * uniforms.M + col];
+      } else {
+        tile_a[local_id.y][local_id.x] = ${b.type.value}(0);
+      }
+
+      col = tile_col_start + local_id.x;
+      row = k_start + local_id.y;
+      if (col < uniforms.N && row < uniforms.K) {
+        tile_b[local_id.y][local_id.x] = b[row * uniforms.N + col];
+      } else {
+        tile_b[local_id.y][local_id.x] = ${E.type.value}(0);
+      }
+      `,$="value += tile_a[k][local_id.y] * tile_b[k][local_id.x];"):!t.transA&&t.transB?(D=`
+      var col = k_start + local_id.x;
+      var row = tile_row_start + local_id.y;
+      if (col < uniforms.K && row < uniforms.M) {
+        tile_a[local_id.y][local_id.x] = a[row * uniforms.K + col];
+      } else {
+        tile_a[local_id.y][local_id.x] = ${b.type.value}(0);
+      }
+
+      col = k_start + local_id.x;
+      row = tile_col_start + local_id.y;
+      if (col < uniforms.K && row < uniforms.N) {
+        tile_b[local_id.y][local_id.x] = b[row * uniforms.K + col];
+      } else {
+        tile_b[local_id.y][local_id.x] = ${E.type.value}(0);
+      }
+      `,$="value += tile_a[local_id.y][k] * tile_b[local_id.x][k];"):!t.transA&&!t.transB&&(D=`
+      var col = k_start + local_id.x;
+      var row = tile_row_start + local_id.y;
+      if (col < uniforms.K && row < uniforms.M) {
+        tile_a[local_id.y][local_id.x] = a[row * uniforms.K + col];
+      } else {
+        tile_a[local_id.y][local_id.x] = ${b.type.value}(0);
+      }
+
+      col = tile_col_start + local_id.x;
+      row = k_start + local_id.y;
+      if (col < uniforms.N && row < uniforms.K) {
+        tile_b[local_id.y][local_id.x] = b[row * uniforms.N + col];
+      } else {
+        tile_b[local_id.y][local_id.x] = ${E.type.value}(0);
+      }
+      `,$="value += tile_a[local_id.y][k] * tile_b[k][local_id.x];");let W=t.alpha===1?"":"value *= uniforms.alpha;";return`
+  ${x.registerUniforms(z).declareVariables(...k)}
+  var<workgroup> tile_a: array<array<${b.type.storage}, ${l}>, ${l}>;
+  var<workgroup> tile_b: array<array<${E.type.storage}, ${l}>, ${l}>;
+  ${x.mainStart([l,l,1])}
+    let tile_col_start = (workgroup_index % uniforms.num_tile_n) * ${l};
+    let tile_row_start = (workgroup_index / uniforms.num_tile_n) * ${l};
+    let num_tiles = (uniforms.K - 1) / ${l} + 1;
+    var k_start = 0u;
+    var value = ${C.type.value}(0);
+    for (var t: u32 = 0u; t < num_tiles; t++) {
+      ${D}
+      k_start = k_start + ${l};
+      workgroupBarrier();
+
+      for (var k: u32 = 0u; k < ${l}; k++) {
+        ${$}
+      }
+      workgroupBarrier();
+    }
+
+    ${W}
+    let m = tile_row_start + local_id.y;
+    let n = tile_col_start + local_id.x;
+    ${T!=null?`let cOffset = ${T.broadcastedIndicesToOffset("vec2(m, n)",C)}; value += ${C.type.value}(uniforms.beta) * ${T.getByOffset("cOffset")};`:""}
+    if (m < uniforms.M && n < uniforms.N) {
+      output[m * uniforms.N + n] = value;
+    }
+  }`};return h?{name:"GemmShared",shaderCache:{hint:`${t.cacheKey}`,inputDependencies:_},getRunData:()=>({outputs:[{dims:o,dataType:e[0].dataType}],dispatchGroup:{x:d*c},programUniforms:y}),getShaderSource:S}:{name:"Gemm",shaderCache:{hint:`${t.cacheKey}`,inputDependencies:_},getRunData:()=>({outputs:[{dims:o,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(m/64)},programUniforms:y}),getShaderSource:w}},tf=e=>{let t=e.transA,r=e.transB,i=e.alpha,n=e.beta;return{transA:t,transB:r,alpha:i,beta:n,cacheKey:`${e.transA};${e.transB};${e.alpha===1}`}},rf=(e,t)=>{Ql(e.inputs),e.compute(Yl(e.inputs,t))}}),nt,ot,Ot,At,Jl,ed,td,rd,id,nd,ad,sd,nf,af,Z_=L(()=>{"use strict";re(),ne(),Ie(),ae(),[nt,ot,Ot,At]=[0,1,2,3],Jl=e=>{if(e[0].dims.length!==4)throw new Error("only 4-D tensor is supported.");if(e[0].dims.length!==e[1].dims.length)throw new Error("input dimensions must be equal to grid dimensions");if(e[0].dims.length-2!==e[1].dims[e[1].dims.length-1])throw new Error(`last dimension of grid must be equal to ${e[0].dims.length-2}`);if(e[0].dims[0]!==e[1].dims[0])throw new Error("grid batch size must match input batch size")},ed=`
+  fn gs_get_cubic_coeffs(x: f32) -> vec4<f32> {
+    let cubic_alpha = -0.75f;
+    let x_abs = abs(x);
+    var coeffs: vec4<f32>;
+    coeffs[0] = (((cubic_alpha * (x_abs + 1) - 5 * cubic_alpha) * (x_abs + 1) + 8 * cubic_alpha) * (x_abs + 1) - 4 * cubic_alpha);
+    coeffs[1] = (((cubic_alpha + 2) * x_abs - (cubic_alpha + 3)) * x_abs * x_abs + 1);
+    coeffs[2] = (((cubic_alpha + 2) * (1 - x_abs) - (cubic_alpha + 3)) * (1 - x_abs) * (1 - x_abs) + 1);
+    coeffs[3] = (((cubic_alpha * (2 - x_abs) - 5 * cubic_alpha) * (2 - x_abs) + 8 * cubic_alpha) * (2 - x_abs) - 4 * cubic_alpha);
+    return coeffs;
+  }
+`,td=e=>`
+  fn gs_bicubic_interpolate(p: mat4x4<${e}>, x: f32, y: f32) -> ${e} {
+    var v: vec4<f32>;
+    var coeffs = gs_get_cubic_coeffs(x);
+    for (var i = 0; i < 4; i++) {
+      v[i] = coeffs[0] * p[i][0] + coeffs[1] * p[i][1] + coeffs[2] * p[i][2] + coeffs[3] * p[i][3];
+    }
+    coeffs = gs_get_cubic_coeffs(y);
+    let pixel = ${e}(coeffs[0] * v[0] + coeffs[1] * v[1] + coeffs[2] * v[2] + coeffs[3] * v[3]);
+    return pixel;
+  }
+`,rd=e=>`
+  fn gs_denormalize(n: f32, length: i32) -> f32 {
+    ${e.alignCorners===0?`
+    // alignCorners: false => [-1, 1] to [-0.5, length - 0.5]
+    return ((n + 1.0) * f32(length) - 1.0) / 2.0;
+    `:`
+    // alignCorners: true => [-1, 1] to [0, length - 1]
+    return (n + 1.0) / 2.0 * (f32(length - 1));
+    `}
+  }
+`,id=e=>`
+  ${e.paddingMode==="reflection"?`
+      fn gs_reflect(x: i32, x_min: f32, x_max: f32) -> u32 {
+        var dx = 0.0;
+        var fx = f32(x);
+        let range = x_max - x_min;
+        if (fx < x_min) {
+          dx = x_min - fx;
+          let n = u32(dx / range);
+          let r = dx - f32(n) * range;
+          if (n % 2 == 0) {
+            fx = x_min + r;
+          } else {
+            fx = x_max - r;
+          }
+        } else if (fx > x_max) {
+          dx = fx - x_max;
+          let n = u32(dx / range);
+          let r = dx - f32(n) * range;
+          if (n % 2 == 0) {
+            fx = x_max - r;
+          } else {
+            fx = x_min + r;
+          }
+        }
+        return u32(fx);
+      }`:""}
+`,nd=(e,t,r)=>`
+  fn pixel_at_grid(r: i32, c: i32, H: i32, W: i32, batch: u32, channel: u32, border: vec4<f32>) -> ${t} {
+     var pixel = ${t}(0);
+     var indices = vec4<u32>(0);
+     indices[${nt}] = batch;
+     indices[${ot}] = channel;`+(()=>{switch(r.paddingMode){case"zeros":return`
+          if (r >= 0 && r < H && c >=0 && c < W) {
+            indices[${Ot}] = u32(r);
+            indices[${At}] = u32(c);
+          } else {
+            return ${t}(0);
+          }
+        `;case"border":return`
+          indices[${Ot}] = u32(clamp(r, 0, H - 1));
+          indices[${At}] = u32(clamp(c, 0, W - 1));
+        `;case"reflection":return`
+          indices[${Ot}] = gs_reflect(r, border[1], border[3]);
+          indices[${At}] = gs_reflect(c, border[0], border[2]);
+        `;default:throw new Error(`padding mode ${r.paddingMode} is not supported`)}})()+`
+    return ${e.getByIndices("indices")};
+  }
+`,ad=(e,t,r)=>(()=>{switch(r.mode){case"nearest":return`
+          let result = pixel_at_grid(i32(round(y)), i32(round(x)), H_in, W_in, indices[${nt}], indices[${ot}], border);
+        `;case"bilinear":return`
+          let x1 = i32(floor(x));
+          let y1 = i32(floor(y));
+          let x2 = x1 + 1;
+          let y2 = y1 + 1;
+
+          let p11 = pixel_at_grid(y1, x1, H_in, W_in, indices[${nt}], indices[${ot}], border);
+          let p12 = pixel_at_grid(y1, x2, H_in, W_in, indices[${nt}], indices[${ot}], border);
+          let p21 = pixel_at_grid(y2, x1, H_in, W_in, indices[${nt}], indices[${ot}], border);
+          let p22 = pixel_at_grid(y2, x2, H_in, W_in, indices[${nt}], indices[${ot}], border);
+
+          let dx2 = ${t}(f32(x2) - x);
+          let dx1 = ${t}(x - f32(x1));
+          let dy2 = ${t}(f32(y2) - y);
+          let dy1 = ${t}(y - f32(y1));
+          let result = dy2 * (dx2 * p11 + dx1 * p12) + dy1 * (dx2 * p21 + dx1 * p22);
+        `;case"bicubic":return`
+          let x0 = i32(floor(x)) - 1;
+          let y0 = i32(floor(y)) - 1;
+          var p: mat4x4<${t}>;
+          for (var h = 0; h < 4; h++) {
+            for (var w = 0; w < 4; w++) {
+              p[h][w] = pixel_at_grid(h + y0, w + x0, H_in, W_in, indices[${nt}], indices[${ot}], border);
+            }
+          }
+
+          let dx = x - f32(x0 + 1);
+          let dy = y - f32(y0 + 1);
+          let result = gs_bicubic_interpolate(p, dx, dy);
+        `;default:throw new Error(`mode ${r.mode} is not supported`)}})()+`${e.setByOffset("global_idx","result")}`,sd=(e,t)=>{let r=M("x",e[0].dataType,e[0].dims.length),i=[e[1].dims[0],e[1].dims[1],e[1].dims[2]],n=M("grid",e[1].dataType,i.length,2),a=[e[0].dims[0],e[0].dims[1],e[1].dims[1],e[1].dims[2]];t.format==="NHWC"&&(a=[e[0].dims[0],e[1].dims[1],e[1].dims[2],e[0].dims[3]],[nt,ot,Ot,At]=[0,3,1,2]);let s=K("output",e[0].dataType,a.length),o=r.type.value,l=R.size(a),d=[{type:12,data:l},...Y(e[0].dims,i,a)],c=h=>`
+  ${h.registerUniform("output_size","u32").declareVariables(r,n,s)}
+  ${ed}
+  ${td(o)}
+  ${rd(t)}
+  ${id(t)}
+  ${nd(r,o,t)}
+
+  ${h.mainStart()}
+    ${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+      let H_in = i32(uniforms.x_shape[${Ot}]);
+      let W_in = i32(uniforms.x_shape[${At}]);
+
+      ${t.alignCorners===0?`
+      let x_min = -0.5;
+      let x_max = f32(W_in) - 0.5;
+      let y_min = -0.5;
+      let y_max = f32(H_in) - 0.5;
+      `:`
+      let x_min = 0.0;
+      let x_max = f32(W_in) - 1.0;
+      let y_min = 0.0;
+      let y_max = f32(H_in) - 1.0;
+      `};
+      let border = vec4<f32>(x_min, y_min, x_max, y_max);
+
+      let indices = ${s.offsetToIndices("global_idx")};
+      var grid_indices = vec3<u32>(indices[${nt}], indices[${Ot}], indices[${At}]);
+      let nxy = ${n.getByIndices("grid_indices")};
+      var x = gs_denormalize(f32(nxy[0]), W_in);
+      var y = gs_denormalize(f32(nxy[1]), H_in);
+
+      ${ad(s,o,t)}
+  }`;return{name:"GridSample",shaderCache:{hint:`${t.cacheKey}`,inputDependencies:["type","type"]},getRunData:h=>{let m=R.size(a);return{outputs:[{dims:a,dataType:h[0].dataType}],dispatchGroup:{x:Math.ceil(m/64)},programUniforms:d}},getShaderSource:c}},nf=(e,t)=>{Jl(e.inputs),e.compute(sd(e.inputs,t))},af=e=>me({alignCorners:e.align_corners,mode:e.mode,paddingMode:e.padding_mode,format:e.format})}),Me,od,sf,En,ud,vr,of,uf=L(()=>{"use strict";re(),ne(),Ie(),ba(),va(),ae(),vt(),Me=(e,t)=>e.length>t&&e[t].dims.length>0?e[t]:void 0,od=(e,t)=>{let r=e[0],i=Me(e,1),n=Me(e,2),a=Me(e,3),s=Me(e,4),o=Me(e,5),l=Me(e,6),d=Me(e,7);if(r.dims.length!==3&&r.dims.length!==5)throw new Error("Input query is expected to have 3 or 5 dimensions");let c=r.dims[0],h=r.dims[1],m=r.dims.length===3?r.dims[2]:t.numHeads*r.dims[4],y=h,_=0,w=0,S=Math.floor(m/t.numHeads);if(l&&d&&R.size(l.dims)&&R.size(d.dims)){if(l.dims.length!==4)throw new Error('Input "past_key" is expected to have 4 dimensions');if(l.dims[0]!==c||l.dims[1]!==t.numHeads||l.dims[3]!==S)throw new Error('Input "past_key" shape (batch_size, num_heads, past_sequence_length, head_size)');if(d.dims[0]!==c||d.dims[1]!==t.numHeads||d.dims[3]!==S)throw new Error('Input "past_value" shape (batch_size, num_heads, past_sequence_length, head_size)');if(l.dims[2]!==d.dims[2])throw new Error('Input "past_key" and "past_value" shall have same dim 2 (past_sequence_length)');if(d.dims.length!==4)throw new Error('Input "past_value" is expected to have 4 dimensions');_=l.dims[2],w=l.dims[2]}else if(l&&R.size(l.dims)||d&&R.size(d.dims))throw new Error('Input "past_key" and "past_value" shall be both present or both absent');let x;if(i&&R.size(i.dims)>0){if(r.dims.length!==3)throw new Error('Input "query" is expected to have 3 dimensions when key is given');if(i.dims.length<3||i.dims.length>5)throw new Error('Input "key" is expected to have 3, 4, or 5 dimensions');if(r.dims[0]!==i.dims[0])throw new Error('Input "query" and "key" shall have same dim 0 (batch size)');if(i.dims.length===3){if(i.dims[2]!==r.dims[2])throw new Error('Input "query" and "key" shall have same dim 2 (hidden_size)');x=2,y=i.dims[1]}else if(i.dims.length===5){if(i.dims[2]!==t.numHeads||i.dims[3]!==2||i.dims[4]!==S)throw new Error('Expect "key" shape (batch_size, kv_sequence_length, num_heads, 2, head_size) for packed kv');if(n)throw new Error('Expect "value" be none when "key" has packed kv format.');x=5,y=i.dims[1]}else{if(i.dims[1]!==t.numHeads||i.dims[3]!==S)throw new Error('Expect "key" shape (batch_size, num_heads, kv_sequence_length, head_size) for past_key');x=0,y=i.dims[2]}}else{if(r.dims.length!==5)throw new Error('Input "query" is expected to have 5 dimensions when key is empty');if(r.dims[2]!==t.numHeads||r.dims[3]!==3)throw new Error('Expect "query" shape (batch_size, kv_sequence_length, num_heads, 3, head_size) for packed kv');x=3}if(a&&R.size(a.dims)>0){if(a.dims.length!==1)throw new Error('Input "bias" is expected to have 1 dimension');if(i&&i.dims.length===5&&i.dims[3]===2)throw new Error("bias is not allowed for packed kv.")}let b=_+y,E=0;if(s&&R.size(s.dims)>0){E=8;let z=s.dims;throw z.length===1?z[0]===c?E=1:z[0]===3*c+2&&(E=3):z.length===2&&z[0]===c&&z[1]===b&&(E=5),E===8?new Error('Input "key_padding_mask" shape shall be (batch_size) or (batch_size, total_sequence_length)'):new Error("Mask not supported")}let T=!1,k=m;if(n&&R.size(n.dims)>0){if(n.dims.length!==3&&n.dims.length!==4)throw new Error('Input "value" is expected to have 3 or 4 dimensions');if(r.dims[0]!==n.dims[0])throw new Error('Input "query" and "value" shall have same dim 0 (batch_size)');if(n.dims.length===3){if(y!==n.dims[1])throw new Error('Input "key" and "value" shall have the same dim 1 (kv_sequence_length)');k=n.dims[2]}else{if(y!==n.dims[2])throw new Error('Input "key" and "value" shall have the same dim 2 (kv_sequence_length)');k=n.dims[1]*n.dims[3],T=!0}}let C=!1;if(s&&R.size(s.dims)>0)throw new Error("Key padding mask is not supported");if(o&&R.size(o.dims)>0){if(o.dims.length!==4)throw new Error('Input "attention_bias" is expected to have 4 dimensions');if(o.dims[0]!==c||o.dims[1]!==t.numHeads||o.dims[2]!==h||o.dims[3]!==b)throw new Error('Expect "attention_bias" shape (batch_size, num_heads, sequence_length, total_sequence_length)')}return{batchSize:c,sequenceLength:h,pastSequenceLength:_,kvSequenceLength:y,totalSequenceLength:b,maxSequenceLength:w,inputHiddenSize:0,hiddenSize:m,vHiddenSize:k,headSize:S,vHeadSize:Math.floor(k/t.numHeads),numHeads:t.numHeads,isUnidirectional:!1,pastPresentShareBuffer:!1,maskFilterValue:t.maskFilterValue,maskType:E,scale:t.scale,broadcastResPosBias:C,passPastInKv:T,qkvFormat:x}},sf=e=>me({...e}),En=me({perm:[0,2,1,3]}),ud=(e,t,r,i,n,a,s)=>{let o=[i,n,a],l=R.size(o),d=[{type:12,data:l},{type:12,data:s},{type:12,data:a}],c=h=>{let m=K("qkv_with_bias",t.dataType,o),y=M("qkv",t.dataType,o),_=M("bias",r.dataType,o),w=[{name:"output_size",type:"u32"},{name:"bias_offset",type:"u32"},{name:"hidden_size",type:"u32"}];return`
+  ${h.registerUniforms(w).declareVariables(y,_,m)}
+  ${h.mainStart()}
+    ${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+    let bias_offset_idx = (global_idx % uniforms.hidden_size) + uniforms.bias_offset;
+
+    qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
+  }`};return e.compute({name:"MultiHeadAttentionAddBias",shaderCache:{inputDependencies:["type","type"]},getRunData:()=>({outputs:[{dims:o,dataType:t.dataType,gpuDataType:0}],dispatchGroup:{x:Math.ceil(l/64)},programUniforms:d}),getShaderSource:c},{inputs:[t,r],outputs:[-1]})[0]},vr=(e,t,r,i,n,a,s,o)=>{let l=a;if(s&&R.size(s.dims)>0){if(i===1)throw new Error("AddBiasReshape is not implemented. Please export your model with packed QKV or KV");return l=ud(e,a,s,t,i,r*n,o),l=l.reshape([t,i,r,n]),r===1||i===1?l:e.compute(Le(l,En.perm),{inputs:[l],outputs:[-1]})[0]}else return a.dims.length===3&&(l=a.reshape([t,i,r,n])),r===1||i===1?l:e.compute(Le(l,En.perm),{inputs:[l],outputs:[-1]})[0]},of=(e,t)=>{let r=od(e.inputs,t),i=e.inputs[0],n=Me(e.inputs,1),a=Me(e.inputs,2),s=Me(e.inputs,3),o=Me(e.inputs,4),l=Me(e.inputs,5),d=Me(e.inputs,6),c=Me(e.inputs,7);if(i.dims.length===5)throw new Error("Packed QKV is not implemented");if(n?.dims.length===5)throw new Error("Packed KV is not implemented");let h=n&&a&&n.dims.length===4&&a.dims.length===4,m=vr(e,r.batchSize,r.numHeads,r.sequenceLength,r.headSize,i,s,0);if(h)return Er(e,m,n,a,o,void 0,d,c,l,r);if(!n||!a)throw new Error("key and value must be provided");let y=vr(e,r.batchSize,r.numHeads,r.kvSequenceLength,r.headSize,n,s,r.hiddenSize),_=vr(e,r.batchSize,r.numHeads,r.kvSequenceLength,r.vHeadSize,a,s,2*r.hiddenSize);Er(e,m,y,_,o,void 0,d,c,l,r)}}),ld,dd,pd,cd,na,lf,df,pf=L(()=>{"use strict";re(),ne(),Ie(),ae(),ld=e=>{if(!e||e.length<1)throw new Error("too few inputs")},dd=(e,t)=>{let r=[],i=t.numOutputs;return e[1].dims[0]>0&&(e[1].getBigInt64Array().forEach(n=>r.push(Number(n))),i=r.length),me({numOutputs:i,axis:t.axis,splitSizes:r})},pd=e=>`
+fn calculateOutputIndex(index: u32) -> u32 {
+    for (var i: u32 = 0u; i < ${e}u; i += 1u ) {
+    if (index < ${Z("uniforms.size_in_split_axis","i",e)}) {
+        return i;
+    }
+    }
+    return ${e}u;
+}`,cd=e=>{let t=e.length,r=[];for(let i=0;i<t;++i){let n=e[i].setByIndices("indices","input[global_idx]");t===1?r.push(n):i===0?r.push(`if (output_number == ${i}u) { ${n} }`):i===t-1?r.push(`else { ${n} }`):r.push(`else if (output_number == ${i}) { ${n} }`)}return`
+      fn writeBufferData(output_number: u32, indices: ${e[0].type.indices}, global_idx: u32) {
+        ${r.join(`
+`)}
+      }`},na=(e,t)=>{let r=e[0].dims,i=R.size(r),n=e[0].dataType,a=R.normalizeAxis(t.axis,r.length),s=new Array(t.numOutputs),o=M("input",n,r.length),l=new Array(t.numOutputs),d=[],c=[],h=0,m=[{type:12,data:i}];for(let _=0;_<t.numOutputs;_++){h+=t.splitSizes[_],l[_]=h;let w=r.slice();w[a]=t.splitSizes[_],c.push(w),s[_]=K(`output${_}`,n,w.length),d.push({dims:c[_],dataType:e[0].dataType})}m.push({type:12,data:l},...Y(r,...c));let y=_=>`
+  ${_.registerUniform("input_size","u32").registerUniform("size_in_split_axis","u32",l.length).declareVariables(o,...s)}
+  ${pd(l.length)}
+  ${cd(s)}
+
+  ${_.mainStart()}
+    ${_.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.input_size")}
+
+    var indices = ${o.offsetToIndices("global_idx")};
+    var index = ${o.indicesGet("indices",a)};
+    let output_number = calculateOutputIndex(index);
+    if (output_number != 0) {
+      index -= ${Z("uniforms.size_in_split_axis","output_number - 1u",l.length)};
+      ${o.indicesSet("indices",a,"index")};
+    }
+    writeBufferData(output_number, indices, global_idx);
+  }`;return{name:"Split",shaderCache:{hint:t.cacheKey,inputDependencies:["rank"]},getShaderSource:y,getRunData:()=>({outputs:d,dispatchGroup:{x:Math.ceil(i/64)},programUniforms:m})}},lf=(e,t)=>{ld(e.inputs);let r=e.inputs.length===1?t:dd(e.inputs,t);e.compute(na(e.inputs,r),{inputs:[0]})},df=e=>{let t=e.axis,r=e.splitSizes,i=e.numOutputs<0?r.length:e.numOutputs;if(i!==r.length)throw new Error("numOutputs and splitSizes length must be equal");return me({axis:t,numOutputs:i,splitSizes:r})}}),hd,pi,cf,hf=L(()=>{"use strict";re(),ne(),Ie(),ae(),hd=(e,t)=>{let[r,i,n,a]=e,{numHeads:s,rotaryEmbeddingDim:o}=t;if(r.dims.length!==3&&r.dims.length!==4)throw new Error(`Input 'x' is expected to have 3 or 4 dimensions, got ${r.dims.length}`);if(!R.areEqual(i.dims,[])&&!R.areEqual(i.dims,[1])&&i.dims.length!==2)throw new Error(`Input 'position_ids' is expected to have 0, 1, or 2 dimensions, got ${i.dims.length}`);if(n.dims.length!==2)throw new Error(`Input 'cos_cache' is expected to have 2 dimensions, got ${n.dims.length}`);if(a.dims.length!==2)throw new Error(`Input 'sin_cache' is expected to have 2 dimensions, got ${a.dims.length}`);if(!R.areEqual(n.dims,a.dims))throw new Error("Inputs 'cos_cache' and 'sin_cache' are expected to have the same shape");if(o>0&&s===0)throw new Error("num_heads must be provided if rotary_embedding_dim is specified");let l=r.dims[0],d=r.dims[r.dims.length-2],c=n.dims[0],h=R.sizeFromDimension(r.dims,1)/d,m=o===0?n.dims[1]*2:h/s;if(o>m)throw new Error("rotary_embedding_dim must be less than or equal to head_size");if(i.dims.length===2){if(l!==i.dims[0])throw new Error(`Input 'position_ids' dimension 0 should be of size batch_size, got ${i.dims[0]}`);if(d!==i.dims[1])throw new Error(`Input 'position_ids' dimension 1 should be of size sequence_length, got ${i.dims[1]}`)}if(d>c)throw new Error("Updating cos_cache and sin_cache in RotaryEmbedding is not currently supported");if(m/2!==n.dims[1]&&o/2!==n.dims[1])throw new Error(`Input 'cos_cache' dimension 1 should be same as head_size / 2 or rotary_embedding_dim / 2, got ${n.dims[1]}`)},pi=(e,t)=>{let{interleaved:r,numHeads:i,rotaryEmbeddingDim:n,scale:a}=t,s=e[0].dims[0],o=R.sizeFromDimension(e[0].dims,1),l=e[0].dims[e[0].dims.length-2],d=o/l,c=e[2].dims[1],h=n===0?c*2:d/i,m=new Array(s,l,d/h,h-c),y=R.computeStrides(m),_=[{type:1,data:a},{type:12,data:m},{type:12,data:y},...e[0].dims.length===3?new Array({type:12,data:[o,d,h,1]}):[],...e[0].dims.length===4?new Array({type:12,data:[o,h,l*h,1]}):[],...Y(e[0].dims,e[1].dims,e[2].dims,e[3].dims,e[0].dims)],w=S=>{let x=M("input",e[0].dataType,e[0].dims.length),b=M("position_ids",e[1].dataType,e[1].dims.length),E=M("cos_cache",e[2].dataType,e[2].dims.length),T=M("sin_cache",e[3].dataType,e[3].dims.length),k=K("output",e[0].dataType,e[0].dims.length);return S.registerUniforms([{name:"scale",type:"f32"},{name:"global_shape",type:"u32",length:m.length},{name:"global_strides",type:"u32",length:y.length},{name:"input_output_strides",type:"u32",length:y.length}]),`
+        ${S.declareVariables(x,b,E,T,k)}
+
+        ${S.mainStart(Zt)}
+          let half_rotary_emb_dim = uniforms.${E.name}_shape[1];
+          let bsnh = global_idx / uniforms.global_strides % uniforms.global_shape;
+          let size = uniforms.global_shape[0] * uniforms.global_strides[0];
+          ${S.guardAgainstOutOfBoundsWorkgroupSizes("size")}
+
+          if (bsnh[3] < half_rotary_emb_dim) {
+            let position_ids_idx =
+                ${b.broadcastedIndicesToOffset("bsnh.xy",K("",b.type.tensor,2))};
+            let position_id =
+                u32(${b.getByOffset("position_ids_idx")}) + select(0, bsnh[1], position_ids_idx == 0);
+            let i = dot(bsnh, uniforms.input_output_strides) + select(0, bsnh[3], ${r});
+            let j = i + select(half_rotary_emb_dim, 1, ${r});
+            let re = ${x.getByOffset("i")} * ${E.get("position_id","bsnh[3]")} -
+                ${x.getByOffset("j")} * ${T.get("position_id","bsnh[3]")};
+            ${k.setByOffset("i","re")}
+            let im = ${x.getByOffset("i")} * ${T.get("position_id","bsnh[3]")} +
+                ${x.getByOffset("j")} * ${E.get("position_id","bsnh[3]")};
+            ${k.setByOffset("j","im")}
+          } else {
+            let k = dot(bsnh, uniforms.input_output_strides) + half_rotary_emb_dim;
+            ${k.setByOffset("k",x.getByOffset("k"))}
+          }
+        }`};return{name:"RotaryEmbedding",shaderCache:{hint:me({interleaved:r}).cacheKey,inputDependencies:["rank","rank","rank","rank"]},getShaderSource:w,getRunData:()=>({outputs:[{dims:e[0].dims,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(R.size(m)/Zt)},programUniforms:_})}},cf=(e,t)=>{hd(e.inputs,t),e.compute(pi(e.inputs,t))}}),fd,md,In,gd,ff,Q_=L(()=>{"use strict";Ie(),re(),va(),uf(),pf(),vt(),hf(),ae(),fd=(e,t)=>{if(t.doRotary&&e.length<=7)throw new Error("cos_cache and sin_cache inputs are required if do_rotary is specified");let r=e[0],i=e[1],n=e[2],a=e[3],s=e[4];if(t.doRotary!==0&&e.length<=7)throw new Error("cos_cast and sin_cache are expected if do_rotary attribute is non-zero");if(t.localWindowSize!==-1)throw new Error("Local attention is not supported");if(t.softcap!==0)throw new Error("Softcap is not supported");if(t.rotaryInterleaved!==0)throw new Error("Rotary interleaved is not supported");if(t.smoothSoftmax)throw new Error("Smooth softmax is not supported");if(r.dims.length!==3&&r.dims.length!==5)throw new Error("Input query is expected to have 3 or 5 dimensions");let o=!1,l=r.dims[0],d=r.dims[1],c=r.dims.length===3?o?r.dims[2]/3:r.dims[2]:t.numHeads*r.dims[4],h=d,m=0,y=!i||i.dims.length===0,_=Math.floor(y?c/(t.numHeads+2*t.kvNumHeads):c/t.numHeads);y&&(c=_*t.numHeads);let w=a&&a.dims.length!==0,S=s&&s.dims.length!==0;if(w&&a.dims.length===4&&a.dims[0]===l&&a.dims[1]!==t.kvNumHeads&&a.dims[2]===t.kvNumHeads&&a.dims[3]===_)throw new Error("BSNH pastKey/pastValue is not supported");if(w&&S){if(a.dims.length!==4)throw new Error('Input "past_key" is expected to have 4 dimensions');if(s.dims.length!==4)throw new Error('Input "past_value" is expected to have 4 dimensions');m=a.dims[2]}else if(w||S)throw new Error('Input "past_key" and "past_value" shall be both present or both absent');let x=1;if(i&&i.dims.length>0){if(r.dims.length!==3)throw new Error('Input "query" is expected to have 3 dimensions when key is given');if(i.dims.length<3||i.dims.length>5)throw new Error('Input "key" is expected to have 3, 4, or 5 dimensions');if(r.dims[0]!==i.dims[0])throw new Error('Input "query" and "key" shall have same dim 0 (batch size)');if(i.dims.length===3){if(r.dims[2]%i.dims[2]!==0)throw new Error('Dimension 2 of "query" should be a multiple of "key"');h=i.dims[1]}else if(i.dims.length===5){if(i.dims[2]!==t.numHeads||i.dims[3]!==2||i.dims[4]!==_)throw new Error('Expect "key" shape (batch_size, kv_sequence_length, num_heads, 2, head_size) for packed kv');if(n)throw new Error('Expect "value" be none when "key" has packed kv format.');h=i.dims[1]}else{if(i.dims[1]!==t.numHeads||i.dims[3]!==_)throw new Error('Expect "key" shape (batch_size, num_heads, kv_sequence_length, head_size) for past_key');h=i.dims[2]}}else{if(r.dims.length!==3&&r.dims.length!==5)throw new Error('Input "query" is expected to have 3 or 5 dimensions when key is empty');if(r.dims.length===5&&(r.dims[2]!==t.numHeads||r.dims[3]!==3))throw new Error('Expect "query" shape (batch_size, kv_sequence_length, num_heads, 3, head_size) for packed kv');x=3}let b=0,E=!1,T=t.kvNumHeads?_*t.kvNumHeads:c;if(n&&n.dims.length>0){if(n.dims.length!==3&&n.dims.length!==4)throw new Error('Input "value" is expected to have 3 or 4 dimensions');if(r.dims[0]!==n.dims[0])throw new Error('Input "query" and "value" shall have same dim 0 (batch_size)');if(n.dims.length===3){if(h!==n.dims[1])throw new Error('Input "key" and "value" shall have the same dim 1 (kv_sequence_length)');T=n.dims[2]}else{if(h!==n.dims[2])throw new Error('Input "past_key" and "past_value" shall have the same dim 2 (kv_sequence_length)');T=n.dims[1]*n.dims[3],E=!0}}let k=e.length>4?e[5]:void 0;if(k){if(k.dims.length===0)throw new Error("seqlens_k must be at least 1D, got scalar.");let C=k.dims.reduce((z,$)=>z*$,1);if(C!==l)throw new Error(`seqlens_k must have batch_size (${l}) elements, got ${C}.`);for(let z=0;z<k.dims.length;z++)if(k.dims[z]!==1&&k.dims[z]!==l)throw new Error(`seqlens_k has unexpected shape. Each dimension must be 1 or batch_size (${l}), got dims[${z}] = ${k.dims[z]}.`)}return{batchSize:l,sequenceLength:d,pastSequenceLength:m,kvSequenceLength:h,totalSequenceLength:-1,maxSequenceLength:-1,inputHiddenSize:0,hiddenSize:c,vHiddenSize:T,headSize:_,vHeadSize:Math.floor(T/t.kvNumHeads),numHeads:t.numHeads,kvNumHeads:t.kvNumHeads,nReps:t.numHeads/t.kvNumHeads,pastPresentShareBuffer:!1,maskType:b,scale:t.scale,broadcastResPosBias:!1,passPastInKv:E,qkvFormat:x}},md=me({perm:[0,2,1,3]}),In=(e,t,r)=>{let i=t,n=r.kvNumHeads;return t.dims.length===3&&r.kvSequenceLength!==0&&(i=t.reshape([r.batchSize,r.kvSequenceLength,n,r.headSize]),i=e.compute(Le(i,md.perm),{inputs:[i],outputs:[-1]})[0]),i},gd=(e,t,r,i)=>{let n=7,a=["type","type"],s=[e*t],o=e*t,l=[{type:12,data:o},{type:12,data:t},{type:12,data:e}],d=c=>{let h=M("seq_lens",r.dataType,r.dims),m=M("total_seq_lens",i.dataType,i.dims),y=K("pos_ids",n,s),_=[{name:"output_size",type:"u32"},{name:"sequence_length",type:"u32"},{name:"batch_size",type:"u32"}];return`
+  ${c.registerUniforms(_).declareVariables(h,m,y)}
+  ${c.mainStart()}
+    ${c.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+    let total_sequence_length = u32(${m.getByOffset("0")});
+    let is_subsequent_prompt = uniforms.sequence_length > 1 && uniforms.sequence_length != total_sequence_length;
+    let is_first_prompt = !is_subsequent_prompt && uniforms.sequence_length == total_sequence_length;
+    let batch_idx = global_idx / uniforms.sequence_length;
+    let sequence_idx = i32(global_idx % uniforms.sequence_length);
+    var pos_id: i32 = 0;
+    let seqlen = ${h.getByOffset("batch_idx")};
+    let total_seqlen = seqlen + 1;
+    if (is_first_prompt) {
+      if (sequence_idx < total_seqlen) {
+        pos_id = sequence_idx;
+      } else {
+        pos_id = 1;
+      }
+      ${y.setByOffset("global_idx","pos_id")}
+    } else if (is_subsequent_prompt) {
+      let past_seqlen = total_seqlen - i32(uniforms.sequence_length);
+      if (past_seqlen + sequence_idx < total_seqlen) {
+        pos_id = past_seqlen + sequence_idx;
+      } else {
+        pos_id = 1;
+      }
+      ${y.setByOffset("global_idx","pos_id")}
+    } else if (global_idx < uniforms.batch_size) {
+      ${y.setByOffset("global_idx","seqlen")}
+    };
+  }
+  `};return{name:"GeneratePositionIds",shaderCache:{hint:`${e};${t}`,inputDependencies:a},getRunData:()=>({outputs:[{dims:s,dataType:n}],dispatchGroup:{x:Math.ceil(o/64)},programUniforms:l}),getShaderSource:d}},ff=(e,t)=>{let r=fd(e.inputs,t);if(e.inputs[0].dims.length===5)throw new Error("Packed QKV is not implemented");if(e.inputs[1]?.dims.length===5)throw new Error("Packed KV is not implemented");let i=e.inputs[0],n=e.inputs[1]&&e.inputs[1].dims.length>0?e.inputs[1]:void 0,a=e.inputs[2]&&e.inputs[2].dims.length>0?e.inputs[2]:void 0,s=e.inputs[3]&&e.inputs[3].dims.length!==0?e.inputs[3]:void 0,o=e.inputs[4]&&e.inputs[4].dims.length!==0?e.inputs[4]:void 0,l=e.inputs.length>4?e.inputs[5]:void 0,d=e.inputs.length>5?e.inputs[6]:void 0,c=r.kvNumHeads?r.kvNumHeads:r.numHeads,h=me({axis:2,numOutputs:3,splitSizes:[r.numHeads*r.headSize,c*r.headSize,c*r.headSize]}),[m,y,_]=!n&&!a?e.compute(na([i],h),{inputs:[i],outputs:[-1,-1,-1]}):[i,n,a],w,S;if(t.doRotary){let T=e.compute(gd(r.batchSize,r.sequenceLength,l,d),{inputs:[l,d],outputs:[-1]})[0],k=e.inputs[7],C=e.inputs[8],z=me({interleaved:t.rotaryInterleaved!==0,numHeads:r.numHeads,rotaryEmbeddingDim:0,scale:t.scale}),$=[m,T,k,C],D=[-1];w=e.compute(pi($,z),{inputs:$,outputs:D})[0],$.splice(0,1,y);let W=me({interleaved:t.rotaryInterleaved!==0,numHeads:r.kvNumHeads,rotaryEmbeddingDim:0,scale:t.scale});S=e.compute(pi($,W),{inputs:$,outputs:D})[0]}let x=vr(e,r.batchSize,r.numHeads,r.sequenceLength,r.headSize,t.doRotary?w:m,void 0,0),b=In(e,t.doRotary?S:y,r),E=In(e,_,r);Er(e,x,b,E,void 0,void 0,s,o,void 0,r,l,d)}}),kn,_d,yd,mf,Y_=L(()=>{"use strict";re(),ne(),vt(),ae(),kn=(e,t,r,i,n,a,s,o)=>{let l=Ee(a),d=l===1?"f32":`vec${l}f`,c=l===1?"vec2f":`mat2x${l}f`,h=n*s,m=64;h===1&&(m=256);let y=[n,s,a/l],_=[n,s,2],w=["rank","type","type"],S=[];S.push(...Y(y,_));let x=b=>{let E=M("x",t.dataType,3,l),T=M("scale",r.dataType,r.dims),k=M("bias",i.dataType,i.dims),C=K("output",1,3,2),z=[E,T,k,C];return`
+  var<workgroup> workgroup_shared : array<${c}, ${m}>;
+  const workgroup_size = ${m}u;
+  ${b.declareVariables(...z)}
+  ${b.mainStart(m)}
+    let batch = workgroup_index / uniforms.x_shape[1];
+    let channel = workgroup_index % uniforms.x_shape[1];
+    let hight = uniforms.x_shape[2];
+    // initialize workgroup memory
+    var sum = ${d}(0);
+    var squared_sum = ${d}(0);
+    for (var h = local_idx; h < hight; h += workgroup_size) {
+      let value = ${d}(${E.get("batch","channel","h")});
+      sum += value;
+      squared_sum += value * value;
+    }
+    workgroup_shared[local_idx] = ${c}(sum, squared_sum);
+    workgroupBarrier();
+
+    for (var currSize = workgroup_size >> 1;  currSize > 0; currSize = currSize >> 1) {
+      if (local_idx < currSize) {
+        workgroup_shared[local_idx] = workgroup_shared[local_idx] + workgroup_shared[local_idx + currSize];
+      }
+      workgroupBarrier();
+    }
+    if (local_idx == 0) {
+      let sum_final = ${$t("workgroup_shared[0][0]",l)} / f32(hight * ${l});
+      let squared_sum_final = ${$t("workgroup_shared[0][1]",l)} / f32(hight * ${l});
+
+      let inv_std_dev = inverseSqrt(squared_sum_final - sum_final * sum_final + f32(${o}));
+      let channel_scale = inv_std_dev * f32(scale[channel]);
+      let channel_shift = f32(bias[channel]) - sum_final * channel_scale;
+      output[workgroup_index] = vec2f(channel_scale, channel_shift);
+    }
+  }`};return e.compute({name:"InstanceNormComputeChannelScaleShift",shaderCache:{hint:`${l};${o};${m}`,inputDependencies:w},getRunData:()=>({outputs:[{dims:_,dataType:1}],dispatchGroup:{x:h},programUniforms:S}),getShaderSource:x},{inputs:[t,r,i],outputs:[-1]})[0]},_d=(e,t,r)=>{let i=t[0].dims,n=i,a=2,s=i[0],o=i[1],l=R.sizeFromDimension(i,a),d=Ee(l),c=R.size(n)/d,h=kn(e,t[0],t[1],t[2],s,l,o,r.epsilon),m=[s,o,l/d],y=[s,o],_=["type","none"],w=S=>{let x=M("x",t[0].dataType,m.length,d),b=M("scale_shift",1,y.length,2),E=K("output",t[0].dataType,m.length,d),T=[x,b,E];return`
+  ${S.registerUniform("output_size","u32").declareVariables(...T)}
+  ${S.mainStart()}
+  ${S.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+      let outputIndices = ${E.offsetToIndices("global_idx")};
+      let batch = outputIndices[0];
+      let channel = outputIndices[1];
+      let scale_shift = ${b.getByIndices("vec2<u32>(batch, channel)")};
+      let value = ${x.getByOffset("global_idx")} * ${E.type.value}(scale_shift.x) + ${E.type.value}(scale_shift.y);
+      ${E.setByOffset("global_idx","value")};
+  }`};e.compute({name:"InstanceNormalization",shaderCache:{hint:`${d}`,inputDependencies:_},getRunData:()=>({outputs:[{dims:n,dataType:t[0].dataType}],dispatchGroup:{x:Math.ceil(c/64)},programUniforms:[{type:12,data:c},...Y(m,y,m)]}),getShaderSource:w},{inputs:[t[0],h]})},yd=(e,t,r)=>{let i=t[0].dims,n=i,a=i[0],s=i[i.length-1],o=R.sizeFromDimension(i,1)/s,l=Ee(s),d=R.size(n)/l,c=[{type:12,data:o},{type:12,data:Math.floor(s/l)}],h=["type","type"],m=!1,y=[0,i.length-1];for(let x=0;x<i.length-2;x++)m=m||i[x+1]!==1,y.push(x+1);m=m&&i[i.length-1]!==1;let _=m?e.compute(Le(e.inputs[0],y),{inputs:[e.inputs[0]],outputs:[-1]})[0]:e.inputs[0].reshape(Array.from({length:i.length},(x,b)=>i[y[b]])),w=kn(e,_,t[1],t[2],a,o,s,r.epsilon),S=x=>{let b=Ce(t[0].dataType),E=l===1?"vec2f":`mat${l}x2f`,T=z=>{let $=z===0?"x":"y",D=l===1?"f32":`vec${l}f`;switch(l){case 1:return`${b}(${D}(scale.${$}))`;case 2:return`vec2<${b}>(${D}(scale[0].${$}, scale[1].${$}))`;case 4:return`vec4<${b}>(${D}(scale[0].${$}, scale[1].${$}, scale[2].${$}, scale[3].${$}))`;default:throw new Error(`Not supported compoents ${l}`)}},k=M("input",t[0].dataType,t[0].dims,l),C=K("output",t[0].dataType,n,l);return`
+  @group(0) @binding(0) var<storage, read> input : array<${k.type.storage}>;
+  @group(0) @binding(1) var<storage, read> scale_input : array<${E}>;
+  @group(0) @binding(2) var<storage, read_write> output : array<${C.type.storage}>;
+  struct Uniforms {H: u32, C : u32};
+  @group(0) @binding(3) var<uniform> uniforms: Uniforms;
+
+  ${x.mainStart()}
+    let current_image_number = global_idx / (uniforms.C * uniforms.H);
+    let current_channel_number = global_idx % uniforms.C;
+
+    let scale_offset = current_image_number * uniforms.C + current_channel_number;
+    let scale = scale_input[scale_offset];
+    output[global_idx] = fma(input[global_idx], ${T(0)}, ${T(1)});
+  }`};e.compute({name:"InstanceNormalizationNHWC",shaderCache:{hint:`${l}`,inputDependencies:h},getRunData:()=>({outputs:[{dims:n,dataType:t[0].dataType}],dispatchGroup:{x:Math.ceil(d/64)},programUniforms:c}),getShaderSource:S},{inputs:[t[0],w]})},mf=(e,t)=>{t.format==="NHWC"?yd(e,e.inputs,t):_d(e,e.inputs,t)}}),bd,wd,gf,J_=L(()=>{"use strict";re(),ne(),ae(),bd=e=>{if(!e||e.length<2)throw new Error("layerNorm requires at least 2 inputs.")},wd=(e,t,r)=>{let i=t.simplified,n=e[0].dims,a=e[1],s=!i&&e[2],o=n,l=R.normalizeAxis(t.axis,n.length),d=R.sizeToDimension(n,l),c=R.sizeFromDimension(n,l),h=R.size(a.dims),m=s?R.size(s.dims):0;if(h!==c||s&&m!==c)throw new Error(`Size of X.shape()[axis:] == ${c}.
+       Size of scale and bias (if provided) must match this.
+       Got scale size of ${h} and bias size of ${m}`);let y=[];for(let k=0;k<n.length;++k)k<l?y.push(n[k]):y.push(1);let _=Ee(c),w=["type","type"],S=[{type:12,data:d},{type:1,data:c},{type:12,data:Math.floor(c/_)},{type:1,data:t.epsilon}];s&&w.push("type");let x=r>1,b=r>2,E=k=>{let C=Ce(e[0].dataType),z=[M("x",e[0].dataType,e[0].dims,_),M("scale",a.dataType,a.dims,_)];s&&z.push(M("bias",s.dataType,s.dims,_)),z.push(K("output",e[0].dataType,o,_)),x&&z.push(K("mean_data_output",1,y)),b&&z.push(K("inv_std_output",1,y));let $=[{name:"norm_count",type:"u32"},{name:"norm_size",type:"f32"},{name:"norm_size_vectorized",type:"u32"},{name:"epsilon",type:"f32"}];return`
+  ${k.registerUniforms($).declareVariables(...z)}
+  ${k.mainStart()}
+    ${k.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.norm_count")}
+    let offset = global_idx * uniforms.norm_size_vectorized;
+    var mean_vector = ${Xn("f32",_)};
+    var mean_square_vector = ${Xn("f32",_)};
+
+    for (var h: u32 = 0u; h < uniforms.norm_size_vectorized; h++) {
+      let value = ${Kt(C,_,"x[h + offset]")};
+      mean_vector += value;
+      mean_square_vector += value * value;
+    }
+    let mean = ${$t("mean_vector",_)} / uniforms.norm_size;
+    let inv_std_dev = inverseSqrt(${$t("mean_square_vector",_)} / uniforms.norm_size ${i?"":"- mean * mean"} + uniforms.epsilon);
+
+    for (var j: u32 = 0; j < uniforms.norm_size_vectorized; j++) {
+      let f32input = ${Kt(C,_,"x[j + offset]")};
+      let f32scale = ${Kt(C,_,"scale[j]")};
+      output[j + offset] = ${z[0].type.value}((f32input ${i?"":"- mean"}) * inv_std_dev * f32scale
+        ${s?`+ ${Kt(C,_,"bias[j]")}`:""}
+      );
+    }
+
+    ${x?"mean_data_output[global_idx] = mean":""};
+    ${b?"inv_std_output[global_idx] = inv_std_dev":""};
+  }`},T=[{dims:o,dataType:e[0].dataType}];return x&&T.push({dims:y,dataType:1}),b&&T.push({dims:y,dataType:1}),{name:"LayerNormalization",shaderCache:{hint:`${_};${r};${i}`,inputDependencies:w},getRunData:()=>({outputs:T,dispatchGroup:{x:Math.ceil(d/64)},programUniforms:S}),getShaderSource:E}},gf=(e,t)=>{bd(e.inputs),e.compute(wd(e.inputs,t,e.outputCount))}}),$d,_f,ey=L(()=>{"use strict";ne(),Ia(),ka(),$d=e=>{if(!e||e.length!==2)throw new Error("MatMul requires 2 inputs.");if(e[0].dims[e[0].dims.length-1]!==e[1].dims[e[1].dims.length-2])throw new Error("shared dimension does not match.")},_f=e=>{$d(e.inputs);let t=Xt.calcShape(e.inputs[0].dims,e.inputs[1].dims,!0);if(!t)throw new Error("Can't use matmul on the given tensors");let r=t[t.length-1],i=e.inputs[0].dims[e.inputs[0].dims.length-1];if(r<8&&i<8)e.compute(Ea(e.inputs,{activation:""},t));else{let n=t[t.length-2],a=R.size(e.inputs[0].dims.slice(0,-2)),s=R.size(e.inputs[1].dims.slice(0,-2));if(a!==1&&n===1&&s===1){let o=e.inputs[0].reshape([1,a,i]),l=e.inputs[1].reshape([1,i,r]),d=[1,a,r],c=[o,l];e.compute(di(c,{activation:""},t,d),{inputs:c})}else e.compute(di(e.inputs,{activation:""},t))}}}),vd,xd,Sd,yf,bf,ty=L(()=>{"use strict";re(),ne(),Ie(),ae(),vd=(e,t)=>{if(e.length<3||e.length>4)throw new Error("MatMulNBits requires 3 or 4 inputs");let r=e[0],i=r.dims.length;if(r.dims[i-1]!==t.k)throw new Error("The last dim of input shape does not match the k value");let n=Math.floor((t.k+t.blockSize-1)/t.blockSize),a=t.blockSize/8*t.bits,s=e[1];if(!R.areEqual(s.dims,[t.n,n,a]))throw new Error("The second inputs must be 3D tensor with shape N X nBlocksPerCol X blobSize");let o=e[2].dims;if(R.size(o)!==t.n*n)throw new Error("scales input size error.");if(e.length===4){let l=e[3].dims,d=t.n*(t.bits===8?n:Math.floor((n*t.bits+7)/8));if(R.size(l)!==d)throw new Error("zeroPoints input size error.")}},xd=(e,t)=>{let r=e[0].dims,i=r.length,n=r[i-2],a=t.k,s=t.n,o=r.slice(0,i-2),l=R.size(o),d=e[1].dims[2]/4,c=e[0].dataType,h=Ee(t.k),m=Ee(d),y=Ee(s),_=o.concat([n,s]),w=n>1&&s/y%2===0?2:1,S=R.size(_)/y/w,x=64,b=[],E=[l,n,a/h],T=R.convertShape(e[1].dims).slice();T.splice(-1,1,d/m),b.push(...Y(E)),b.push(...Y(T)),b.push(...Y(e[2].dims)),e.length===4&&b.push(...Y(R.convertShape(e[3].dims)));let k=[l,n,s/y];b.push(...Y(k));let C=z=>{let $=E.length,D=M("a",e[0].dataType,$,h),W=M("b",12,T.length,m),F=M("scales",e[2].dataType,e[2].dims.length),V=[D,W,F],P=e.length===4?M("zero_points",12,e[3].dims.length):void 0;P&&V.push(P);let j=k.length,O=K("output",e[0].dataType,j,y),U=Ce(e[0].dataType),J=(()=>{switch(h){case 1:return`array<${U}, 8>`;case 2:return`mat4x2<${U}>`;case 4:return`mat2x4<${U}>`;default:throw new Error(`${h}-component is not supported.`)}})(),te=Math.floor(32/t.bits),X=Math.floor(te/8),se=()=>{let Q="";for(let H=0;H<X;H++){let $e=H*t.bits*4,Re=$e+t.bits;Q+=`
+          // reuse a data (pass ${H})
+            var input_offset${H>0?H:""} = ${H===0?D.indicesToOffset(`${D.type.indices}(batch, row, word_offset)`):"input_offset"};
+            var a_data${H>0?H:""}: ${J};
+            for (var j${H>0?H:""}: u32 = 0; j${H>0?H:""} < ${8/h}; j${H>0?H:""}++) {
+              a_data${H>0?H:""}[j${H>0?H:""}] = ${D.getByOffset(`input_offset${H>0?H:""}`)};
+              input_offset${H>0?H:""}++;
+            }
+          `;for(let Se=0;Se<y*w;Se++)Q+=`
+            b_value = ${m===1?`b${Se}_data`:`b${Se}_data[i]`};
+            ${t.bits===2?`{
+              let half_word = b_value >> ${H*16}u;
+              let byte_lo = half_word & 0xFFu;
+              let byte_hi = (half_word >> 8u) & 0xFFu;
+              let spread_word = (byte_lo & 0xFu) | ((byte_lo >> 4u) << 8u) | ((byte_hi & 0xFu) << 16u) | ((byte_hi >> 4u) << 24u);
+              b_value_lower = unpack4xU8(spread_word & b_mask);
+              b_value_upper = unpack4xU8((spread_word >> 2u) & b_mask);
+            }`:`b_value_lower = unpack4xU8((b_value >> ${$e}u) & b_mask);
+            b_value_upper = unpack4xU8((b_value >> ${Re}u) & b_mask);`}
+            b_quantized_values = ${J}(${Array.from({length:4},(ze,_e)=>`${U}(b_value_lower[${_e}]), ${U}(b_value_upper[${_e}])`).join(", ")});
+            b_dequantized_values = ${h===1?`${J}(${Array.from({length:8},(ze,_e)=>`(b_quantized_values[${_e}] - ${P?`zero_point${Se}`:"zero_point"}) * scale${Se}`).join(", ")});`:`(b_quantized_values - ${J}(${Array(8).fill(`${P?`zero_point${Se}`:"zero_point"}`).join(",")})) * scale${Se};`};
+            workgroup_shared[local_id.x * ${w} + ${Math.floor(Se/y)}]${y>1?`[${Se%y}]`:""} += ${Array.from({length:8/h},(ze,_e)=>`${h===1?`a_data${H>0?H:""}[${_e}] * b_dequantized_values[${_e}]`:`dot(a_data${H>0?H:""}[${_e}], b_dequantized_values[${_e}])`}`).join(" + ")};
+          `}return Q},N=()=>{let Q=`
+            var col_index = col * ${y};
+            ${P?`
+            let zero_point_values_per_byte: u32 = ${Math.floor(8/t.bits)}u;
+            let zero_point_bytes_per_col = (nBlocksPerCol + zero_point_values_per_byte - 1u) / zero_point_values_per_byte;
+            var zero_point_byte_count: u32;
+            var zero_point_word_index: u32;
+            var zero_point_byte_offset: u32;
+            let zero_point_sub_offset: u32 = block % zero_point_values_per_byte;
+            var zero_point_bits_offset: u32;
+            var zero_point_word: u32;`:`
+            // The default zero point is ${Math.pow(2,t.bits-1)} for unsigned ${t.bits}-bit quantization.
+            let zero_point = ${U}(${Math.pow(2,t.bits-1).toFixed(1)});`}
+            `;for(let H=0;H<y*w;H++)Q+=`
+            let scale${H} = ${F.getByOffset("col_index * nBlocksPerCol + block")};
+            ${P?`
+            zero_point_byte_count = col_index * zero_point_bytes_per_col + (block / zero_point_values_per_byte);
+            zero_point_word_index = zero_point_byte_count >> 0x2u;
+            zero_point_byte_offset = zero_point_byte_count & 0x3u;
+            zero_point_bits_offset = (zero_point_byte_offset << 3) + (zero_point_sub_offset * ${t.bits}u);
+            zero_point_word = ${P.getByOffset("zero_point_word_index")} >> zero_point_bits_offset;
+            let zero_point${H} = ${U}((zero_point_word) & ${t.bits===2?"0x3u":"0xFu"});`:""}
+            col_index += 1;`;return Q},ee=()=>{let Q=`col_index = col * ${y};`;for(let H=0;H<y*w;H++)Q+=`
+            let b${H}_data = ${W.getByIndices(`${W.type.indices}(col_index, block, word)`)};
+            col_index += 1;`;return Q+=`
+            var b_value: u32;
+            let b_mask: u32 = ${t.bits===2?"0x03030303u":"0x0F0F0F0Fu"};
+            var b_value_lower: vec4<u32>;
+            var b_value_upper: vec4<u32>;
+            var b_quantized_values: ${J};
+            var b_dequantized_values: ${J};`,Q};return`
+        var<workgroup> workgroup_shared: array<${O.type.value}, ${w*x}>;
+        ${z.declareVariables(...V,O)}
+        ${z.mainStart([x,1,1])}
+          let output_indices = ${O.offsetToIndices(`(global_idx / ${x}) * ${w}`)};
+          let col = output_indices[2];
+          let row = output_indices[1];
+          let batch = output_indices[0];
+          let nBlocksPerCol = uniforms.b_shape[1];
+
+          for (var block = local_id.x; block < nBlocksPerCol; block += ${x}) {
+            //process one block
+            var word_offset: u32 = block * ${t.blockSize/h};
+            ${N()}
+            for (var word: u32 = 0; word < ${d}; word += ${m}) {
+              ${ee()}
+              for (var i: u32 = 0; i < ${m}; i++) {
+                ${se()}
+                word_offset += ${te/h};
+              }
+            }
+          }
+          workgroupBarrier();
+
+          if (local_id.x < ${w}) {
+            var output_value: ${O.type.value} = ${O.type.value}(0);
+            var workgroup_shared_offset: u32 = local_id.x;
+            for (var b: u32 = 0u; b < ${x}u; b++) {
+              output_value += workgroup_shared[workgroup_shared_offset];
+              workgroup_shared_offset += ${w};
+            }
+            ${O.setByIndices(`${O.type.indices}(batch, row, col + local_id.x)`,"output_value")};
+          }
+        }`};return{name:"MatMulNBits",shaderCache:{hint:`${t.blockSize};${t.bits};${h};${m};${y};${w};${x}`,inputDependencies:Array(e.length).fill("rank")},getRunData:()=>({outputs:[{dims:_,dataType:c}],dispatchGroup:{x:S},programUniforms:b}),getShaderSource:C}},Sd=(e,t)=>{let r=e[0].dims,i=r.length,n=r[i-2],a=t.k,s=t.n,o=r.slice(0,i-2),l=R.size(o),d=e[1].dims[2]/4,c=e[0].dataType,h=Ee(t.k),m=Ee(d),y=o.concat([n,s]),_=128,w=s%8===0?8:s%4===0?4:1,S=_/w,x=Math.floor(32/t.bits),b=S*m*x,E=b/h,T=b/t.blockSize,k=R.size(y)/w,C=[],z=[l,n,a/h],$=R.convertShape(e[1].dims).slice();$.splice(-1,1,d/m),C.push(...Y(z)),C.push(...Y($)),C.push(...Y(e[2].dims)),e.length===4&&C.push(...Y(R.convertShape(e[3].dims)));let D=[l,n,s];C.push(...Y(D));let W=F=>{let V=z.length,P=M("a",e[0].dataType,V,h),j=M("b",12,$.length,m),O=M("scales",e[2].dataType,e[2].dims.length),U=[P,j,O],J=e.length===4?M("zero_points",12,e[3].dims.length):void 0;J&&U.push(J);let te=D.length,X=K("output",e[0].dataType,te),se=Ce(e[0].dataType),N=()=>{switch(h){case 1:return`
+          let a_data0 = vec4<${se}>(sub_a[word_offset], sub_a[word_offset + 1], sub_a[word_offset + 2], sub_a[word_offset + 3]);
+          let a_data1 = vec4<${se}>(sub_a[word_offset + 4], sub_a[word_offset + 5], sub_a[word_offset + 6], sub_a[word_offset + 7]);`;case 2:return`
+          let a_data0 = vec4<${se}>(sub_a[word_offset], sub_a[word_offset + 1]);
+          let a_data1 = vec4<${se}>(sub_a[word_offset + 2], sub_a[word_offset + 3]);`;case 4:return`
+          let a_data0 = sub_a[word_offset];
+          let a_data1 = sub_a[word_offset + 1];`;default:throw new Error(`${h}-component is not supported.`)}};return`
+        var<workgroup> sub_a: array<${P.type.value}, ${E}>;
+        var<workgroup> inter_results: array<array<${X.type.value}, ${S}>, ${w}>;
+        ${F.declareVariables(...U,X)}
+        ${F.mainStart([S,w,1])}
+          let output_indices = ${X.offsetToIndices(`workgroup_index * ${w}`)};
+          let col = output_indices[2];
+          let row = output_indices[1];
+          let batch = output_indices[0];
+          let n_blocks_per_col = uniforms.b_shape[1];
+          let num_tiles =  (n_blocks_per_col - 1) / ${T} + 1;
+
+          // Loop over shared dimension.
+          for (var tile: u32 = 0; tile < num_tiles; tile += 1) {
+            let a_col_start = tile * ${E};
+            // load one tile A data into shared memory.
+            for (var a_offset = local_idx; a_offset < ${E}; a_offset += ${_})
+            {
+              let a_col = a_col_start + a_offset;
+              if (a_col < uniforms.a_shape[2])
+              {
+                sub_a[a_offset] = ${P.getByIndices(`${P.type.indices}(batch, row, a_col)`)};
+              } else {
+                sub_a[a_offset] = ${P.type.value}(0);
+              }
+            }
+            workgroupBarrier();
+
+            // each thread process one block
+            let b_row = col + local_id.y;
+            let block = tile * ${T} + local_id.x;
+            ${J?`
+            let zero_point_values_per_byte: u32 = ${Math.floor(8/t.bits)}u;
+            let zero_point_bytes_per_col = (n_blocks_per_col + zero_point_values_per_byte - 1u) / zero_point_values_per_byte;
+            let zero_point_byte_count = b_row * zero_point_bytes_per_col + (block / zero_point_values_per_byte);
+            let zero_point_word_index = zero_point_byte_count >> 0x2u;
+            let zero_point_byte_offset = zero_point_byte_count & 0x3u;
+            let zero_point_sub_offset: u32 = block % zero_point_values_per_byte;
+            let zero_point_bits_offset = (zero_point_byte_offset << 3) + (zero_point_sub_offset * ${t.bits}u);
+            let zero_point_word = ${J.getByOffset("zero_point_word_index")} >> zero_point_bits_offset;
+            let zero_point = ${se}((zero_point_word) & ${t.bits===2?"0x3u":"0xFu"});`:`
+            // The default zero point is ${Math.pow(2,t.bits-1)} for unsigned ${t.bits}-bit quantization.
+            let zero_point = ${se}(${Math.pow(2,t.bits-1).toFixed(1)});`}
+            let scale = ${O.getByOffset("b_row * n_blocks_per_col + block")};
+            let b_data = ${j.getByIndices(`${j.type.indices}(b_row, block, 0)`)};
+            var word_offset = local_id.x * ${t.blockSize/h};
+            for (var i: u32 = 0; i < ${m}; i++) {
+              let b_value = ${m===1?"b_data":"b_data[i]"};
+              ${(()=>{let ee=Math.floor(x/8),Q="";for(let H=0;H<ee;H++){let $e=H*t.bits*4,Re=$e+t.bits;Q+=`
+              ${N()}
+              {${t.bits===2?`
+                let half_word = b_value >> ${H*16}u;
+                let byte_lo = half_word & 0xFFu;
+                let byte_hi = (half_word >> 8u) & 0xFFu;
+                let spread_word = (byte_lo & 0xFu) | ((byte_lo >> 4u) << 8u) | ((byte_hi & 0xFu) << 16u) | ((byte_hi >> 4u) << 24u);
+                let b_value_lower = unpack4xU8(spread_word & 0x03030303u);
+                let b_value_upper = unpack4xU8((spread_word >> 2u) & 0x03030303u);`:`
+                let b_value_lower = unpack4xU8((b_value >> ${$e}u) & 0x0F0F0F0Fu);
+                let b_value_upper = unpack4xU8((b_value >> ${Re}u) & 0x0F0F0F0Fu);`}
+                let b_quantized_values = mat2x4<${se}>(${Array.from({length:4},(Se,ze)=>`${se}(b_value_lower[${ze}]), ${se}(b_value_upper[${ze}])`).join(", ")});
+                let b_dequantized_values = (b_quantized_values - mat2x4<${se}>(${Array(8).fill("zero_point").join(",")})) * scale;
+                inter_results[local_id.y][local_id.x] += ${Array.from({length:2},(Se,ze)=>`${`dot(a_data${ze}, b_dequantized_values[${ze}])`}`).join(" + ")};
+              }
+              word_offset += ${8/h};`}return Q})()}
+            }
+            workgroupBarrier();
+          }
+
+          if (local_idx < ${w}) {
+            var output_value: ${X.type.value} = ${X.type.value}(0);
+            for (var b = 0u; b < ${S}; b++) {
+              output_value += inter_results[local_idx][b];
+            }
+            if (col + local_idx < uniforms.output_shape[2])
+            {
+              ${X.setByIndices(`${X.type.indices}(batch, row, col + local_idx)`,"output_value")}
+            }
+          }
+        }`};return{name:"BlockwiseMatMulNBits32",shaderCache:{hint:`${t.blockSize};${h};${m};${S};${w}`,inputDependencies:Array(e.length).fill("rank")},getRunData:()=>({outputs:[{dims:y,dataType:c}],dispatchGroup:{x:k},programUniforms:C}),getShaderSource:W}},yf=(e,t)=>{vd(e.inputs,t),t.blockSize===32&&e.adapterInfo.isVendor("intel")&&e.adapterInfo.isArchitecture("gen-12lp")?e.compute(Sd(e.inputs,t)):e.compute(xd(e.inputs,t))},bf=e=>me(e)}),Td,Ed,Id,kd,Cd,zd,Od,Ad,wf,ry=L(()=>{"use strict";re(),ne(),ae(),Td=e=>{if(!e||e.length<1)throw new Error("Too few inputs");if(e[0].dataType!==1&&e[0].dataType!==10)throw new Error("Input type must be float or float16.");if(e.length>=2){let t=e[0].dims.length*2===e[1].dims[0];if(e.length===4&&(t=e[3].dims[0]*2===e[1].dims[0]),!t)throw new Error("The pads should be a 1D tensor of shape [2 * input_rank] or [2 * num_axes].")}},Ed=(e,t,r)=>{let i="";for(let n=t-1;n>=0;--n)i+=`
+            k = i32(${e.indicesGet("indices",n)}) - ${Z("uniforms.pads",n,r)};
+            if (k < 0) {
+              break;
+            }
+            if (k >= i32(${Z("uniforms.x_shape",n,t)})) {
+              break;
+            }
+            offset += k * i32(${Z("uniforms.x_strides",n,t)});
+        `;return`
+          value = ${e.type.value}(uniforms.constant_value);
+          for (var i = 0; i < 1; i++) {
+            var offset = 0;
+            var k = 0;
+            ${i}
+            value = x[offset];
+          }
+      `},Id=(e,t,r)=>{let i="";for(let n=t-1;n>=0;--n)i+=`
+                k = i32(${e.indicesGet("indices",n)}) - ${Z("uniforms.pads",n,r)};
+                if (k < 0) {
+                  k = -k;
+                }
+                {
+                  let _2n_1 = 2 * (i32(${Z("uniforms.x_shape",n,t)}) - 1);
+                  k = k % _2n_1;
+                  if(k >= i32(${Z("uniforms.x_shape",n,t)})) {
+                    k = _2n_1 - k;
+                  }
+                }
+                offset += k * i32(${Z("uniforms.x_strides",n,t)});
+            `;return`
+              var offset = 0;
+              var k = 0;
+              ${i}
+              value = x[offset];
+          `},kd=(e,t,r)=>{let i="";for(let n=t-1;n>=0;--n)i+=`
+                k = i32(${e.indicesGet("indices",n)}) - ${Z("uniforms.pads",n,r)};
+                if (k < 0) {
+                  k = 0;
+                }
+                if (k >= i32(${Z("uniforms.x_shape",n,t)})) {
+                  k = i32(${Z("uniforms.x_shape",n,t)}) - 1;
+                }
+                offset += k * i32(${Z("uniforms.x_strides",n,t)});
+            `;return`
+              var offset = 0;
+              var k = 0;
+              ${i}
+              value = x[offset];
+          `},Cd=(e,t,r)=>{let i="";for(let n=t-1;n>=0;--n)i+=`
+                k = i32(${e.indicesGet("indices",n)}) - ${Z("uniforms.pads",n,r)};
+                if (k < 0)  {
+                  k += i32(${Z("uniforms.x_shape",n,t)}]);
+                }
+                if (k >= i32(${Z("uniforms.x_shape",n,t)})) {
+                  k -= i32(${Z("uniforms.x_shape",n,t)});
+                }
+                offset += k * i32(${Z("uniforms.x_strides",n,t)});
+            `;return`
+              var offset = 0;
+              var k = 0;
+              ${i}
+              value = x[offset];
+          `},zd=(e,t,r)=>{switch(r.mode){case 0:return Ed(e,t,r.pads.length);case 1:return Id(e,t,r.pads.length);case 2:return kd(e,t,r.pads.length);case 3:return Cd(e,t,r.pads.length);default:throw new Error("Invalid mode")}},Od=(e,t)=>{let r=R.padShape(e[0].dims.slice(),t.pads),i=e[0].dims,n=R.size(r),a=[{type:12,data:n},{type:6,data:t.pads}],s=e.length>=3&&e[2].data;t.mode===0&&a.push({type:s?e[2].dataType:1,data:t.value}),a.push(...Y(e[0].dims,r));let o=["rank"],l=d=>{let c=K("output",e[0].dataType,r.length),h=M("x",e[0].dataType,i.length),m=h.type.value,y=zd(c,i.length,t),_=[{name:"output_size",type:"u32"},{name:"pads",type:"i32",length:t.pads.length}];return t.mode===0&&_.push({name:"constant_value",type:s?m:"f32"}),`
+            ${d.registerUniforms(_).declareVariables(h,c)}
+            ${d.mainStart()}
+            ${d.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+
+            let indices = ${c.offsetToIndices("global_idx")};
+
+            var value = ${m}(0);
+            ${y}
+            output[global_idx] = value;
+        }`};return{name:"Pad",shaderCache:{hint:`${t.mode}${s}`,inputDependencies:o},getRunData:()=>({outputs:[{dims:r,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(R.size(r)/64)},programUniforms:a}),getShaderSource:l}},Ad=(e,t)=>{if(e.length>1){let r=e[1].getBigInt64Array(),i=e.length>=3&&e[2].data?e[2].dataType===10?e[2].getUint16Array()[0]:e[2].getFloat32Array()[0]:0,n=e[0].dims.length,a=new Int32Array(2*n).fill(0);if(e.length>=4){let o=e[3].getBigInt64Array();for(let l=0;l<o.length;l++)a[Number(o[l])]=Number(r[l]),a[Number(o[l])+n]=Number(r[l+o.length])}else r.forEach((o,l)=>a[Number(l)]=Number(o));let s=[];return a.forEach(o=>s.push(o)),{mode:t.mode,value:i,pads:s}}else return t},wf=(e,t)=>{Td(e.inputs);let r=Ad(e.inputs,t);e.compute(Od(e.inputs,r),{inputs:[0]})}}),mr,Cn,zn,On,An,Rd,Bd,Rn,Bn,$f,vf,Mn,xf,Sf,Dn,Tf,Ef,If,kf,iy=L(()=>{"use strict";Ge(),re(),ne(),ae(),mr=e=>{if(fe.webgpu.validateInputContent&&(!e||e.length!==1))throw new Error("Pool ops requires 1 input.")},Cn=(e,t,r)=>{let i=t.format==="NHWC",n=e.dims.slice();i&&n.splice(1,0,n.pop());let a=Object.hasOwnProperty.call(t,"dilations"),s=t.kernelShape.slice(),o=t.strides.slice(),l=a?t.dilations.slice():[],d=t.pads.slice();ui.adjustPoolAttributes(r,n,s,o,l,d);let c=ui.computePoolOutputShape(r,n,o,l,s,d,t.autoPad),h=Object.assign({},t);a?Object.assign(h,{kernelShape:s,strides:o,pads:d,dilations:l,cacheKey:t.cacheKey}):Object.assign(h,{kernelShape:s,strides:o,pads:d,cacheKey:t.cacheKey});let m=c.slice();return m.push(m.splice(1,1)[0]),[h,i?m:c]},zn=(e,t)=>{let r=t.format==="NHWC",i=R.size(e),n=R.size(t.kernelShape),a=[{type:12,data:i},{type:12,data:n}],s=[{name:"outputSize",type:"u32"},{name:"kernelSize",type:"u32"}];if(t.kernelShape.length<=2){let o=t.kernelShape[t.kernelShape.length-1],l=t.strides[t.strides.length-1],d=t.pads[t.pads.length/2-1],c=t.pads[t.pads.length-1],h=!!(d+c);a.push({type:12,data:o},{type:12,data:l},{type:12,data:d},{type:12,data:c}),s.push({name:"kw",type:"u32"},{name:"sw",type:"u32"},{name:"pwStart",type:"u32"},{name:"pwEnd",type:"u32"});let m=!1;if(t.kernelShape.length===2){let y=t.kernelShape[t.kernelShape.length-2],_=t.strides[t.strides.length-2],w=t.pads[t.pads.length/2-2],S=t.pads[t.pads.length-2];m=!!(w+S),a.push({type:12,data:y},{type:12,data:_},{type:12,data:w},{type:12,data:S}),s.push({name:"kh",type:"u32"},{name:"sh",type:"u32"},{name:"phStart",type:"u32"},{name:"phEnd",type:"u32"})}return[a,s,!0,h,m]}else{if(r)throw new Error("Pooling with kernelShape.length > 2 is not supported for NHWC format.");let o=R.computeStrides(t.kernelShape);a.push({type:12,data:o},{type:12,data:t.pads},{type:12,data:t.strides}),s.push({name:"kernelStrides",type:"u32",length:o.length},{name:"pads",type:"u32",length:t.pads.length},{name:"strides",type:"u32",length:t.strides.length});let l=t.pads.reduce((d,c)=>d+c);return[a,s,!!l,!1,!1]}},On=(e,t,r,i,n,a,s,o,l,d,c,h)=>{let m=n.format==="NHWC",y=t.type.value,_=K("output",t.type.tensor,i);if(n.kernelShape.length<=2){let w="",S="",x="",b=r-(m?2:1);if(c?w=`
+                for (var i: u32 = 0u; i < uniforms.kw; i++) {
+                  xIndices[${b}] = indices[${b}] * uniforms.sw - uniforms.pwStart + i;
+                  if (xIndices[${b}] < 0 || xIndices[${b}]
+                      >= uniforms.x_shape[${b}]) {
+                    pad++;
+                    continue;
+                  }
+                  let x_val = x[${t.indicesToOffset("xIndices")}];
+                  ${a}
+                }`:w=`
+                for (var i: u32 = 0u; i < uniforms.kw; i++) {
+                  xIndices[${b}] = indices[${b}] * uniforms.sw - uniforms.pwStart + i;
+                  let x_val = x[${t.indicesToOffset("xIndices")}];
+                  ${a}
+                }`,n.kernelShape.length===2){let E=r-(m?3:2);h?S=`
+                for (var j: u32 = 0u; j < uniforms.kh; j++) {
+                  xIndices[${E}] = indices[${E}] * uniforms.sh - uniforms.phStart + j;
+                  if (xIndices[${E}] < 0 || xIndices[${E}] >= uniforms.x_shape[${E}]) {
+                    pad += i32(uniforms.kw);
+                    continue;
+                  }
+              `:S=`
+                for (var j: u32 = 0u; j < uniforms.kh; j++) {
+                  xIndices[${E}] = indices[${E}] * uniforms.sh - uniforms.phStart + j;
+                `,x=`
+              }
+            `}return`
+            ${e.registerUniforms(l).declareVariables(t,_)}
+
+            ${e.mainStart()}
+              ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+
+              let indices = ${_.offsetToIndices("global_idx")};
+              var xIndices = ${_.offsetToIndices("global_idx")};
+
+              var value = ${y}(${o});
+              var pad = 0;
+              ${S}
+              ${w}
+              ${x}
+              ${s}
+
+              output[global_idx] = value;
+            }`}else{if(m)throw new Error("Pooling with kernelShape.length > 2 is not supported for NHWC format.");let w=n.kernelShape.length,S=n.pads.length,x="";return d?x=`
+                if (xIndices[j] >= uniforms.x_shape[j]) {
+                  pad++;
+                  isPad = true;
+                  break;
+                }
+              }
+              if (!isPad) {
+                let x_val = x[${t.indicesToOffset("xIndices")}];
+                ${a}
+              }`:x=`
+              }
+              let x_val = x[${t.indicesToOffset("xIndices")}];
+              ${a}
+            `,`
+            ${e.registerUniforms(l).declareVariables(t,_)}
+
+            ${e.mainStart()}
+              ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+              let indices = ${_.offsetToIndices("global_idx")};
+              var xIndices = ${_.offsetToIndices("global_idx")};
+
+              var offsets: array<u32, ${w}>;
+
+              var value = ${y}(${o});
+              var pad = 0;
+              var isPad = false;
+
+              for (var i: u32 = 0u; i < uniforms.kernelSize; i++) {
+                var offset = i;
+                for (var j = 0u; j < ${w-1}u; j++) {
+                  offsets[j] = offset / ${Z("uniforms.kernelStrides","j",w)};
+                  offset -= offsets[j] * ${Z("uniforms.kernelStrides","j",w)};
+                }
+                offsets[${w-1}] = offset;
+
+                isPad = false;
+                for (var j = ${r-w}u; j < ${r}u; j++) {
+                  xIndices[j] = indices[j] * ${Z("uniforms.strides",`j - ${r-w}u`,w)}
+                    + offsets[j - ${r-w}u] - ${Z("uniforms.pads","j - 2u",S)};
+                  ${x}
+              }
+              ${s}
+
+              output[global_idx] = value;
+            }`}},An=e=>`${e.format};${e.ceilMode};${e.autoPad};${e.kernelShape.length}`,Rd=e=>`${An(e)};${e.countIncludePad}`,Bd=e=>`${An(e)};${e.storageOrder};${e.dilations}`,Rn=e=>({format:e.format,autoPad:["NOTSET","VALID","SAME_UPPER","SAME_LOWER"][e.auto_pad],ceilMode:e.ceil_mode,kernelShape:e.kernel_shape,strides:e.strides,pads:e.pads}),Bn=(e,t,r,i)=>{let[n,a]=Cn(t,i,r),s=M("x",t.dataType,t.dims.length),o=s.type.value,l="value += x_val;",d="";n.countIncludePad?d+=`value /= ${o}(uniforms.kernelSize);`:d+=`value /= ${o}(i32(uniforms.kernelSize) - pad);`;let[c,h,m,y,_]=zn(a,n);c.push(...Y(t.dims,a));let w=["rank"];return{name:e,shaderCache:{hint:`${i.cacheKey};${m};${y};${_}`,inputDependencies:w},getRunData:()=>({outputs:[{dims:a,dataType:t.dataType}],dispatchGroup:{x:Math.ceil(R.size(a)/64)},programUniforms:c}),getShaderSource:S=>On(S,s,t.dims.length,a.length,n,l,d,0,h,m,y,_)}},$f=e=>{let t=e.count_include_pad!==0,r=Rn(e);if(r.ceilMode!==0)throw new Error("using ceil() in shape computation is not yet supported for AveragePool");let i={countIncludePad:t,...r,cacheKey:""};return{...i,cacheKey:Rd(i)}},vf=(e,t)=>{mr(e.inputs),e.compute(Bn("AveragePool",e.inputs[0],!1,t))},Mn={autoPad:"",ceilMode:0,countIncludePad:!1,kernelShape:[],strides:[],pads:[],storageOrder:0,dilations:[]},xf=e=>{let t=e.format;return{format:t,...Mn,cacheKey:t}},Sf=(e,t)=>{mr(e.inputs),e.compute(Bn("GlobalAveragePool",e.inputs[0],!0,t))},Dn=(e,t,r,i)=>{let[n,a]=Cn(t,i,r),s=`
+      value = max(x_val, value);
+    `,o="",l=M("x",t.dataType,t.dims.length),d=["rank"],[c,h,m,y,_]=zn(a,n);return c.push(...Y(t.dims,a)),{name:e,shaderCache:{hint:`${i.cacheKey};${m};${y};${_}`,inputDependencies:d},getRunData:()=>({outputs:[{dims:a,dataType:t.dataType}],dispatchGroup:{x:Math.ceil(R.size(a)/64)},programUniforms:c}),getShaderSource:w=>On(w,l,t.dims.length,a.length,n,s,o,t.dataType===10?-65504:-1e5,h,m,y,_)}},Tf=(e,t)=>{mr(e.inputs),e.compute(Dn("MaxPool",e.inputs[0],!1,t))},Ef=e=>{let t=e.storage_order,r=e.dilations,i=Rn(e);if(t!==0)throw new Error("column major storage order is not yet supported for MaxPool");if(i.ceilMode!==0)throw new Error("using ceil() in shape computation is not yet supported for MaxPool");let n={storageOrder:t,dilations:r,...i,cacheKey:""};return{...n,cacheKey:Bd(n)}},If=e=>{let t=e.format;return{format:t,...Mn,cacheKey:t}},kf=(e,t)=>{mr(e.inputs),e.compute(Dn("GlobalMaxPool",e.inputs[0],!0,t))}}),Md,Dd,Cf,zf,ny=L(()=>{"use strict";re(),ne(),Ie(),ae(),Md=(e,t)=>{if(e.length<2||e.length>3)throw new Error("DequantizeLinear requires 2 or 3 inputs.");if(e.length===3&&e[1].dims===e[2].dims)throw new Error("x-scale and x-zero-point must have the same shape.");if(e.length===3&&e[0].dataType!==e[2].dataType)throw new Error("x and x-zero-point must have the same data type.");if(e[1].dims.length!==0&&e[1].dims.length!==1&&e[1].dims.length!==e[0].dims.length)throw new Error("scale input must be a scalar, a 1D tensor, or have the same rank as the input tensor.");if(e.length>2){if(e[0].dataType!==e[2].dataType)throw new Error("x and x-zero-point must have the same data type.");if(e[1].dims.length!==e[2].dims.length)throw new Error("scale and zero-point inputs must have the same rank.");if(!e[1].dims.map((r,i)=>r===e[2].dims[i]).reduce((r,i)=>r&&i,!0))throw new Error("scale and zero-point inputs must have the same shape.")}if(t.blockSize>0){if(e[1].dims.length===0||e[1].dims.length===1&&e[1].dims[0]===1)throw new Error("blockSize must be set only for block quantization.");if(!e[1].dims.map((n,a)=>a===t.axis||n===e[0].dims[a]).reduce((n,a)=>n&&a,!0))throw new Error("For block qunatization, scale input shape to match the input shape except for the axis");if(e[1].dims.length!==e[0].dims.length)throw new Error("For block qunatization the scale input rank must be the same as the x rank.");let r=e[0].dims[t.axis],i=e[1].dims[t.axis];if(t.blockSize<Math.ceil(r/i)||t.blockSize>Math.ceil(r/(i-1)-1))throw new Error("blockSize must be with in the range [ceil(dI / Si), ceil(dI / (Si - 1) - 1)].")}},Dd=(e,t)=>{let r=R.normalizeAxis(t.axis,e[0].dims.length),i=e[0].dataType,n=i===3,a=e[0].dims,s=e[1].dataType,o=R.size(a),l=i===3||i===2,d=l?[Math.ceil(R.size(e[0].dims)/4)]:e[0].dims,c=e[1].dims,h=e.length>2?e[2]:void 0,m=h?l?[Math.ceil(R.size(h.dims)/4)]:h.dims:void 0,y=c.length===0||c.length===1&&c[0]===1,_=y===!1&&c.length===1,w=Ee(o),S=y&&(!l||w===4),x=S?w:1,b=S&&!l?w:1,E=M("input",l?12:i,d.length,b),T=M("scale",s,c.length),k=h?M("zero_point",l?12:i,m.length):void 0,C=K("output",s,a.length,x),z=[E,T];k&&z.push(k);let $=[d,c];h&&$.push(m);let D=[{type:12,data:o/x},{type:12,data:r},{type:12,data:t.blockSize},...Y(...$,a)],W=F=>{let V=[{name:"output_size",type:"u32"},{name:"axis",type:"u32"},{name:"block_size",type:"u32"}];return`
+      ${F.registerUniforms(V).declareVariables(...z,C)}
+      ${F.mainStart()}
+          ${F.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+          let output_indices = ${C.offsetToIndices("global_idx")};
+
+          // Set input x
+          ${l?`
+            let input = ${E.getByOffset("global_idx / 4")};
+            let x_vec = ${n?"unpack4xI8(input)":"unpack4xU8(input)"};
+            let x_value = ${x===1?"x_vec[global_idx % 4]":"x_vec"};`:`let x_value = ${E.getByOffset("global_idx")};`};
+
+          // Set scale input
+          ${y?`let scale_value= ${T.getByOffset("0")}`:_?`
+            let scale_index = ${C.indicesGet("output_indices","uniforms.axis")};
+            let scale_value= ${T.getByOffset("scale_index")};`:`
+            var scale_indices: ${T.type.indices} = output_indices;
+            let index = ${T.indicesGet("scale_indices","uniforms.axis")} / uniforms.block_size;
+            ${T.indicesSet("scale_indices","uniforms.axis","index")};
+            let scale_value= ${T.getByIndices("scale_indices")};`};
+
+          // Set zero-point input
+          ${k?y?l?`
+                let zero_point_input = ${k.getByOffset("0")};
+                let zero_point_vec =  ${n?"unpack4xI8(zero_point_input)":"unpack4xU8(zero_point_input)"};
+                let zero_point_value= zero_point_vec[0]`:`let zero_point_value = ${k.getByOffset("0")}`:_?l?`
+                let zero_point_index = ${C.indicesGet("output_indices","uniforms.axis")};
+                let zero_point_input = ${k.getByOffset("zero_point_index / 4")};
+                let zero_point_vec =  ${n?"unpack4xI8(zero_point_input)":"unpack4xU8(zero_point_input)"};
+                let zero_point_value = zero_point_vec[zero_point_index % 4]`:`
+                let zero_point_index = ${C.indicesGet("output_indices","uniforms.axis")};
+                let zero_point_value = ${k.getByOffset("zero_point_index")};`:l?`
+                let zero_point_offset = ${T.indicesToOffset("scale_indices")};
+                let zero_point_input = ${k.getByOffset("zero_point_offset / 4")};
+                let zero_point_vec = ${n?"unpack4xI8(zero_point_input)":"unpack4xU8(zero_point_input)"};
+                let zero_point_value = zero_point_vec[zero_point_offset % 4];`:`let zero_point_value = ${k.getByIndices("scale_indices")};`:`let zero_point_value = ${l?n?"i32":"u32":E.type.value}(0);`};
+      // Compute and write output
+      ${C.setByOffset("global_idx",`${C.type.value}(x_value - zero_point_value) * scale_value`)};
+      }`};return{name:"DequantizeLinear",shaderCache:{hint:t.cacheKey,inputDependencies:k?["rank","rank","rank"]:["rank","rank"]},getShaderSource:W,getRunData:()=>({outputs:[{dims:a,dataType:s}],dispatchGroup:{x:Math.ceil(o/x/64),y:1,z:1},programUniforms:D})}},Cf=(e,t)=>{Md(e.inputs,t),e.compute(Dd(e.inputs,t))},zf=e=>me({axis:e.axis,blockSize:e.blockSize})}),Nd,Pd,Of,ay=L(()=>{"use strict";Ge(),re(),ae(),Nd=(e,t,r)=>{let i=e===t,n=e<t&&r<0,a=e>t&&r>0;if(i||n||a)throw new Error("Range these inputs' contents are invalid.")},Pd=(e,t,r,i)=>{let n=Math.abs(Math.ceil((t-e)/r)),a=[n],s=n,o=[{type:12,data:s},{type:i,data:e},{type:i,data:r},...Y(a)],l=d=>{let c=K("output",i,a.length),h=c.type.value,m=[{name:"outputSize",type:"u32"},{name:"start",type:h},{name:"delta",type:h}];return`
+        ${d.registerUniforms(m).declareVariables(c)}
+        ${d.mainStart()}
+        ${d.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+        output[global_idx] = uniforms.start + ${h}(global_idx) * uniforms.delta;
+      }`};return{name:"Range",shaderCache:{hint:`${i}`},getShaderSource:l,getRunData:()=>({outputs:[{dims:a,dataType:i}],dispatchGroup:{x:Math.ceil(s/64)},programUniforms:o})}},Of=e=>{let t=0,r=0,i=0;e.inputs[0].dataType===6?(t=e.inputs[0].getInt32Array()[0],r=e.inputs[1].getInt32Array()[0],i=e.inputs[2].getInt32Array()[0]):e.inputs[0].dataType===1&&(t=e.inputs[0].getFloat32Array()[0],r=e.inputs[1].getFloat32Array()[0],i=e.inputs[2].getFloat32Array()[0]),fe.webgpu.validateInputContent&&Nd(t,r,i),e.compute(Pd(t,r,i,e.inputs[0].dataType),{inputs:[]})}}),Ld,Ud,Af,Rf,sy=L(()=>{"use strict";re(),ne(),Ie(),ae(),Ld=(e,t,r,i)=>{if(e!=="none"&&i!=="i32"&&i!=="u32"&&i!=="f32")throw new Error(`Input ${i} is not supported with reduction ${e}.`);let n=`{
+                var oldValue = 0;
+                loop {
+                  let newValueF32 =`,a=`;
+                  let newValue = bitcast<i32>(newValueF32);
+                  let res = atomicCompareExchangeWeak(&${t}, oldValue, newValue);
+                  if res.exchanged {
+                    break;
+                  }
+                  oldValue = res.old_value;
+                }
+              }`;switch(e){case"none":return`${t}=${r};`;case"add":return i==="i32"||i==="u32"?`atomicAdd(&${t}, bitcast<${i}>(${r}));`:`
+              ${n}bitcast<${i}>(oldValue) + (${r})${a}`;case"max":return i==="i32"||i==="u32"?`atomicMax(&${t}, bitcast<${i}>(${r}));`:`
+                ${n}max(bitcast<f32>(oldValue), (${r}))${a}`;case"min":return i==="i32"||i==="u32"?`atomicMin(&${t}, bitcast<${i}>(${r}));`:`${n}min(bitcast<${i}>(oldValue), (${r}))${a}`;case"mul":return`${n}(bitcast<${i}>(oldValue) * (${r}))${a}`;default:throw new Error(`Reduction ${e} is not supported.`)}},Ud=(e,t)=>{let r=e[0].dims,i=e[1].dims,n=r,a=1,s=Math.ceil(R.sizeToDimension(i,i.length-1)/a),o=i[i.length-1],l=R.sizeFromDimension(r,o),d=[{type:12,data:s},{type:12,data:o},{type:12,data:l},...Y(e[1].dims,e[2].dims,n)],c=h=>{let m=M("indices",e[1].dataType,e[1].dims.length),y=M("updates",e[2].dataType,e[2].dims.length,a),_=t.reduction!=="none"&&t.reduction!==""?sc("output",e[0].dataType,n.length):K("output",e[0].dataType,n.length,a);return`
+      ${h.registerUniform("output_size","u32").registerUniform("last_index_dimension","u32").registerUniform("num_updates_elements","u32").declareVariables(m,y,_)}
+      ${h.mainStart()}
+        ${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+  var data_offset = 0u;
+  let indices_start = uniforms.last_index_dimension * global_idx;
+  let indices_end = indices_start + uniforms.last_index_dimension;
+  for (var i = indices_start; i < indices_end; i++) {
+    var index = i32(indices[i].x);
+    ${e[0].dims.length===1?`
+    let element_count_dim = uniforms.output_strides;
+    let dim_value = uniforms.output_shape;`:`
+    let element_count_dim = uniforms.output_strides[i - indices_start];
+    let dim_value = uniforms.output_shape[i - indices_start];`}
+    if (index >= 0) {
+      if (index >= i32(dim_value)) {
+        index = i32(dim_value - 1);
+      }
+    } else {
+      if (index < -i32(dim_value)) {
+        index = 0;
+      } else {
+        index += i32(dim_value);
+      }
+    }
+    data_offset += u32((u32(index) * element_count_dim));
+  }
+
+  for (var i = 0u; i < uniforms.num_updates_elements; i++) {
+    let value = updates[uniforms.num_updates_elements * global_idx + i];
+    ${Ld(t.reduction,"output[data_offset + i]","value",_.type.value)}
+  }
+
+      }`};return{name:"ScatterND",shaderCache:{hint:`${t.cacheKey}_${t.reduction}`,inputDependencies:["rank","rank"]},getRunData:()=>({outputs:[{dims:n,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(s/64)},programUniforms:d}),getShaderSource:c}},Af=e=>me({reduction:e.reduction}),Rf=(e,t)=>{e.compute(Ud(e.inputs,t),{inputs:[e.inputs[1],e.inputs[2]],outputs:[]})}}),Wd,qd,Vd,Nn,Gd,Fd,Hd,jd,Kd,Xd,Zd,Qd,Pn,Yd,Jd,ep,tp,rp,Bf,Mf,oy=L(()=>{"use strict";re(),ne(),Ie(),ae(),Wd=(e,t)=>{if(e.every(r=>r>0||(()=>{throw new Error("Resize requires scales input values to be positive")})),e.length>0){if(t.mode==="linear"){if(!(e.length===2||e.length===3||e.length===4&&e[0]===1&&e[1]===1||e.length===4&&e[0]===1&&e[3]===1||e.length===5&&e[0]===1&&e[1]===1))throw new Error(`For linear mode, Resize requires scales to be 2D, 3D, 4D with either two outermost or one innermost and
+            one outermost scale values equal to 1, or 5D with two outermost scale values equal to 1`)}else if(t.mode==="cubic"&&!(e.length===2||e.length===4&&e[0]===1&&e[1]===1||e.length===4&&e[0]===1&&e[3]===1))throw new Error("Resize requires scales input size to be 2 or 4 for cubic mode")}},qd=(e,t,r)=>{t.every(n=>n>=0&&n<r||(()=>{throw new Error("Resize requires axes input values to be positive and less than rank")}));let i=new Array(r).fill(1);return t.forEach((n,a)=>i[n]=e[a]),i},Vd=(e,t,r,i,n,a)=>{let[s,o,l]=r>10?[1,2,3]:[-1,e.length>1?1:-1,-1],d=e[0].dims.length;if(s>0&&e.length>s&&e[s].dims.length>0)e[s].getFloat32Array().forEach(c=>a.push(c));else if(t.coordinateTransformMode==="tf_crop_and_resize")throw new Error("Resize requires RoI input to be specified when coordinateTransformMode is tfCropAndResize");if(o>0&&e.length>o&&e[o].dims.length===1&&e[o].dims[0]>0){if(e[o].getFloat32Array().forEach(c=>i.push(c)),i.length!==0&&i.length!==d&&r>=18&&i.length!==t.axes.length)throw new Error("Resize requires scales input size to be same as input rank or axes size for opset 18 and up");Wd(i,t),t.axes.length>0&&qd(i,t.axes,d).forEach((c,h)=>i[h]=c)}if(l>0&&e.length>l&&e[l].dims.length===1&&e[l].dims[0]>0&&(e[l].getBigInt64Array().forEach(c=>n.push(Number(c))),n.length!==0&&n.length!==d&&r>=18&&n.length!==t.axes.length))throw new Error("Resize requires sizes input size to be same as input rank or axes size for opset 18 and up");if(t.axes.length>0){if(i.length!==0&&i.length!==t.axes.length)throw new Error('Resize requires "scales" input size to be of axes rank when axes attributes is specified');if(n.length!==0&&n.length!==t.axes.length)throw new Error('Resize requires "sizes" input size to be of rank axes rank when axes attributes is specified')}if(typeof i<"u"&&typeof n<"u"&&i.length>0&&n.length>d)throw new Error("Resize requires only of scales or sizes to be specified")},Nn=(e,t,r,i)=>`
+  // The whole part and the fractional part are calculated separately due to inaccuracy of floating
+  // point division. As an example, f32(21) / f32(7) may evaluate to 2.99... instead of 3, causing an
+  // offset-by-one error later in floor().
+  let big = (${e}) * (${t});
+  let whole = ${i}(big / (${r}));
+  let fract = ${i}(big % (${r})) / ${i}(${r});
+  return whole + fract;
+`,Gd=(e,t)=>`fn getOriginalCoordinateFromResizedCoordinate(xResized: u32, xScale: f32, lengthResized: u32,
+     lengthOriginal: u32, roiStart: f32, roiEnd: f32) -> ${t} { `+(()=>{switch(e){case"asymmetric":return`
+          if (xScale < 1.0 || floor(xScale) != xScale) {
+            return ${t}(xResized) / ${t}(xScale);
+          } else {
+            ${Nn("xResized","lengthOriginal","lengthResized",t)}
+          }
+        `;case"pytorch_half_pixel":return`if (lengthResized > 1) {
+                    return (${t}(xResized) + 0.5) / ${t}(xScale) - 0.5;
+                  } else {
+                    return 0.0;
+                  }`;case"tf_half_pixel_for_nn":return`return (${t}(xResized) + 0.5) / ${t}(xScale);`;case"align_corners":return`if (lengthResized == 1) {
+                    return 0.0;
+                  } else {
+                    ${Nn("xResized","lengthOriginal - 1","lengthResized - 1",t)}
+                  }`;case"tf_crop_and_resize":return`if (lengthResized > 1) {
+                    return ${t}(roiStart) * ${t}(lengthOriginal - 1) +
+                        (${t}(xResized) * ${t}(roiEnd - roiStart) * ${t}(lengthOriginal - 1)) /
+                        ${t}(lengthResized - 1);
+                  } else {
+                    return 0.5 * ${t}(roiStart + roiEnd) * ${t}(lengthOriginal - 1);
+                  }`;case"half_pixel_symmetric":return`const outputWidth = ${t}xScale * ${t}(lengthResized);
+                  const adjustment = ${t}(lengthResized) / outputWidth;
+                  const center = ${t}(lengthOriginal) / 2;
+                  const offset = center * (1 - adjustment);
+                  return offset + ((${t}(xResized) + 0.5) / ${t}(xScale)) - 0.5;`;case"half_pixel":return`return ((${t}(xResized) + 0.5) / ${t}(xScale)) - 0.5;`;default:throw new Error(`Coordinate transform mode ${e} is not supported`)}})()+"}",Fd=(e,t,r)=>`fn getNearestPixelFromOriginal(xOriginal: ${r}, isDownSample: bool) -> ${r} {`+(()=>{switch(e){case"round_prefer_ceil":return"if (fract(xOriginal) == 0.5) {             return ceil(xOriginal);           } else {             return round(xOriginal);           }";case"floor":return"return floor(xOriginal);";case"ceil":return"return ceil(xOriginal);";case"round_prefer_floor":return"if (fract(xOriginal) == 0.5) {                     return floor(xOriginal);                   } else {                     return round(xOriginal);                   }";default:if(t<11)return"if (isDownSample)                     {                       return ceil(xOriginal);                     } else {                       return xOriginal;                     }";throw new Error(`Nearest mode ${e} is not supported`)}})()+"}",Hd=(e,t,r)=>{let i=new Array(r).fill(0).concat(new Array(r).fill(1)),n=e.length===0?i:e.slice();return t.length>0?(t.forEach((a,s)=>{i[a]=n[s],i[s+r]=n[t.length+s]}),i):n},jd=(e,t,r,i)=>{let n=[];if(r.length>0)if(i.length>0){if(e.forEach(a=>n.push(a)),Math.max(...i)>e.length)throw new Error("axes is out of bound");i.forEach((a,s)=>n[a]=r[s])}else r.forEach(a=>n.push(a));else{if(t.length===0)throw new Error("Resize requires either scales or sizes.");n=e.map((a,s)=>Math.round(a*t[s]))}return n},Kd=(e,t,r)=>{let i=(()=>{switch(r.keepAspectRatioPolicy){case"not_larger":return r.axes.length>0?Math.min(...r.axes.map(a=>t[a]),Number.MAX_VALUE):Math.min(...t,Number.MAX_VALUE);case"not_smaller":return r.axes.length>0?Math.max(...r.axes.map(a=>t[a]),Number.MIN_VALUE):Math.max(...t,Number.MIN_VALUE);default:throw new Error(`Keep aspect ratio policy ${r.keepAspectRatioPolicy} is not supported`)}})();t.fill(1,0,t.length);let n=e.slice();return r.axes.length>0?(r.axes.forEach(a=>t[a]=i),r.axes.forEach(a=>n[a]=Math.round(e[a]*t[a]))):(t.fill(i,0,t.length),n.forEach((a,s)=>n[s]=Math.round(a*t[s]))),n},Xd=(e,t,r,i,n)=>`
+    fn calculateOriginalIndicesFromOutputIndices(output_indices: ${e.type.indices}) -> array<${e.type.value}, ${r.length}> {
+      var original_indices: array<${e.type.value}, ${r.length}>;
+      for (var i:u32 = 0; i < ${r.length}; i++) {
+        var output_index = ${e.indicesGet("output_indices","i")};
+        var scale = ${Z("uniforms.scales","i",i)};
+        var roi_low = ${Z("uniforms.roi","i",n)};
+        var roi_hi = ${Z("uniforms.roi",`i + ${t.length}`,n)};
+        if (scale == 1.0) {
+          original_indices[i] = ${e.type.value}(output_index);
+        } else {
+          var input_shape_i = ${Z("uniforms.input_shape","i",t.length)};
+          var output_shape_i = ${Z("uniforms.output_shape","i",r.length)};
+          original_indices[i] = getOriginalCoordinateFromResizedCoordinate(output_index, scale, output_shape_i,
+                                                                           input_shape_i, roi_low, roi_hi);
+        }
+      }
+      return original_indices;
+    }`,Zd=(e,t,r,i,n,a,s)=>`
+    fn calculateInputIndicesFromOutputIndices(output_indices: ${t.type.indices}) -> ${e.type.indices} {
+      var input_indices: ${e.type.indices};
+      for (var i:u32 = 0; i < ${i.length}; i++) {
+        var output_index = ${t.indicesGet("output_indices","i")};
+        var input_index: u32;
+        var scale = ${Z("uniforms.scales","i",n)};
+        if (scale == 1.0) {
+          input_index = output_index;
+        } else {
+          var roi_low = ${Z("uniforms.roi","i",a)};
+          var roi_hi = ${Z("uniforms.roi",`i + ${r.length}`,a)};
+          var input_shape_i = ${Z("uniforms.input_shape","i",r.length)};
+          var output_shape_i = ${Z("uniforms.output_shape","i",i.length)};
+          var original_idx = getOriginalCoordinateFromResizedCoordinate(output_index, scale, output_shape_i,
+                                                                        input_shape_i, roi_low, roi_hi);
+          if (!${s} || (original_idx >= 0 && original_idx < ${t.type.value}(input_shape_i))) {
+            if (original_idx < 0) {
+              input_index = 0;
+            } else if (original_idx > ${t.type.value}(input_shape_i - 1)) {
+              input_index = input_shape_i - 1;
+            } else {
+              input_index = u32(getNearestPixelFromOriginal(original_idx, scale < 1));
+            }
+          } else {
+            input_index = u32(original_idx);
+          }
+        }
+        ${e.indicesSet("input_indices","i","input_index")}
+      }
+      return input_indices;
+    }`,Qd=(e,t)=>`
+    fn checkInputIndices(input_indices: ${e.type.indices}) -> bool {
+      for (var i:u32 = 0; i < ${t.length}; i++) {
+        var input_index = ${e.indicesGet("input_indices","i")};
+        if (input_index < 0 || input_index >= ${Z("uniforms.input_shape","i",t.length)}) {
+          return false;
+        }
+      }
+      return true;
+    }`,Pn=(e,t,r,i)=>e.rank>i?`
+    ${e.indicesSet("input_indices",t,"channel")};
+    ${e.indicesSet("input_indices",r,"batch")};
+`:"",Yd=(e,t,r,i,n)=>{let[a,s,o,l]=r.length===2?[-1,0,1,-1]:[0,2,3,1],d=e.type.value;return`
+    fn getInputValue(batch: u32, channel: u32, row: u32, col: u32) -> ${d} {
+      var input_indices: ${e.type.indices};
+      ${e.indicesSet("input_indices",s,`max(0, min(row, ${r[s]} - 1))`)};
+      ${e.indicesSet("input_indices",o,`max(0, min(col, ${r[o]} - 1))`)};
+      ${Pn(e,l,a,2)}
+      return ${e.getByIndices("input_indices")};
+    }
+
+    fn bilinearInterpolation(output_indices: ${t.type.indices}) -> ${d} {
+      var originalIndices = calculateOriginalIndicesFromOutputIndices(output_indices);
+      var row:${d} = originalIndices[${s}];
+      var col:${d} = originalIndices[${o}];
+      ${i?`if (row < 0 || row > (${r[s]} - 1) || col < 0 || col > (${r[o]} - 1)) {
+        return ${n};
+      }`:""};
+      row = max(0, min(row, ${r[s]} - 1));
+      col = max(0, min(col, ${r[o]} - 1));
+      var row1: u32 = u32(row);
+      var col1: u32 = u32(col);
+      var row2: u32 = u32(row + 1);
+      var col2: u32 = u32(col + 1);
+      var channel: u32 = ${r.length>2?`u32(originalIndices[${l}])`:"0"};
+      var batch: u32 =  ${r.length>2?`u32(originalIndices[${a}])`:"0"};
+      var x11: ${d} = getInputValue(batch, channel, row1, col1);
+      var x12: ${d} = getInputValue(batch, channel, row1, col2);
+      var x21: ${d} = getInputValue(batch, channel, row2, col1);
+      var x22: ${d} = getInputValue(batch, channel, row2, col2);
+      var dx1: ${d} = abs(row - ${d}(row1));
+      var dx2: ${d} = abs(${d}(row2) - row);
+      var dy1: ${d} = abs(col - ${d}(col1));
+      var dy2: ${d} = abs(${d}(col2) - col);
+      if (row1 == row2) {
+        dx1 = 0.5;
+        dx2 = 0.5;
+      }
+      if (col1 == col2) {
+        dy1 = 0.5;
+        dy2 = 0.5;
+      }
+      return (x11 * dx2 * dy2 + x12 * dx2 * dy1 + x21 * dx1 * dy2 + x22 * dx1 * dy1);
+    }`},Jd=(e,t,r,i,n,a,s,o,l,d)=>{let c=r.length===2,h=!0,[m,y]=c?[0,1]:h?[2,3]:[1,2],_=e.type.value,w=S=>{let x=S===m?"row":"col";return`
+      fn ${x}CubicInterpolation(input_indices: ${e.type.indices}, output_indices: ${t.type.indices}) -> ${_} {
+        var output_index = ${t.indicesGet("output_indices",S)};
+        var originalIdx: ${_} = getOriginalCoordinateFromResizedCoordinate(output_index, ${n[S]},
+        ${i[S]}, ${r[S]}, ${a[S]}, ${a[S]} + ${r.length});
+        var fractOriginalIdx: ${_} = originalIdx - floor(originalIdx);
+        var coefs = getCubicInterpolationCoefs(fractOriginalIdx);
+
+        if (${o} && (originalIdx < 0 || originalIdx > (${r[S]} - 1))) {
+          return ${l};
+        }
+        var data: array<${_}, 4> = array<${_}, 4>(0.0, 0.0, 0.0, 0.0);
+        for (var i: i32 = -1; i < 3; i++) {
+          var ${x}: ${_} = originalIdx + ${_}(i);
+          if (${x} < 0 || ${x} >= ${r[S]}) {
+            ${d?`coefs[i + 1] = 0.0;
+                        continue;`:o?`return ${l};`:`${x} = max(0, min(${x}, ${r[S]} - 1));`};
+          }
+        var input_indices_copy: ${e.type.indices} = input_indices;
+          ${e.indicesSet("input_indices_copy",S,`u32(${x})`)};
+          data[i + 1] = ${S===m?e.getByIndices("input_indices_copy"):"rowCubicInterpolation(input_indices_copy, output_indices)"};
+        }
+        return cubicInterpolation1D(data, coefs);
+      }`};return`
+    ${w(m)};
+    ${w(y)};
+  fn getCubicInterpolationCoefs(s: ${_}) -> array<${_}, 4> {
+    var absS = abs(s);
+    var coeffs: array<${_}, 4> = array<${_}, 4>(0.0, 0.0, 0.0, 0.0);
+    var oneMinusAbsS: ${_} = 1.0 - absS;
+    var twoMinusAbsS: ${_} = 2.0 - absS;
+    var onePlusAbsS: ${_} = 1.0 + absS;
+    coeffs[0] = ((${s} * onePlusAbsS - 5 * ${s}) * onePlusAbsS + 8 * ${s}) * onePlusAbsS - 4 * ${s};
+    coeffs[1] = ((${s} + 2) * absS - (${s} + 3)) * absS * absS + 1;
+    coeffs[2] = ((${s} + 2) * oneMinusAbsS - (${s} + 3)) * oneMinusAbsS * oneMinusAbsS + 1;
+    coeffs[3] = ((${s} * twoMinusAbsS - 5 * ${s}) * twoMinusAbsS + 8 * ${s}) * twoMinusAbsS - 4 * ${s};
+    return coeffs;
+  }
+
+  fn cubicInterpolation1D(x: array<${_}, 4>, coefs: array<${_}, 4>) -> ${_} {
+    var coefsSum: ${_} = coefs[0] + coefs[1] + coefs[2] + coefs[3];
+    return (x[0] * coefs[0] + x[1] * coefs[1]+ x[2] * coefs[2]+ x[3] * coefs[3]) / coefsSum;
+  }
+
+  fn bicubicInterpolation(output_indices: ${t.type.indices}) -> ${_} {
+    var input_indices: ${e.type.indices} = output_indices;
+    return colCubicInterpolation(input_indices, output_indices);
+  }
+    `},ep=(e,t,r,i,n)=>{let[a,s,o,l,d]=r.length===3?[-1,0,1,2,-1]:[0,2,3,4,1],c=e.type.value;return`
+    fn getInputValue(batch: u32, channel: u32, depth:u32, height: u32, width: u32) -> ${c} {
+      var input_indices: ${e.type.indices};
+      ${e.indicesSet("input_indices",s,`max(0, min(depth, ${r[s]} - 1))`)};
+      ${e.indicesSet("input_indices",o,`max(0, min(height, ${r[o]} - 1))`)};
+      ${e.indicesSet("input_indices",l,`max(0, min(width, ${r[l]} - 1))`)};
+      ${Pn(e,d,a,3)}
+      return ${e.getByIndices("input_indices")};
+    }
+
+    fn trilinearInterpolation(output_indices: ${t.type.indices}) -> ${c} {
+      var originalIndices = calculateOriginalIndicesFromOutputIndices(output_indices);
+      var depth:${c} = originalIndices[${s}];
+      var height:${c} = originalIndices[${o}];
+      var width:${c} = originalIndices[${l}];
+      ${i?`if (depth < 0 || depth > (${r[s]} - 1) || height < 0 || height > (${r[o]} - 1) || width < 0 || (width > ${r[l]} - 1)) {
+      return ${n};
+        }`:""};
+
+    depth = max(0, min(depth, ${r[s]} - 1));
+      height = max(0, min(height, ${r[o]} - 1));
+      width = max(0, min(width, ${r[l]} - 1));
+      var depth1: u32 = u32(depth);
+      var height1: u32 = u32(height);
+      var width1: u32 = u32(width);
+      var depth2: u32 = u32(depth + 1);
+      var height2: u32 = u32(height + 1);
+      var width2: u32 = u32(width + 1);
+      var channel: u32 = ${r.length>3?`u32(originalIndices[${d}])`:"0"};
+      var batch: u32 =  ${r.length>3?`u32(originalIndices[${a}])`:"0"};
+
+      var x111: ${c} = getInputValue(batch, channel, depth1, height1, width1);
+      var x112: ${c} = getInputValue(batch, channel, depth1, height1, width2);
+      var x121: ${c} = getInputValue(batch, channel, depth1, height2, width1);
+      var x122: ${c} = getInputValue(batch, channel, depth1, height2, width2);
+      var x211: ${c} = getInputValue(batch, channel, depth2, height1, width1);
+      var x212: ${c} = getInputValue(batch, channel, depth2, height1, width2);
+      var x221: ${c} = getInputValue(batch, channel, depth2, height2, width1);
+      var x222: ${c} = getInputValue(batch, channel, depth2, height2, width2);
+      var dx1: ${c} = abs(depth - ${c}(depth1));
+      var dx2: ${c} = abs(${c}(depth2) - depth);
+      var dy1: ${c} = abs(height - ${c}(height1));
+      var dy2: ${c} = abs(${c}(height2) - height);
+      var dz1: ${c} = abs(width - ${c}(width1));
+      var dz2: ${c} = abs(${c}(width2) - width);
+      if (depth1 == depth2) {
+        dx1 = 0.5;
+        dx2 = 0.5;
+      }
+      if (height1 == height2) {
+        dy1 = 0.5;
+        dy2 = 0.5;
+      }
+      if (width1 == width2) {
+        dz1 = 0.5;
+        dz2 = 0.5;
+      }
+      return (x111 * dx2 * dy2 * dz2 + x112 * dx2 * dy2 * dz1 + x121 * dx2 * dy1 *dz2 + x122 * dx2 * dy1 * dz1 +
+              x211 * dx1 * dy2 * dz2 + x212 * dx1 * dy2 * dz1 + x221 * dx1 * dy1 *dz2 + x222 * dx1 * dy1 * dz1);
+    }`},tp=(e,t,r,i,n,a)=>{let s=e.dims,o=Hd(a,t.axes,s.length),l=jd(s,i,n,t.axes),d=i.slice();i.length===0&&(d=s.map((b,E)=>b===0?1:l[E]/b),t.keepAspectRatioPolicy!=="stretch"&&(l=Kd(s,d,t)));let c=K("output",e.dataType,l.length),h=M("input",e.dataType,s.length),m=R.size(l),y=s.length===l.length&&s.every((b,E)=>b===l[E]),_=t.coordinateTransformMode==="tf_crop_and_resize",w=t.extrapolationValue,S=h.type.value,x=b=>`
+      ${y?"":`
+      ${Gd(t.coordinateTransformMode,S)};
+      ${(()=>{switch(t.mode){case"nearest":return`
+              ${Qd(h,s)};
+              ${Fd(t.nearestMode,r,S)};
+              ${Zd(h,c,s,l,d.length,o.length,_)};
+              `;case"linear":return`
+              ${Xd(c,s,l,d.length,o.length)};
+              ${(()=>{if(s.length===2||s.length===4)return`${Yd(h,c,s,_,w)}`;if(s.length===3||s.length===5)return`${ep(h,c,s,_,w)}`;throw Error("Linear mode only supports input dims 2, 3, 4 and 5 are supported in linear mode.")})()};
+            `;case"cubic":return`
+            ${(()=>{if(s.length===2||s.length===4)return`${Jd(h,c,s,l,d,o,t.cubicCoeffA,_,t.extrapolationValue,t.excludeOutside)}`;throw Error("Cubic mode only supports input dims 2 and 4 are supported in linear mode.")})()};
+            `;default:throw Error("Invalid resize mode")}})()};
+      `}
+      ${b.registerUniform("output_size","u32").registerUniform("scales","f32",d.length).registerUniform("roi","f32",o.length).declareVariables(h,c)}
+      ${b.mainStart()}
+        ${b.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+        ${y?"output[global_idx] = input[global_idx];":`
+        let output_indices = ${c.offsetToIndices("global_idx")};
+        var input_indices: ${h.type.indices};
+        ${(()=>{switch(t.mode){case"nearest":return`input_indices = calculateInputIndicesFromOutputIndices(output_indices);
+                if (checkInputIndices(input_indices)) {
+                  output[global_idx] = ${h.getByIndices("input_indices")};
+                } else {
+                  output[global_idx] = ${t.extrapolationValue};
+                }`;case"linear":return`output[global_idx] = ${s.length===2||s.length===4?"bilinearInterpolation":"trilinearInterpolation"}(output_indices);`;case"cubic":return"output[global_idx] = bicubicInterpolation(output_indices);";default:throw Error(`Unsupported resize mode: ${t.mode}`)}})()};
+`}
+      }`;return{name:"Resize",shaderCache:{hint:`${t.cacheKey}|${r}|${d.length>0?t.mode==="cubic"?d:d.length:""}|${n.length>0?n:""}|${o.length>0?o:""}|${y}|${t.mode==="nearest"?s.length:s}`,inputDependencies:["rank"]},getShaderSource:x,getRunData:()=>({outputs:[{dims:l,dataType:e.dataType}],dispatchGroup:{x:Math.ceil(m/64)},programUniforms:[{type:12,data:m},{type:1,data:d},{type:1,data:o},...Y(s,l)]})}},rp=e=>{let t=e.customDataBuffer;return new Uint32Array(t.buffer,t.byteOffset,1)[0]},Bf=(e,t)=>{let r=[],i=[],n=[],a=rp(e);if(t.antialias!==0)throw Error("Only default value (0) for Antialias attribute is supported");Vd(e.inputs,t,a,r,i,n),e.compute(tp(e.inputs[0],t,a,r,i,n),{inputs:[0]})},Mf=e=>{let t=e.antialias,r=e.axes,i=e.coordinateTransformMode,n=e.cubicCoeffA,a=e.excludeOutside!==0,s=e.extrapolationValue,o=e.keepAspectRatioPolicy,l=e.mode,d=e.nearestMode===""?"simple":e.nearestMode;return me({antialias:t,axes:r,coordinateTransformMode:i,cubicCoeffA:n,excludeOutside:a,extrapolationValue:s,keepAspectRatioPolicy:o,mode:l,nearestMode:d})}}),ip,np,Df,uy=L(()=>{"use strict";re(),ne(),ae(),ip=e=>{if(!e||e.length<3)throw new Error("layerNorm requires at least 3 inputs.");let t=e[0],r=e[1],i=e[2];if(t.dataType!==r.dataType||t.dataType!==i.dataType)throw new Error("All inputs must have the same data type");if(t.dims.length!==3&&t.dims.length!==2)throw new Error("Input must be 2D or 3D");if(r.dims.length!==3&&r.dims.length!==2)throw new Error("Skip must be 2D or 3D");let n=t.dims[t.dims.length-1],a=t.dims[t.dims.length-2];if(r.dims[r.dims.length-1]!==n)throw new Error("Skip must have the same hidden size as input");if(r.dims[r.dims.length-2]!==a)throw new Error("Skip must have the same sequence length as input");if(i.dims.length!==1)throw new Error("Gamma must be 1D");if(i.dims[i.dims.length-1]!==n)throw new Error("Gamma must have the same hidden size as input");if(e.length>3){let s=e[3];if(s.dims.length!==1)throw new Error("Beta must be 1D");if(s.dims[s.dims.length-1]!==n)throw new Error("Beta must have the same hidden size as input")}if(e.length>4){let s=e[4];if(s.dims.length!==1)throw new Error("Bias must be 1D");if(s.dims[s.dims.length-1]!==n)throw new Error("Bias must have the same hidden size as input")}},np=(e,t,r,i)=>{let n=t.simplified,a=e[0].dims,s=R.size(a),o=a,l=s,d=a.slice(-1)[0],c=i?a.slice(0,-1).concat(1):[],h=!n&&e.length>3,m=e.length>4,y=i&&r>1,_=i&&r>2,w=r>3,S=64,x=Ee(d),b=[{type:12,data:l},{type:12,data:x},{type:12,data:d},{type:1,data:t.epsilon}],E=k=>{let C=[{name:"output_size",type:"u32"},{name:"components",type:"u32"},{name:"hidden_size",type:"u32"},{name:"epsilon",type:"f32"}],z=[M("x",e[0].dataType,e[0].dims,x),M("skip",e[1].dataType,e[1].dims,x),M("gamma",e[2].dataType,e[2].dims,x)];h&&z.push(M("beta",e[3].dataType,e[3].dims,x)),m&&z.push(M("bias",e[4].dataType,e[4].dims,x)),z.push(K("output",e[0].dataType,o,x)),y&&z.push(K("mean_output",1,c)),_&&z.push(K("inv_std_output",1,c)),w&&z.push(K("input_skip_bias_sum",e[0].dataType,o,x));let $=Ce(e[0].dataType),D=Ce(1,x);return`
+
+      ${k.registerUniforms(C).declareVariables(...z)}
+      var<workgroup> sum_shared : array<${D}, ${S}>;
+      var<workgroup> sum_squared_shared : array<${D}, ${S}>;
+
+      ${k.mainStart([S,1,1])}
+        let ix = local_id.x;
+        let iy = global_id.x / ${S};
+
+        let hidden_size_vectorized: u32 = uniforms.hidden_size / uniforms.components;
+        var stride = hidden_size_vectorized / ${S};
+        let offset = ix * stride + iy * hidden_size_vectorized;
+        let offset1d = stride * ix;
+        if (ix == ${S-1}) {
+          stride = hidden_size_vectorized - stride * ix;
+        }
+        for (var i: u32 = 0; i < stride; i++) {
+          let skip_value = skip[offset + i];
+          let bias_value = ${m?"bias[offset1d + i]":$+"(0.0)"};
+          let input_value = x[offset + i];
+          let value = input_value + skip_value + bias_value;
+          ${w?"input_skip_bias_sum[offset + i] = value;":""}
+          output[offset + i] = value;
+          let f32_value = ${Kt($,x,"value")};
+          sum_shared[ix] += f32_value;
+          sum_squared_shared[ix] += f32_value * f32_value;
+        }
+        workgroupBarrier();
+
+        var reduce_size : u32 = ${S};
+        for (var curr_size = reduce_size >> 1;  curr_size > 0; curr_size = reduce_size >> 1) {
+          reduce_size = curr_size + (reduce_size & 1);
+          if (ix < curr_size) {
+            sum_shared[ix] += sum_shared[ix + reduce_size];
+            sum_squared_shared[ix] += sum_squared_shared[ix + reduce_size];
+          }
+          workgroupBarrier();
+        }
+
+        let sum = sum_shared[0];
+        let square_sum = sum_squared_shared[0];
+        let mean = ${$t("sum",x)} / f32(uniforms.hidden_size);
+        let inv_std_dev = inverseSqrt(${$t("square_sum",x)} / f32(uniforms.hidden_size) ${n?"":"- mean * mean"} + uniforms.epsilon);
+        ${y?"mean_output[global_idx] = mean;":""}
+        ${_?"inv_std_output[global_idx] = inv_std_dev;":""}
+
+        for (var i: u32 = 0; i < stride; i++) {
+          output[offset + i] = (output[offset + i] ${n?"":`- ${$}(mean)`}) *
+            ${$}(inv_std_dev) * gamma[offset1d + i]
+            ${h?"+ beta[offset1d + i]":""};
+        }
+      }`},T=[{dims:o,dataType:e[0].dataType}];return r>1&&T.push({dims:c,dataType:1}),r>2&&T.push({dims:c,dataType:1}),r>3&&T.push({dims:a,dataType:e[0].dataType}),{name:"SkipLayerNormalization",shaderCache:{hint:`${x};${y};${_};${w}`,inputDependencies:e.map((k,C)=>"type")},getShaderSource:E,getRunData:()=>({outputs:T,dispatchGroup:{x:Math.ceil(l/d)},programUniforms:b})}},Df=(e,t)=>{ip(e.inputs);let r=[0];e.outputCount>1&&r.push(-3),e.outputCount>2&&r.push(-3),e.outputCount>3&&r.push(3),e.compute(np(e.inputs,t,e.outputCount,!1),{outputs:r})}}),ap,gr,sp,Ln,op,up,Nf,Pf,ly=L(()=>{"use strict";re(),ne(),Ie(),ae(),ap=(e,t)=>{if(!e||e.length<1)throw new Error("too few inputs");if(t.axes.length!==0){if(t.axes.length!==t.starts.length||t.axes.length!==t.ends.length)throw new Error("axes, starts and ends must have the same length")}else if(t.starts.length!==t.ends.length)throw new Error("starts and ends must have the same length");e.slice(1).forEach((r,i)=>{if(e[i+1].dataType!==6&&e[i+1].dataType!==7)throw new Error(`Input ${i} must be an array of int32 or int64`)})},gr=(e,t)=>{let r=[];if(e.length>t)if(e[t].dataType===7)e[t].getBigInt64Array().forEach(i=>r.push(Number(i)));else if(e[t].dataType===6)e[t].getInt32Array().forEach(i=>r.push(Number(i)));else throw new Error(`Input ${t} must be an array of int32 or int64`);return r},sp=(e,t)=>{if(e.length>1){let r=gr(e,1),i=gr(e,2),n=gr(e,3);return n.length===0&&(n=[...Array(e[0].dims.length).keys()]),me({starts:r,ends:i,axes:n})}else return t},Ln=(e,t,r,i,n)=>{let a=e;return e<0&&(a+=r[i[t]]),n[t]<0?Math.max(0,Math.min(a,r[i[t]]-1)):Math.max(0,Math.min(a,r[i[t]]))},op=(e,t,r)=>`fn calculateInputIndices(output_indices: ${t.type.indices}) -> ${e.type.indices} {
+          var input_indices: ${e.type.indices};
+          var carry = 0u;
+          for (var i = ${r.length-1}; i >= 0; i--) {
+            let input_shape_i = ${Z("uniforms.input_shape","i",r.length)};
+            let steps_i = ${Z("uniforms.steps","i",r.length)};
+            let signs_i = ${Z("uniforms.signs","i",r.length)};
+            let starts_i = ${Z("uniforms.starts","i",r.length)};
+            var output_index = ${t.indicesGet("output_indices","i")};
+            var input_index = output_index * steps_i + starts_i + carry;
+            carry = input_index / input_shape_i;
+            input_index = input_index % input_shape_i;
+            if (signs_i < 0) {
+              input_index = input_shape_i - input_index - 1u + starts_i;
+            }
+            ${e.indicesSet("input_indices","i","input_index")};
+          }
+          return input_indices;
+      }`,up=(e,t)=>{let r=e[0].dims,i=R.size(r),n=t.axes.length>0?R.normalizeAxes(t.axes,r.length):[...Array(r.length).keys()],a=gr(e,4);a.forEach(x=>x!==0||(()=>{throw new Error("step cannot be 0")})),a.length===0&&(a=Array(n.length).fill(1));let s=t.starts.map((x,b)=>Ln(x,b,r,n,a)),o=t.ends.map((x,b)=>Ln(x,b,r,n,a));if(n.length!==s.length||n.length!==o.length)throw new Error("start, ends and axes should have the same number of elements");if(n.length!==r.length)for(let x=0;x<r.length;++x)n.includes(x)||(s.splice(x,0,0),o.splice(x,0,r[x]),a.splice(x,0,1));let l=a.map(x=>Math.sign(x));a.forEach((x,b,E)=>{if(x<0){let T=(o[b]-s[b])/x,k=s[b],C=k+T*a[b];s[b]=C,o[b]=k,E[b]=-x}});let d=r.slice(0);n.forEach((x,b)=>{d[x]=Math.ceil((o[x]-s[x])/a[x])});let c={dims:d,dataType:e[0].dataType},h=K("output",e[0].dataType,d.length),m=M("input",e[0].dataType,e[0].dims.length),y=R.size(d),_=[{name:"outputSize",type:"u32"},{name:"starts",type:"u32",length:s.length},{name:"signs",type:"i32",length:l.length},{name:"steps",type:"u32",length:a.length}],w=[{type:12,data:y},{type:12,data:s},{type:6,data:l},{type:12,data:a},...Y(e[0].dims,d)],S=x=>`
+      ${x.registerUniforms(_).declareVariables(m,h)}
+        ${op(m,h,r)}
+        ${x.mainStart()}
+          ${x.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+          let output_indices = ${h.offsetToIndices("global_idx")};
+          let input_indices = calculateInputIndices(output_indices);
+          ${h.setByOffset("global_idx",m.getByIndices("input_indices"))}
+      }`;return{name:"Slice",shaderCache:{hint:`${l.length}_${s.length}_${a.length}`,inputDependencies:["rank"]},getShaderSource:S,getRunData:()=>({outputs:[c],dispatchGroup:{x:Math.ceil(i/64)},programUniforms:w})}},Nf=(e,t)=>{ap(e.inputs,t);let r=sp(e.inputs,t);e.compute(up(e.inputs,r),{inputs:[0]})},Pf=e=>{let t=e.starts,r=e.ends,i=e.axes;return me({starts:t,ends:r,axes:i})}}),lp,dp,Lf,Uf,dy=L(()=>{"use strict";re(),ne(),Ie(),vt(),ae(),lp=e=>{if(!e||e.length!==1)throw new Error("Softmax op requires 1 input.")},dp=(e,t)=>{let r=e.inputs[0],i=r.dims,n=R.size(i),a=i.length,s=R.normalizeAxis(t.axis,a),o=s<i.length-1,l,d=[];o?(d=Array.from({length:a},(z,$)=>$),d[s]=a-1,d[a-1]=s,l=e.compute(Le(r,d),{inputs:[r],outputs:[-1]})[0]):l=r;let c=l.dims,h=c[a-1],m=n/h,y=Ee(h),_=h/y,w=64;m===1&&(w=256);let S=(z,$)=>$===4?`max(max(${z}.x, ${z}.y), max(${z}.z, ${z}.w))`:$===2?`max(${z}.x, ${z}.y)`:$===3?`max(max(${z}.x, ${z}.y), ${z}.z)`:z,x=M("x",l.dataType,l.dims,y),b=K("result",l.dataType,l.dims,y),E=x.type.value,T=Ce(l.dataType)==="f32"?`var threadMax = ${E}(-3.4028234663852886e+38f);`:`var threadMax = ${E}(-65504.0h);`,k=z=>`
+      var<workgroup> rowMaxShared : ${E};
+      var<workgroup> rowSumShared : ${E};
+      var<workgroup> threadShared : array<${E}, ${w}>;
+
+      fn getValue(row: i32, col: i32, row_stride: i32) -> ${E} {
+        let index = row * row_stride + col;
+        return x[index];
+      }
+
+      fn setValue(row: i32, col: i32, row_stride: i32, value: ${E}) {
+        let index = row * row_stride + col;
+        result[index] = value;
+      }
+      ${z.registerUniform("packedCols","i32").declareVariables(x,b)}
+      ${z.mainStart(w)}
+        let gindex = i32(global_idx);
+        let lindex = i32(local_idx);
+        const wg = ${w};
+        let row = gindex / wg;
+        let cols = uniforms.packedCols;
+        let row_stride : i32 = uniforms.packedCols;
+
+        // find the rows max
+        ${T}
+        for (var col = lindex; col < cols; col += wg) {
+          let value = getValue(row, col, row_stride);
+          threadMax = max(threadMax, value);
+        }
+        if (lindex < cols) {
+          threadShared[lindex] = threadMax;
+        }
+        workgroupBarrier();
+
+        var reduceSize = min(cols, wg);
+        for (var currSize = reduceSize >> 1;  currSize > 0; currSize = reduceSize >> 1) {
+          reduceSize = currSize + (reduceSize & 1);
+          if (lindex < currSize) {
+            threadShared[lindex] = max(threadShared[lindex], threadShared[lindex + reduceSize]);
+          }
+          workgroupBarrier();
+        }
+        if (lindex == 0) {
+          rowMaxShared = ${E}(${S("threadShared[0]",y)});
+        }
+        workgroupBarrier();
+
+        // find the rows sum
+        var threadSum = ${E}(0.0);
+        for (var col = lindex; col < cols; col += wg) {
+          let subExp = exp(getValue(row, col, row_stride) - rowMaxShared);
+          threadSum += subExp;
+        }
+        threadShared[lindex] = threadSum;
+        workgroupBarrier();
+
+        for (var currSize = wg >> 1;  currSize > 0; currSize = currSize >> 1) {
+          if (lindex < currSize) {
+            threadShared[lindex] = threadShared[lindex] + threadShared[lindex + currSize];
+          }
+          workgroupBarrier();
+        }
+        if (lindex == 0) {
+          rowSumShared = ${E}(${$t("threadShared[0]",y)});
+        }
+        workgroupBarrier();
+
+        // calculate final value for each element in the row
+        for (var col = lindex; col < cols; col += wg) {
+          var value = exp(getValue(row, col, row_stride) - rowMaxShared) / rowSumShared;
+          // max operation protects against NaN since all values should be >=0
+          value = max(value, ${E}(0.0));
+          setValue(row, col, row_stride, value);
+        }
+      }`,C=e.compute({name:"Softmax",shaderCache:{hint:`${y};${w}`,inputDependencies:["type"]},getRunData:()=>({outputs:[{dims:c,dataType:l.dataType}],dispatchGroup:{x:m},programUniforms:[{type:6,data:_}]}),getShaderSource:k},{inputs:[l],outputs:[o?-1:0]})[0];o&&e.compute(Le(C,d),{inputs:[C]})},Lf=(e,t)=>{lp(e.inputs),dp(e,t)},Uf=e=>me({axis:e.axis})}),Un,pp,cp,hp,Wf,py=L(()=>{"use strict";re(),ne(),ae(),Un=e=>Array.from(e.getBigInt64Array(),Number),pp=e=>{if(!e||e.length!==2)throw new Error("Tile requires 2 inputs.");if(e[0].dataType!==1&&e[0].dataType!==10&&e[0].dataType!==6&&e[0].dataType!==12)throw new Error("Tile only support float, float16, int32, and uint32 data types");if(e[1].dataType!==7)throw new Error("Tile `repeats` input should be of int64 data type");if(e[1].dims.length!==1)throw new Error("Tile `repeats` input should be 1-D");if(Un(e[1]).length!==e[0].dims.length)throw new Error("Tile `repeats` input should have same number of elements as rank of input data tensor")},cp=(e,t)=>{let r=[];for(let i=0;i<e.length;++i)r.push(e[i]*t[i]);return r},hp=(e,t)=>{let r=e[0].dims,i=t??Un(e[1]),n=cp(r,i),a=R.size(n),s=e[0].dataType,o=M("input",s,r.length),l=K("output",s,n.length),d=c=>`
+      const inputShape = ${o.indices(...r)};
+      ${c.registerUniform("output_size","u32").declareVariables(o,l)}
+      ${c.mainStart()}
+      ${c.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+      let output_indices = ${l.offsetToIndices("global_idx")};
+      var input_indices: ${o.type.indices};
+      for (var i = 0; i < ${r.length}; i++) {
+        let input_dim_i = ${o.indicesGet("uniforms.input_shape","i")};
+        let input_dim_value = ${l.indicesGet("output_indices","i")}  % input_dim_i;
+
+        ${o.indicesSet("input_indices","i","input_dim_value")}
+      }
+      ${l.setByOffset("global_idx",o.getByIndices("input_indices"))}
+    }`;return{name:"Tile",shaderCache:{hint:`${i}`,inputDependencies:["rank"]},getRunData:()=>({outputs:[{dims:n,dataType:e[0].dataType}],dispatchGroup:{x:Math.ceil(a/64)},programUniforms:[{type:12,data:a},...Y(e[0].dims,n)]}),getShaderSource:d}},Wf=e=>{pp(e.inputs),e.compute(hp(e.inputs),{inputs:[0]})}}),fp,mp,qf,cy=L(()=>{"use strict";re(),ne(),ae(),fp=(e,t,r,i,n)=>{let a=K("output_data",n,r.length,4),s=M("a_data",t[1].dataType,t[1].dims.length,4),o=M("b_data",t[2].dataType,t[2].dims.length,4),l=M("c_data",t[0].dataType,t[0].dims.length,4),d,c=(h,m,y)=>`select(${m}, ${h}, ${y})`;if(!i)d=a.setByOffset("global_idx",c(s.getByOffset("global_idx"),o.getByOffset("global_idx"),l.getByOffset("global_idx")));else{let h=(m,y,_="")=>{let w=`a_data[index_a${y}][component_a${y}]`,S=`b_data[index_b${y}][component_b${y}]`,x=`bool(c_data[index_c${y}] & (0xffu << (component_c${y} * 8)))`;return`
+            let output_indices${y} = ${a.offsetToIndices(`global_idx * 4u + ${y}u`)};
+            let offset_a${y} = ${s.broadcastedIndicesToOffset(`output_indices${y}`,a)};
+            let offset_b${y} = ${o.broadcastedIndicesToOffset(`output_indices${y}`,a)};
+            let offset_c${y} = ${l.broadcastedIndicesToOffset(`output_indices${y}`,a)};
+            let index_a${y} = offset_a${y} / 4u;
+            let index_b${y} = offset_b${y} / 4u;
+            let index_c${y} = offset_c${y} / 4u;
+            let component_a${y} = offset_a${y} % 4u;
+            let component_b${y} = offset_b${y} % 4u;
+            let component_c${y} = offset_c${y} % 4u;
+            ${m}[${y}] = ${_}(${c(w,S,x)});
+          `};n===9?d=`
+            var data = vec4<u32>(0);
+            ${h("data",0,"u32")}
+            ${h("data",1,"u32")}
+            ${h("data",2,"u32")}
+            ${h("data",3,"u32")}
+            output_data[global_idx] = dot(vec4<u32>(0x1, 0x100, 0x10000, 0x1000000), vec4<u32>(data));`:d=`
+            ${h("output_data[global_idx]",0)}
+            ${h("output_data[global_idx]",1)}
+            ${h("output_data[global_idx]",2)}
+            ${h("output_data[global_idx]",3)}
+          `}return`
+        ${e.registerUniform("vec_size","u32").declareVariables(l,s,o,a)}
+        ${e.mainStart()}
+        ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+        ${d}
+      }`},mp=e=>{let t=e[1].dims,r=e[2].dims,i=e[0].dims,n=e[1].dataType,a=!(R.areEqual(t,r)&&R.areEqual(r,i)),s=t,o=R.size(t);if(a){let d=Xt.calcShape(Xt.calcShape(t,r,!1),i,!1);if(!d)throw new Error("Can't perform where op on the given tensors");s=d,o=R.size(s)}let l=Math.ceil(o/4);return{name:"Where",shaderCache:{inputDependencies:["rank","rank","rank"]},getShaderSource:d=>fp(d,e,s,a,n),getRunData:()=>({outputs:[{dims:s,dataType:n}],dispatchGroup:{x:Math.ceil(o/64/4)},programUniforms:[{type:12,data:l},...Y(i,t,r,s)]})}},qf=e=>{e.compute(mp(e.inputs))}}),Vf,hy=L(()=>{"use strict";I_(),va(),k_(),C_(),z_(),O_(),A_(),N_(),L_(),U_(),W_(),q_(),V_(),G_(),F_(),H_(),j_(),K_(),X_(),Z_(),Q_(),Y_(),J_(),ey(),ty(),uf(),ry(),iy(),ny(),ay(),sy(),$a(),oy(),hf(),uy(),ly(),dy(),pf(),py(),vt(),xa(),cy(),Vf=new Map([["Abs",[Mc]],["Acos",[Dc]],["Acosh",[Nc]],["Add",[_h]],["ArgMax",[Oc,Qn]],["ArgMin",[zc,Qn]],["Asin",[Pc]],["Asinh",[Lc]],["Atan",[Uc]],["Atanh",[Wc]],["Attention",[Ac]],["AveragePool",[vf,$f]],["BatchNormalization",[Rc]],["BiasAdd",[Bc]],["BiasSplitGelu",[gh]],["Cast",[Vc,qc]],["Ceil",[Fc]],["Clip",[Gc]],["Concat",[Ih,kh]],["Conv",[ia,ra]],["ConvTranspose",[Ph,Nh]],["Cos",[Hc]],["Cosh",[jc]],["CumSum",[Lh,Uh]],["DepthToSpace",[Wh,qh]],["DequantizeLinear",[Cf,zf]],["Div",[yh]],["Einsum",[Vh,Gh]],["Elu",[Kc,$r]],["Equal",[bh]],["Erf",[Xc]],["Exp",[Zc]],["Expand",[Fh]],["FastGelu",[Hh]],["Floor",[Qc]],["FusedConv",[ia,ra]],["Gather",[Kh,jh]],["GatherElements",[ef,Jh]],["GatherBlockQuantized",[Qh,Yh]],["GatherND",[Xh,Zh]],["Gelu",[Yc]],["Gemm",[rf,tf]],["GlobalAveragePool",[Sf,xf]],["GlobalMaxPool",[kf,If]],["Greater",[xh]],["GreaterOrEqual",[Th]],["GridSample",[nf,af]],["GroupQueryAttention",[ff]],["HardSigmoid",[sh,ah]],["InstanceNormalization",[mf]],["LayerNormalization",[gf]],["LeakyRelu",[Jc,$r]],["Less",[Sh]],["LessOrEqual",[Eh]],["Log",[fh]],["MatMul",[_f]],["MatMulNBits",[yf,bf]],["MaxPool",[Tf,Ef]],["Mul",[wh]],["MultiHeadAttention",[of,sf]],["Neg",[th]],["Not",[eh]],["Pad",[wf]],["Pow",[$h]],["QuickGelu",[mh,$r]],["Range",[Of]],["Reciprocal",[rh]],["ReduceMin",[Tc]],["ReduceMean",[wc]],["ReduceMax",[Sc]],["ReduceSum",[Ic]],["ReduceProd",[Ec]],["ReduceL1",[$c]],["ReduceL2",[vc]],["ReduceLogSum",[Cc]],["ReduceLogSumExp",[xc]],["ReduceSumSquare",[kc]],["Relu",[ih]],["Resize",[Bf,Mf]],["RotaryEmbedding",[cf]],["ScatterND",[Rf,Af]],["Sigmoid",[nh]],["Sin",[oh]],["Sinh",[uh]],["Slice",[Nf,Pf]],["SkipLayerNormalization",[Df]],["Split",[lf,df]],["Sqrt",[lh]],["Softmax",[Lf,Uf]],["Sub",[vh]],["Tan",[dh]],["Tanh",[ph]],["ThresholdedRelu",[hh,$r]],["Tile",[Wf]],["Transpose",[uc,lc]],["Where",[qf]]])}),Gf,fy=L(()=>{"use strict";Ge(),lt(),ae(),Gf=class{constructor(e){this.backend=e,this.repo=new Map,this.attributesBound=!1}getArtifact(e){return this.repo.get(e)}setArtifact(e,t){this.repo.set(e,t)}run(e,t,r,i,n){et(e.programInfo.name);let a=this.backend.device,s=this.backend.getComputePassEncoder();this.backend.writeTimestamp(this.backend.pendingDispatchNumber*2);let o=[];for(let d of t)o.push({binding:o.length,resource:{buffer:d.buffer}});for(let d of r)o.push({binding:o.length,resource:{buffer:d.buffer}});n&&o.push({binding:o.length,resource:n});let l=a.createBindGroup({layout:e.computePipeline.getBindGroupLayout(0),entries:o,label:e.programInfo.name});if(this.backend.sessionStatus==="capturing"){let d={kernelId:this.backend.currentKernelId,computePipeline:e.computePipeline,bindGroup:l,dispatchGroup:i};this.backend.capturedCommandList.get(this.backend.currentSessionId).push(d)}s.setPipeline(e.computePipeline),s.setBindGroup(0,l),s.dispatchWorkgroups(...i),this.backend.writeTimestamp(this.backend.pendingDispatchNumber*2+1),this.backend.pendingDispatchNumber++,(this.backend.pendingDispatchNumber>=this.backend.maxDispatchNumber||this.backend.queryType==="at-passes")&&this.backend.endComputePass(),this.backend.pendingDispatchNumber>=this.backend.maxDispatchNumber&&this.backend.flush(),Ve(e.programInfo.name)}dispose(){}build(e,t){et(e.name);let r=this.backend.device,i=[];[{feature:"shader-f16",extension:"f16"},{feature:"subgroups",extension:"subgroups"}].forEach(d=>{r.features.has(d.feature)&&i.push(`enable ${d.extension};`)});let n=oc(t,this.backend.device.limits),a=e.getShaderSource(n),s=`${i.join(`
+`)}
+${n.additionalImplementations}
+${a}`,o=r.createShaderModule({code:s,label:e.name});pe("verbose",()=>`[WebGPU] ${e.name} shader code: ${s}`);let l=r.createComputePipeline({compute:{module:o,entryPoint:"main"},layout:"auto",label:e.name});return Ve(e.name),{programInfo:e,computePipeline:l,uniformVariablesInfo:n.variablesInfo}}normalizeDispatchGroupSize(e){let t=typeof e=="number"?e:e.x,r=typeof e=="number"?1:e.y||1,i=typeof e=="number"?1:e.z||1,n=this.backend.device.limits.maxComputeWorkgroupsPerDimension;if(t<=n&&r<=n&&i<=n)return[t,r,i];let a=t*r*i,s=Math.ceil(Math.sqrt(a));if(s>n){if(s=Math.ceil(Math.cbrt(a)),s>n)throw new Error("Total dispatch size exceeds WebGPU maximum.");return[s,s,s]}else return[s,s,1]}}}),Ff={};Qt(Ff,{WebGpuBackend:()=>Hf});var gp,_p,yp,Hf,my=L(()=>{"use strict";Ge(),re(),lt(),rc(),T_(),hy(),fy(),gp=(e,t)=>{if(t.length!==e.length)throw new Error(`inputDependencies length ${t.length} is not equal to inputTensors length ${e.length}.`);let r=[];for(let i=0;i<e.length;++i){let n=e[i].dataType;switch(t[i]){case"none":{r.push("");break}case"type":{r.push(`${n}`);break}case"rank":{let a=e[i].dims.length;r.push(`${n};${a}`);break}case"dims":{let a=e[i].dims.join(",");r.push(`${n};${a}`);break}default:throw new Error(`unsupported input dependency: ${t[i]}`)}}return r.join("|")},_p=(e,t,r)=>{let i=e.name;return e.shaderCache?.hint&&(i+="["+e.shaderCache.hint+"]"),i+=":"+r+`:${gp(t,e.shaderCache?.inputDependencies??new Array(t.length).fill("dims"))}`,i},yp=class{constructor(e){e&&(this.architecture=e.architecture,this.vendor=e.vendor)}isArchitecture(e){return this.architecture===e}isVendor(e){return this.vendor===e}},Hf=class{constructor(){this.currentSessionId=null,this.currentKernelId=null,this.commandEncoder=null,this.computePassEncoder=null,this.maxDispatchNumber=16,this.pendingDispatchNumber=0,this.pendingKernels=[],this.pendingQueries=new Map,this.sessionStatus="default",this.capturedCommandList=new Map,this.capturedPendingKernels=new Map,this.sessionExternalDataMapping=new Map}get currentKernelCustomData(){if(this.currentKernelId===null)throw new Error("currentKernelCustomData(): currentKernelId is null. (should not happen)");let e=this.kernelCustomData.get(this.currentKernelId);return e||(e={},this.kernelCustomData.set(this.currentKernelId,e)),e}async initialize(e,t){this.env=e;let r=[],i={requiredLimits:{maxComputeWorkgroupStorageSize:t.limits.maxComputeWorkgroupStorageSize,maxComputeWorkgroupsPerDimension:t.limits.maxComputeWorkgroupsPerDimension,maxStorageBufferBindingSize:t.limits.maxStorageBufferBindingSize,maxBufferSize:t.limits.maxBufferSize,maxComputeInvocationsPerWorkgroup:t.limits.maxComputeInvocationsPerWorkgroup,maxComputeWorkgroupSizeX:t.limits.maxComputeWorkgroupSizeX,maxComputeWorkgroupSizeY:t.limits.maxComputeWorkgroupSizeY,maxComputeWorkgroupSizeZ:t.limits.maxComputeWorkgroupSizeZ},requiredFeatures:r},n=o=>t.features.has(o)&&r.push(o)&&!0;n("chromium-experimental-timestamp-query-inside-passes")||n("timestamp-query"),n("shader-f16"),n("subgroups"),this.device=await t.requestDevice(i);let a=t,s=t.info??(typeof a.requestAdapterInfo=="function"?await a.requestAdapterInfo():void 0);this.adapterInfo=new yp(s),this.gpuDataManager=ac(this),this.programManager=new Gf(this),this.kernels=new Map,this.kernelPersistentData=new Map,this.kernelCustomData=new Map,_a(e.logLevel,!!e.debug),this.device.onuncapturederror=o=>{o.error instanceof GPUValidationError&&console.error(`An uncaught WebGPU validation error was raised: ${o.error.message}`)},Object.defineProperty(this.env.webgpu,"device",{value:this.device,writable:!1,enumerable:!0,configurable:!0}),Object.defineProperty(this.env.webgpu,"adapter",{value:t,writable:!1,enumerable:!0,configurable:!1}),this.setQueryType()}dispose(){typeof this.querySet<"u"&&this.querySet.destroy(),this.gpuDataManager.dispose(),this.device&&this.env?.webgpu&&this.device.lost.then(()=>{delete this.env.webgpu.device})}getCommandEncoder(){return this.commandEncoder||(this.commandEncoder=this.device.createCommandEncoder()),this.commandEncoder}getComputePassEncoder(){if(!this.computePassEncoder){let e=this.getCommandEncoder(),t={};this.queryType==="at-passes"&&(t.timestampWrites={querySet:this.querySet,beginningOfPassWriteIndex:this.pendingDispatchNumber*2,endOfPassWriteIndex:this.pendingDispatchNumber*2+1}),this.computePassEncoder=e.beginComputePass(t)}return this.computePassEncoder}endComputePass(){this.computePassEncoder&&(this.computePassEncoder.end(),this.computePassEncoder=null)}flush(){if(!this.commandEncoder)return;et(),this.endComputePass();let e;this.queryType!=="none"&&(this.commandEncoder.resolveQuerySet(this.querySet,0,this.pendingDispatchNumber*2,this.queryResolveBuffer,0),e=this.device.createBuffer({size:this.pendingDispatchNumber*2*8,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),this.pendingQueries.set(e,this.pendingKernels),this.pendingKernels=[],this.commandEncoder.copyBufferToBuffer(this.queryResolveBuffer,0,e,0,this.pendingDispatchNumber*2*8)),this.device.queue.submit([this.commandEncoder.finish()]),this.gpuDataManager.refreshPendingBuffers(),this.commandEncoder=null,this.pendingDispatchNumber=0,this.queryType!=="none"&&e.mapAsync(GPUMapMode.READ).then(()=>{let t=new BigUint64Array(e.getMappedRange()),r=this.pendingQueries.get(e);for(let i=0;i<t.length/2;i++){let n=r[i],a=n.kernelId,s=this.kernels.get(a),o=s.kernelType,l=s.kernelName,d=n.programName,c=n.inputTensorViews,h=n.outputTensorViews,m=t[i*2],y=t[i*2+1];typeof this.queryTimeBase>"u"&&(this.queryTimeBase=m);let _=Number(m-this.queryTimeBase),w=Number(y-this.queryTimeBase);if(!Number.isSafeInteger(_)||!Number.isSafeInteger(w))throw new RangeError("incorrect timestamp range");if(this.env.webgpu.profiling?.ondata)this.env.webgpu.profiling.ondata({version:1,inputsMetadata:c.map(S=>({dims:S.dims,dataType:ut(S.dataType)})),outputsMetadata:h.map(S=>({dims:S.dims,dataType:ut(S.dataType)})),kernelId:a,kernelType:o,kernelName:l,programName:d,startTime:_,endTime:w});else{let S="";c.forEach((b,E)=>{S+=`input[${E}]: [${b.dims}] | ${ut(b.dataType)}, `});let x="";h.forEach((b,E)=>{x+=`output[${E}]: [${b.dims}] | ${ut(b.dataType)}, `}),console.log(`[profiling] kernel "${a}|${o}|${l}|${d}" ${S}${x}start time: ${_} ns, execution time: ${w-_} ns`)}Tr("GPU",`${d}::${m}::${y}`)}e.unmap(),this.pendingQueries.delete(e)}),Ve()}run(e,t,r,i,n,a){et(e.name);let s=[];for(let b=0;b<t.length;++b){let E=t[b].data;if(E===0)continue;let T=this.gpuDataManager.get(E);if(!T)throw new Error(`no GPU data for input: ${E}`);s.push(T)}let{outputs:o,dispatchGroup:l,programUniforms:d}=e.getRunData(t),c=r.length===0?o.map((b,E)=>E):r;if(c.length!==o.length)throw new Error(`Output size ${c.length} must be equal to ${o.length}.`);let h=[],m=[];for(let b=0;b<o.length;++b){if(!Number.isInteger(c[b])||c[b]<-3||c[b]>=a)throw new Error(`Invalid output index: ${c[b]}`);if(c[b]===-3)continue;let E=c[b]===-1,T=c[b]===-2,k=E||T?n(o[b].dataType,o[b].dims):i(c[b],o[b].dataType,o[b].dims);if(h.push(k),k.data===0)continue;let C=this.gpuDataManager.get(k.data);if(!C)throw new Error(`no GPU data for output: ${k.data}`);if(E&&this.temporaryData.push(C),T){let z=this.kernelPersistentData.get(this.currentKernelId);z||(z=[],this.kernelPersistentData.set(this.currentKernelId,z)),z.push(C)}m.push(C)}if(s.length!==t.length||m.length!==h.length){if(m.length===0)return Ve(e.name),h;throw new Error(`Program ${e.name} has zero-sized tensor(s) in inputs or outputs. This is not supported now.`)}let y;if(d){let b=0,E=[];d.forEach(z=>{let $=typeof z.data=="number"?[z.data]:z.data;if($.length===0)return;let D=z.type===10?2:4,W,F;z.type===10?(F=$.length>4?16:$.length>2?8:$.length*D,W=$.length>4?16:D*$.length):(F=$.length<=2?$.length*D:16,W=16),b=Math.ceil(b/F)*F,E.push(b);let V=z.type===10?8:4;b+=$.length>4?Math.ceil($.length/V)*W:$.length*D});let T=16;b=Math.ceil(b/T)*T;let k=new ArrayBuffer(b);d.forEach((z,$)=>{let D=E[$],W=typeof z.data=="number"?[z.data]:z.data;if(z.type===6)new Int32Array(k,D,W.length).set(W);else if(z.type===12)new Uint32Array(k,D,W.length).set(W);else if(z.type===10)new Uint16Array(k,D,W.length).set(W);else if(z.type===1)new Float32Array(k,D,W.length).set(W);else throw new Error(`Unsupported uniform type: ${ut(z.type)}`)});let C=this.gpuDataManager.create(b,GPUBufferUsage.COPY_DST|GPUBufferUsage.UNIFORM);this.device.queue.writeBuffer(C.buffer,0,k,0,b),this.gpuDataManager.release(C.id),y={offset:0,size:b,buffer:C.buffer}}let _=this.programManager.normalizeDispatchGroupSize(l),w=_[1]===1&&_[2]===1,S=_p(e,t,w),x=this.programManager.getArtifact(S);if(x||(x=this.programManager.build(e,_),this.programManager.setArtifact(S,x),pe("info",()=>`[artifact] key: ${S}, programName: ${e.name}`)),d&&x.uniformVariablesInfo){if(d.length!==x.uniformVariablesInfo.length)throw new Error(`Uniform variables count mismatch: expect ${x.uniformVariablesInfo.length}, got ${d.length} in program "${x.programInfo.name}".`);for(let b=0;b<d.length;b++){let E=d[b],T=E.type,k=typeof E.data=="number"?1:E.data.length,[C,z]=x.uniformVariablesInfo[b];if(T!==C||k!==z)throw new Error(`Uniform variable ${b} mismatch: expect type ${C} with size ${z}, got type ${T} with size ${k} in program "${x.programInfo.name}".`)}}if(pe("info",()=>`[ProgramManager] run "${e.name}" (key=${S}) with ${_[0]}x${_[1]}x${_[2]}`),this.queryType!=="none"||this.sessionStatus==="capturing"){let b={kernelId:this.currentKernelId,programName:x.programInfo.name,inputTensorViews:t,outputTensorViews:h};this.pendingKernels.push(b),this.sessionStatus==="capturing"&&this.capturedPendingKernels.get(this.currentSessionId).push(b)}return this.programManager.run(x,s,m,_,y),Ve(e.name),h}upload(e,t){this.gpuDataManager.upload(e,t)}memcpy(e,t){this.gpuDataManager.memcpy(e,t)}async download(e,t){await this.gpuDataManager.download(e,t)}alloc(e){return this.gpuDataManager.create(e).id}free(e){return this.gpuDataManager.release(e)}createKernel(e,t,r,i){let n=Vf.get(e);if(!n)throw new Error(`kernel not implemented: ${e}`);let a={kernelType:e,kernelName:i,kernelEntry:n[0],attributes:[n[1],r]};this.kernels.set(t,a)}releaseKernel(e){let t=this.kernelPersistentData.get(e);if(t){for(let r of t)this.gpuDataManager.release(r.id);this.kernelPersistentData.delete(e)}this.kernelCustomData.delete(e),this.kernels.delete(e)}computeKernel(e,t,r){let i=this.kernels.get(e);if(!i)throw new Error(`kernel not created: ${e}`);let n=i.kernelType,a=i.kernelName,s=i.kernelEntry,o=i.attributes;if(this.currentKernelId!==null)throw new Error(`kernel "[${n}] ${a}" is not allowed to be called recursively`);this.currentKernelId=e,o[0]&&(o[1]=o[0](o[1]),o[0]=void 0),pe("info",()=>`[WebGPU] Start to run kernel "[${n}] ${a}"...`);let l=this.env.debug;this.temporaryData=[];try{return l&&this.device.pushErrorScope("validation"),s(t,o[1]),0}catch(d){return r.push(Promise.resolve(`[WebGPU] Kernel "[${n}] ${a}" failed. ${d}`)),1}finally{l&&r.push(this.device.popErrorScope().then(d=>d?`GPU validation error for kernel "[${n}] ${a}": ${d.message}`:null));for(let d of this.temporaryData)this.gpuDataManager.release(d.id);this.temporaryData=[],this.currentKernelId=null}}registerBuffer(e,t,r,i){let n=this.sessionExternalDataMapping.get(e);n||(n=new Map,this.sessionExternalDataMapping.set(e,n));let a=n.get(t),s=this.gpuDataManager.registerExternalBuffer(r,i,a);return n.set(t,[s,r]),s}unregisterBuffers(e){let t=this.sessionExternalDataMapping.get(e);t&&(t.forEach(r=>this.gpuDataManager.unregisterExternalBuffer(r[0])),this.sessionExternalDataMapping.delete(e))}getBuffer(e){let t=this.gpuDataManager.get(e);if(!t)throw new Error(`no GPU data for buffer: ${e}`);return t.buffer}createDownloader(e,t,r){return async()=>{let i=await Kn(this,e,t);return ya(i.buffer,r)}}writeTimestamp(e){this.queryType==="inside-passes"&&this.computePassEncoder.writeTimestamp(this.querySet,e)}setQueryType(){this.queryType="none",(this.env.webgpu.profiling?.mode==="default"||(typeof this.env.trace>"u"?this.env.wasm.trace:this.env.trace))&&(this.device.features.has("chromium-experimental-timestamp-query-inside-passes")?this.queryType="inside-passes":this.device.features.has("timestamp-query")&&(this.queryType="at-passes"),this.queryType!=="none"&&typeof this.querySet>"u"&&(this.querySet=this.device.createQuerySet({type:"timestamp",count:this.maxDispatchNumber*2}),this.queryResolveBuffer=this.device.createBuffer({size:this.maxDispatchNumber*2*8,usage:GPUBufferUsage.COPY_SRC|GPUBufferUsage.QUERY_RESOLVE})))}captureBegin(){pe("info","captureBegin"),this.capturedCommandList.get(this.currentSessionId)||this.capturedCommandList.set(this.currentSessionId,[]),this.capturedPendingKernels.get(this.currentSessionId)||this.capturedPendingKernels.set(this.currentSessionId,[]),this.flush(),this.sessionStatus="capturing"}captureEnd(){pe("info","captureEnd"),this.flush(),this.sessionStatus="default"}replay(){pe("info","replay"),this.sessionStatus="replaying";let e=this.capturedCommandList.get(this.currentSessionId),t=this.capturedPendingKernels.get(this.currentSessionId),r=e.length;this.pendingKernels=[];for(let i=0;i<r;i++){let n=this.getComputePassEncoder(),a=e[i];this.writeTimestamp(this.pendingDispatchNumber*2),n.setPipeline(a.computePipeline),n.setBindGroup(0,a.bindGroup),n.dispatchWorkgroups(...a.dispatchGroup),this.writeTimestamp(this.pendingDispatchNumber*2+1),this.pendingDispatchNumber++,this.queryType!=="none"&&this.pendingKernels.push(t[i]),(this.pendingDispatchNumber>=this.maxDispatchNumber||this.queryType==="at-passes")&&this.endComputePass(),this.pendingDispatchNumber>=this.maxDispatchNumber&&this.flush()}this.flush(),this.sessionStatus="default"}onCreateSession(){this.gpuDataManager.onCreateSession()}onReleaseSession(e){this.unregisterBuffers(e),this.capturedCommandList.has(e)&&this.capturedCommandList.delete(e),this.capturedPendingKernels.has(e)&&this.capturedPendingKernels.delete(e),this.gpuDataManager.onReleaseSession(e)}onRunStart(e){this.currentSessionId=e,this.setQueryType()}}}),jf={};Qt(jf,{init:()=>Kf});var ti,bp,Kf,gy=L(()=>{"use strict";re(),lt(),ne(),S_(),ti=class Xf{constructor(t,r,i,n){this.module=t,this.dataType=r,this.data=i,this.dims=n}getFloat32Array(){if(this.dataType!==1)throw new Error("Invalid data type");let t=R.size(this.dims);return t===0?new Float32Array:new Float32Array(this.module.HEAP8.buffer,this.data,t)}getBigInt64Array(){if(this.dataType!==7)throw new Error("Invalid data type");let t=R.size(this.dims);return t===0?new BigInt64Array:new BigInt64Array(this.module.HEAP8.buffer,this.data,t)}getInt32Array(){if(this.dataType!==6)throw new Error("Invalid data type");let t=R.size(this.dims);return t===0?new Int32Array:new Int32Array(this.module.HEAP8.buffer,this.data,t)}getUint16Array(){if(this.dataType!==10&&this.dataType!==4)throw new Error("Invalid data type");let t=R.size(this.dims);return t===0?new Uint16Array:new Uint16Array(this.module.HEAP8.buffer,this.data,t)}reshape(t){if(R.size(t)!==R.size(this.dims))throw new Error("Invalid new shape");return new Xf(this.module,this.dataType,this.data,t)}},bp=class{constructor(e,t,r){this.module=e,this.backend=t,this.customDataOffset=0,this.customDataSize=0,this.adapterInfo=t.adapterInfo;let i=e.PTR_SIZE,n=r/e.PTR_SIZE,a=i===4?"i32":"i64";this.opKernelContext=Number(e.getValue(i*n++,a));let s=Number(e.getValue(i*n++,a));this.outputCount=Number(e.getValue(i*n++,a)),this.customDataOffset=Number(e.getValue(i*n++,"*")),this.customDataSize=Number(e.getValue(i*n++,a));let o=[];for(let l=0;l<s;l++){let d=Number(e.getValue(i*n++,a)),c=Number(e.getValue(i*n++,"*")),h=Number(e.getValue(i*n++,a)),m=[];for(let y=0;y<h;y++)m.push(Number(e.getValue(i*n++,a)));o.push(new ti(e,d,c,m))}this.inputs=o}get kernelCustomData(){return this.backend.currentKernelCustomData}get customDataBuffer(){return this.module.HEAPU8.subarray(this.customDataOffset,this.customDataOffset+this.customDataSize)}compute(e,t){let r=t?.inputs?.map(s=>typeof s=="number"?this.inputs[s]:s)??this.inputs,i=t?.outputs??[],n=(s,o,l)=>new ti(this.module,o,this.output(s,l),l),a=(s,o)=>{let l=Nt(s,o);if(!l)throw new Error(`Unsupported data type: ${s}`);let d=l>0?this.backend.gpuDataManager.create(l).id:0;return new ti(this.module,s,d,o)};return this.backend.run(e,r,i,n,a,this.outputCount)}output(e,t){let r=this.module.stackSave();try{let i=this.module.PTR_SIZE,n=i===4?"i32":"i64",a=this.module.stackAlloc((1+t.length)*i);this.module.setValue(a,t.length,n);for(let s=0;s<t.length;s++)this.module.setValue(a+i*(s+1),t[s],n);return this.module._JsepOutput(this.opKernelContext,e,a)}catch(i){throw new Error(`Failed to generate kernel's output[${e}] with dims [${t}]. If you are running with pre-allocated output, please make sure the output type/dims are correct. Error: ${i}`)}finally{this.module.stackRestore(r)}}},Kf=async(e,t,r,i)=>{let n=t.jsepInit;if(!n)throw new Error("Failed to initialize JSEP. The WebAssembly module is not built with JSEP support.");if(e==="webgpu"){let a=(my(),Sr(Ff)).WebGpuBackend,s=new a;await s.initialize(r,i),n("webgpu",[s,o=>s.alloc(Number(o)),o=>s.free(o),(o,l,d,c=!1)=>{if(c)pe("verbose",()=>`[WebGPU] jsepCopyGpuToGpu: src=${Number(o)}, dst=${Number(l)}, size=${Number(d)}`),s.memcpy(Number(o),Number(l));else{pe("verbose",()=>`[WebGPU] jsepCopyCpuToGpu: dataOffset=${Number(o)}, gpuDataId=${Number(l)}, size=${Number(d)}`);let h=t.HEAPU8.subarray(Number(o>>>0),Number(o>>>0)+Number(d));s.upload(Number(l),h)}},async(o,l,d)=>{pe("verbose",()=>`[WebGPU] jsepCopyGpuToCpu: gpuDataId=${o}, dataOffset=${l}, size=${d}`),await s.download(Number(o),()=>t.HEAPU8.subarray(Number(l)>>>0,Number(l+d)>>>0))},(o,l,d)=>s.createKernel(o,Number(l),d,t.UTF8ToString(t._JsepGetNodeName(Number(l)))),o=>s.releaseKernel(o),(o,l,d,c)=>{pe("verbose",()=>`[WebGPU] jsepRun: sessionHandle=${d}, kernel=${o}, contextDataOffset=${l}`);let h=new bp(t,s,Number(l));return s.computeKernel(Number(o),h,c)},()=>s.captureBegin(),()=>s.captureEnd(),()=>s.replay()])}else{let a=new nc(r);n("webnn",[a,()=>a.reserveTensorId(),s=>a.releaseTensorId(s),async(s,o,l,d,c)=>a.ensureTensor(s,o,l,d,c),(s,o)=>{a.uploadTensor(s,o)},async(s,o)=>a.downloadTensor(s,o),(s,o)=>a.registerMLContext(s,o),!!r.trace])}}}),wp,Ca,za,_t,$p,Wn,ci,Oa,Aa,qn,Ra,Ba,Ma,Zf=L(()=>{"use strict";Ge(),$_(),v_(),re(),qt(),ha(),Yp(),wp=(e,t)=>{be()._OrtInit(e,t)!==0&&ge("Can't initialize onnxruntime.")},Ca=async e=>{wp(e.wasm.numThreads,oi(e.logLevel))},za=async(e,t)=>{be().asyncInit?.();let r=e.webgpu.adapter;if(t==="webgpu"){if(typeof navigator>"u"||!navigator.gpu)throw new Error("WebGPU is not supported in current environment");if(r){if(typeof r.limits!="object"||typeof r.features!="object"||typeof r.requestDevice!="function")throw new Error("Invalid GPU adapter set in `env.webgpu.adapter`. It must be a GPUAdapter object.")}else{let i=e.webgpu.powerPreference;if(i!==void 0&&i!=="low-power"&&i!=="high-performance")throw new Error(`Invalid powerPreference setting: "${i}"`);let n=e.webgpu.forceFallbackAdapter;if(n!==void 0&&typeof n!="boolean")throw new Error(`Invalid forceFallbackAdapter setting: "${n}"`);if(r=await navigator.gpu.requestAdapter({powerPreference:i,forceFallbackAdapter:n}),!r)throw new Error('Failed to get GPU adapter. You may need to enable flag "--enable-unsafe-webgpu" if you are using Chrome.')}}if(t==="webnn"&&(typeof navigator>"u"||!navigator.ml))throw new Error("WebNN is not supported in current environment");{let i=(gy(),Sr(jf)).init;t==="webgpu"&&await i("webgpu",be(),e,r),t==="webnn"&&await i("webnn",be(),e)}},_t=new Map,$p=e=>{let t=be(),r=t.stackSave();try{let i=t.PTR_SIZE,n=t.stackAlloc(2*i);t._OrtGetInputOutputCount(e,n,n+i)!==0&&ge("Can't get session input/output count.");let a=i===4?"i32":"i64";return[Number(t.getValue(n,a)),Number(t.getValue(n+i,a))]}finally{t.stackRestore(r)}},Wn=(e,t)=>{let r=be(),i=r.stackSave(),n=0;try{let a=r.PTR_SIZE,s=r.stackAlloc(2*a);r._OrtGetInputOutputMetadata(e,t,s,s+a)!==0&&ge("Can't get session input/output metadata.");let o=Number(r.getValue(s,"*"));n=Number(r.getValue(s+a,"*"));let l=r.HEAP32[n/4];if(l===0)return[o,0];let d=r.HEAPU32[n/4+1],c=[];for(let h=0;h<d;h++){let m=Number(r.getValue(n+8+h*a,"*"));c.push(m!==0?r.UTF8ToString(m):Number(r.getValue(n+8+(h+d)*a,"*")))}return[o,l,c]}finally{r.stackRestore(i),n!==0&&r._OrtFree(n)}},ci=e=>{let t=be(),r=t._malloc(e.byteLength);if(r===0)throw new Error(`Can't create a session. failed to allocate a buffer of size ${e.byteLength}.`);return t.HEAPU8.set(e,r),[r,e.byteLength]},Oa=async(e,t)=>{let r,i,n=be();Array.isArray(e)?[r,i]=e:e.buffer===n.HEAPU8.buffer?[r,i]=[e.byteOffset,e.byteLength]:[r,i]=ci(e);let a=0,s=0,o=0,l=[],d=[],c=[];try{if([s,l]=await Qp(t),t?.externalData&&n.mountExternalData){let T=[];for(let k of t.externalData){let C=typeof k=="string"?k:k.path;T.push(ga(typeof k=="string"?k:k.data).then(z=>{n.mountExternalData(C,z)}))}await Promise.all(T)}for(let T of t?.executionProviders??[])if((typeof T=="string"?T:T.name)==="webnn"){if(n.shouldTransferToMLTensor=!1,typeof T!="string"){let k=T,C=k?.context,z=k?.gpuDevice,$=k?.deviceType,D=k?.powerPreference;C?n.currentContext=C:z?n.currentContext=await n.webnnCreateMLContext(z):n.currentContext=await n.webnnCreateMLContext({deviceType:$,powerPreference:D})}else n.currentContext=await n.webnnCreateMLContext();break}a=await n._OrtCreateSession(r,i,s),n.webgpuOnCreateSession?.(a),a===0&&ge("Can't create a session."),n.jsepOnCreateSession?.(),n.currentContext&&(n.webnnRegisterMLContext(a,n.currentContext),n.currentContext=void 0,n.shouldTransferToMLTensor=!0);let[h,m]=$p(a),y=!!t?.enableGraphCapture,_=[],w=[],S=[],x=[],b=[];for(let T=0;T<h;T++){let[k,C,z]=Wn(a,T);k===0&&ge("Can't get an input name."),d.push(k);let $=n.UTF8ToString(k);_.push($),S.push(C===0?{name:$,isTensor:!1}:{name:$,isTensor:!0,type:ut(C),shape:z})}for(let T=0;T<m;T++){let[k,C,z]=Wn(a,T+h);k===0&&ge("Can't get an output name."),c.push(k);let $=n.UTF8ToString(k);w.push($),x.push(C===0?{name:$,isTensor:!1}:{name:$,isTensor:!0,type:ut(C),shape:z});{if(y&&t?.preferredOutputLocation===void 0){b.push("gpu-buffer");continue}let D=typeof t?.preferredOutputLocation=="string"?t.preferredOutputLocation:t?.preferredOutputLocation?.[$]??"cpu",W=n.webnnIsGraphOutput;if(D==="cpu"&&W&&W(a,$)){b.push("ml-tensor-cpu-output");continue}if(D!=="cpu"&&D!=="cpu-pinned"&&D!=="gpu-buffer"&&D!=="ml-tensor")throw new Error(`Not supported preferred output location: ${D}.`);if(y&&D!=="gpu-buffer")throw new Error(`Not supported preferred output location: ${D}. Only 'gpu-buffer' location is supported when enableGraphCapture is true.`);b.push(D)}}let E=null;return b.some(T=>T==="gpu-buffer"||T==="ml-tensor"||T==="ml-tensor-cpu-output")&&(o=n._OrtCreateBinding(a),o===0&&ge("Can't create IO binding."),E={handle:o,outputPreferredLocations:b,outputPreferredLocationsEncoded:b.map(T=>T==="ml-tensor-cpu-output"?"ml-tensor":T).map(T=>Hn(T))}),_t.set(a,[a,d,c,E,y,!1]),[a,_,w,S,x]}catch(h){throw d.forEach(m=>n._OrtFree(m)),c.forEach(m=>n._OrtFree(m)),o!==0&&n._OrtReleaseBinding(o)!==0&&ge("Can't release IO binding."),a!==0&&n._OrtReleaseSession(a)!==0&&ge("Can't release session."),h}finally{n._free(r),s!==0&&n._OrtReleaseSessionOptions(s)!==0&&ge("Can't release session options."),l.forEach(h=>n._free(h)),n.unmountExternalData?.()}},Aa=e=>{let t=be(),r=_t.get(e);if(!r)throw new Error(`cannot release session. invalid session id: ${e}`);let[i,n,a,s,o]=r;s&&(o&&t._OrtClearBoundOutputs(s.handle)!==0&&ge("Can't clear bound outputs."),t._OrtReleaseBinding(s.handle)!==0&&ge("Can't release IO binding.")),t.jsepOnReleaseSession?.(e),t.webnnOnReleaseSession?.(e),t.webgpuOnReleaseSession?.(e),n.forEach(l=>t._OrtFree(l)),a.forEach(l=>t._OrtFree(l)),t._OrtReleaseSession(i)!==0&&ge("Can't release session."),_t.delete(e)},qn=async(e,t,r,i,n,a,s=!1)=>{if(!e){t.push(0);return}let o=be(),l=o.PTR_SIZE,d=e[0],c=e[1],h=e[3],m=h,y,_;if(d==="string"&&(h==="gpu-buffer"||h==="ml-tensor"))throw new Error("String tensor is not supported on GPU.");if(s&&h!=="gpu-buffer")throw new Error(`External buffer must be provided for input/output index ${a} when enableGraphCapture is true.`);if(h==="gpu-buffer"){let x=e[2].gpuBuffer;_=Nt(Dt(d),c);{let b=o.jsepRegisterBuffer;if(!b)throw new Error('Tensor location "gpu-buffer" is not supported without using WebGPU.');y=b(i,a,x,_)}}else if(h==="ml-tensor"){let x=e[2].mlTensor;_=Nt(Dt(d),c);let b=o.webnnRegisterMLTensor;if(!b)throw new Error('Tensor location "ml-tensor" is not supported without using WebNN.');y=b(i,x,Dt(d),c)}else{let x=e[2];if(Array.isArray(x)){_=l*x.length,y=o._malloc(_),r.push(y);for(let b=0;b<x.length;b++){if(typeof x[b]!="string")throw new TypeError(`tensor data at index ${b} is not a string`);o.setValue(y+b*l,Qe(x[b],r),"*")}}else{let b=o.webnnIsGraphInput,E=o.webnnIsGraphOutput;if(d!=="string"&&b&&E){let T=o.UTF8ToString(n);if(b(i,T)||E(i,T)){let k=Dt(d);_=Nt(k,c),m="ml-tensor";let C=o.webnnCreateTemporaryTensor,z=o.webnnUploadTensor;if(!C||!z)throw new Error('Tensor location "ml-tensor" is not supported without using WebNN.');let $=await C(i,k,c);z($,new Uint8Array(x.buffer,x.byteOffset,x.byteLength)),y=$}else _=x.byteLength,y=o._malloc(_),r.push(y),o.HEAPU8.set(new Uint8Array(x.buffer,x.byteOffset,_),y)}else _=x.byteLength,y=o._malloc(_),r.push(y),o.HEAPU8.set(new Uint8Array(x.buffer,x.byteOffset,_),y)}}let w=o.stackSave(),S=o.stackAlloc(4*c.length);try{c.forEach((b,E)=>o.setValue(S+E*l,b,l===4?"i32":"i64"));let x=o._OrtCreateTensor(Dt(d),y,_,S,c.length,Hn(m));x===0&&ge(`Can't create tensor for input/output. session=${i}, index=${a}.`),t.push(x)}finally{o.stackRestore(w)}},Ra=async(e,t,r,i,n,a)=>{let s=be(),o=s.PTR_SIZE,l=_t.get(e);if(!l)throw new Error(`cannot run inference. invalid session id: ${e}`);let d=l[0],c=l[1],h=l[2],m=l[3],y=l[4],_=l[5],w=t.length,S=i.length,x=0,b=[],E=[],T=[],k=[],C=[],z=s.stackSave(),$=s.stackAlloc(w*o),D=s.stackAlloc(w*o),W=s.stackAlloc(S*o),F=s.stackAlloc(S*o);try{[x,b]=Zp(a),bt("wasm prepareInputOutputTensor");for(let O=0;O<w;O++)await qn(r[O],E,k,e,c[t[O]],t[O],y);for(let O=0;O<S;O++)await qn(n[O],T,k,e,h[i[O]],w+i[O],y);wt("wasm prepareInputOutputTensor");for(let O=0;O<w;O++)s.setValue($+O*o,E[O],"*"),s.setValue(D+O*o,c[t[O]],"*");for(let O=0;O<S;O++)s.setValue(W+O*o,T[O],"*"),s.setValue(F+O*o,h[i[O]],"*");if(m&&!_){let{handle:O,outputPreferredLocations:U,outputPreferredLocationsEncoded:J}=m;if(c.length!==w)throw new Error(`input count from feeds (${w}) is expected to be always equal to model's input count (${c.length}).`);bt("wasm bindInputsOutputs");for(let te=0;te<w;te++){let X=t[te];await s._OrtBindInput(O,c[X],E[te])!==0&&ge(`Can't bind input[${te}] for session=${e}.`)}for(let te=0;te<S;te++){let X=i[te];n[te]?.[3]?(C.push(T[te]),s._OrtBindOutput(O,h[X],T[te],0)!==0&&ge(`Can't bind pre-allocated output[${te}] for session=${e}.`)):s._OrtBindOutput(O,h[X],0,J[X])!==0&&ge(`Can't bind output[${te}] to ${U[te]} for session=${e}.`)}wt("wasm bindInputsOutputs"),_t.set(e,[d,c,h,m,y,!0])}s.jsepOnRunStart?.(d),s.webnnOnRunStart?.(d);let V;m?V=await s._OrtRunWithBinding(d,m.handle,S,W,x):V=await s._OrtRun(d,D,$,w,F,S,W,x),V!==0&&ge("failed to call OrtRun().");let P=[],j=[];bt("wasm ProcessOutputTensor");for(let O=0;O<S;O++){let U=Number(s.getValue(W+O*o,"*"));if(U===T[O]||C.includes(T[O])){P.push(n[O]),U!==T[O]&&s._OrtReleaseTensor(U)!==0&&ge("Can't release tensor.");continue}let J=s.stackSave(),te=s.stackAlloc(4*o),X=!1,se,N=0;try{s._OrtGetTensorData(U,te,te+o,te+2*o,te+3*o)!==0&&ge(`Can't access output tensor data on index ${O}.`);let ee=o===4?"i32":"i64",Q=Number(s.getValue(te,ee));N=s.getValue(te+o,"*");let H=s.getValue(te+o*2,"*"),$e=Number(s.getValue(te+o*3,ee)),Re=[];for(let _e=0;_e<$e;_e++)Re.push(Number(s.getValue(H+_e*o,ee)));s._OrtFree(H)!==0&&ge("Can't free memory for tensor dims.");let Se=Re.reduce((_e,Te)=>_e*Te,1);se=ut(Q);let ze=m?.outputPreferredLocations[i[O]];if(se==="string"){if(ze==="gpu-buffer"||ze==="ml-tensor")throw new Error("String tensor is not supported on GPU.");let _e=[];for(let Te=0;Te<Se;Te++){let De=s.getValue(N+Te*o,"*"),Tt=s.getValue(N+(Te+1)*o,"*"),Ar=Te===Se-1?void 0:Tt-De;_e.push(s.UTF8ToString(De,Ar))}P.push([se,Re,_e,"cpu"])}else if(ze==="gpu-buffer"&&Se>0){let _e=s.jsepGetBuffer;if(!_e)throw new Error('preferredLocation "gpu-buffer" is not supported without using WebGPU.');let Te=_e(N),De=Nt(Q,Se);if(De===void 0||!fa(se))throw new Error(`Unsupported data type: ${se}`);X=!0,P.push([se,Re,{gpuBuffer:Te,download:s.jsepCreateDownloader(Te,De,se),dispose:()=>{s._OrtReleaseTensor(U)!==0&&ge("Can't release tensor.")}},"gpu-buffer"])}else if(ze==="ml-tensor"&&Se>0){let _e=s.webnnEnsureTensor,Te=s.webnnIsGraphInputOutputTypeSupported;if(!_e||!Te)throw new Error('preferredLocation "ml-tensor" is not supported without using WebNN.');if(Nt(Q,Se)===void 0||!ma(se))throw new Error(`Unsupported data type: ${se}`);if(!Te(e,se,!1))throw new Error(`preferredLocation "ml-tensor" for ${se} output is not supported by current WebNN Context.`);let De=await _e(e,N,Q,Re,!1);X=!0,P.push([se,Re,{mlTensor:De,download:s.webnnCreateMLTensorDownloader(N,se),dispose:()=>{s.webnnReleaseTensorId(N),s._OrtReleaseTensor(U)}},"ml-tensor"])}else if(ze==="ml-tensor-cpu-output"&&Se>0){let _e=s.webnnCreateMLTensorDownloader(N,se)(),Te=P.length;X=!0,j.push((async()=>{let De=[Te,await _e];return s.webnnReleaseTensorId(N),s._OrtReleaseTensor(U),De})()),P.push([se,Re,[],"cpu"])}else{let _e=hi(se),Te=new _e(Se);new Uint8Array(Te.buffer,Te.byteOffset,Te.byteLength).set(s.HEAPU8.subarray(N,N+Te.byteLength)),P.push([se,Re,Te,"cpu"])}}finally{s.stackRestore(J),se==="string"&&N&&s._free(N),X||s._OrtReleaseTensor(U)}}m&&!y&&(s._OrtClearBoundOutputs(m.handle)!==0&&ge("Can't clear bound outputs."),_t.set(e,[d,c,h,m,y,!1]));for(let[O,U]of await Promise.all(j))P[O][2]=U;return wt("wasm ProcessOutputTensor"),P}finally{s.webnnOnRunEnd?.(d),s.stackRestore(z),E.forEach(V=>s._OrtReleaseTensor(V)),T.forEach(V=>s._OrtReleaseTensor(V)),k.forEach(V=>s._free(V)),x!==0&&s._OrtReleaseRunOptions(x),b.forEach(V=>s._free(V))}},Ba=e=>{let t=be(),r=_t.get(e);if(!r)throw new Error("invalid session id");let i=r[0],n=t._OrtEndProfiling(i);n===0&&ge("Can't get an profile file name."),t._OrtFree(n)},Ma=e=>{let t=[];for(let r of e){let i=r[2];!Array.isArray(i)&&"buffer"in i&&t.push(i.buffer)}return t}}),yt,qe,jt,_r,yr,ri,Vn,ii,Rt,Bt,vp,Qf,Yf,Jf,em,tm,rm,im,nm=L(()=>{"use strict";Ge(),Zf(),qt(),pa(),yt=()=>!!fe.wasm.proxy&&typeof document<"u",jt=!1,_r=!1,yr=!1,ii=new Map,Rt=(e,t)=>{let r=ii.get(e);r?r.push(t):ii.set(e,[t])},Bt=()=>{if(jt||!_r||yr||!qe)throw new Error("worker not ready")},vp=e=>{switch(e.data.type){case"init-wasm":jt=!1,e.data.err?(yr=!0,Vn[1](e.data.err)):(_r=!0,Vn[0]()),ri&&(URL.revokeObjectURL(ri),ri=void 0);break;case"init-ep":case"copy-from":case"create":case"release":case"run":case"end-profiling":{let t=ii.get(e.data.type);e.data.err?t.shift()[1](e.data.err):t.shift()[0](e.data.out);break}default:}},Qf=async()=>{if(!_r){if(jt)throw new Error("multiple calls to 'initWasm()' detected.");if(yr)throw new Error("previous call to 'initWasm()' failed.");if(jt=!0,yt())return new Promise((e,t)=>{qe?.terminate(),Kp().then(([r,i])=>{try{qe=i,qe.onerror=a=>t(a),qe.onmessage=vp,Vn=[e,t];let n={type:"init-wasm",in:fe};!n.in.wasm.wasmPaths&&(r||Fn)&&(n.in.wasm.wasmPaths={wasm:new URL("ort-wasm-simd-threaded.jsep.wasm",Ye.url).href}),qe.postMessage(n),ri=r}catch(n){t(n)}},t)});try{await ca(fe.wasm),await Ca(fe),_r=!0}catch(e){throw yr=!0,e}finally{jt=!1}}},Yf=async e=>{if(yt())return Bt(),new Promise((t,r)=>{Rt("init-ep",[t,r]);let i={type:"init-ep",in:{epName:e,env:fe}};qe.postMessage(i)});await za(fe,e)},Jf=async e=>yt()?(Bt(),new Promise((t,r)=>{Rt("copy-from",[t,r]);let i={type:"copy-from",in:{buffer:e}};qe.postMessage(i,[e.buffer])})):ci(e),em=async(e,t)=>{if(yt()){if(t?.preferredOutputLocation)throw new Error('session option "preferredOutputLocation" is not supported for proxy.');return Bt(),new Promise((r,i)=>{Rt("create",[r,i]);let n={type:"create",in:{model:e,options:{...t}}},a=[];e instanceof Uint8Array&&a.push(e.buffer),qe.postMessage(n,a)})}else return Oa(e,t)},tm=async e=>{if(yt())return Bt(),new Promise((t,r)=>{Rt("release",[t,r]);let i={type:"release",in:e};qe.postMessage(i)});Aa(e)},rm=async(e,t,r,i,n,a)=>{if(yt()){if(r.some(s=>s[3]!=="cpu"))throw new Error("input tensor on GPU is not supported for proxy.");if(n.some(s=>s))throw new Error("pre-allocated output tensor is not supported for proxy.");return Bt(),new Promise((s,o)=>{Rt("run",[s,o]);let l=r,d={type:"run",in:{sessionId:e,inputIndices:t,inputs:l,outputIndices:i,options:a}};qe.postMessage(d,Ma(l))})}else return Ra(e,t,r,i,n,a)},im=async e=>{if(yt())return Bt(),new Promise((t,r)=>{Rt("end-profiling",[t,r]);let i={type:"end-profiling",in:e};qe.postMessage(i)});Ba(e)}}),Gn,xp,am,_y=L(()=>{"use strict";Ge(),nm(),re(),da(),Yp(),Gn=(e,t)=>{switch(e.location){case"cpu":return[e.type,e.dims,e.data,"cpu"];case"gpu-buffer":return[e.type,e.dims,{gpuBuffer:e.gpuBuffer},"gpu-buffer"];case"ml-tensor":return[e.type,e.dims,{mlTensor:e.mlTensor},"ml-tensor"];default:throw new Error(`invalid data location: ${e.location} for ${t()}`)}},xp=e=>{switch(e[3]){case"cpu":return new Je(e[0],e[2],e[1]);case"gpu-buffer":{let t=e[0];if(!fa(t))throw new Error(`not supported data type: ${t} for deserializing GPU tensor`);let{gpuBuffer:r,download:i,dispose:n}=e[2];return Je.fromGpuBuffer(r,{dataType:t,dims:e[1],download:i,dispose:n})}case"ml-tensor":{let t=e[0];if(!ma(t))throw new Error(`not supported data type: ${t} for deserializing MLTensor tensor`);let{mlTensor:r,download:i,dispose:n}=e[2];return Je.fromMLTensor(r,{dataType:t,dims:e[1],download:i,dispose:n})}default:throw new Error(`invalid data location: ${e[3]}`)}},am=class{async fetchModelAndCopyToWasmMemory(e){return Jf(await ga(e))}async loadModel(e,t){et();let r;typeof e=="string"?r=await this.fetchModelAndCopyToWasmMemory(e):r=e,[this.sessionId,this.inputNames,this.outputNames,this.inputMetadata,this.outputMetadata]=await em(r,t),Ve()}async dispose(){return tm(this.sessionId)}async run(e,t,r){et();let i=[],n=[];Object.entries(e).forEach(h=>{let m=h[0],y=h[1],_=this.inputNames.indexOf(m);if(_===-1)throw new Error(`invalid input '${m}'`);i.push(y),n.push(_)});let a=[],s=[];Object.entries(t).forEach(h=>{let m=h[0],y=h[1],_=this.outputNames.indexOf(m);if(_===-1)throw new Error(`invalid output '${m}'`);a.push(y),s.push(_)});let o=i.map((h,m)=>Gn(h,()=>`input "${this.inputNames[n[m]]}"`)),l=a.map((h,m)=>h?Gn(h,()=>`output "${this.outputNames[s[m]]}"`):null),d=await rm(this.sessionId,n,o,s,l,r),c={};for(let h=0;h<d.length;h++)c[this.outputNames[s[h]]]=a[h]??xp(d[h]);return Ve(),c}startProfiling(){}endProfiling(){im(this.sessionId)}}}),sm={};Qt(sm,{OnnxruntimeWebAssemblyBackend:()=>sa,initializeFlags:()=>aa,wasmBackend:()=>om});var aa,sa,om,yy=L(()=>{"use strict";Ge(),nm(),_y(),aa=()=>{(typeof fe.wasm.initTimeout!="number"||fe.wasm.initTimeout<0)&&(fe.wasm.initTimeout=0);let e=fe.wasm.simd;if(typeof e!="boolean"&&e!==void 0&&e!=="fixed"&&e!=="relaxed"&&(console.warn(`Property "env.wasm.simd" is set to unknown value "${e}". Reset it to \`false\` and ignore SIMD feature checking.`),fe.wasm.simd=!1),typeof fe.wasm.proxy!="boolean"&&(fe.wasm.proxy=!1),typeof fe.wasm.trace!="boolean"&&(fe.wasm.trace=!1),typeof fe.wasm.numThreads!="number"||!Number.isInteger(fe.wasm.numThreads)||fe.wasm.numThreads<=0)if(typeof self<"u"&&!self.crossOriginIsolated)fe.wasm.numThreads=1;else{let t=typeof navigator>"u"?n_("node:os").cpus().length:navigator.hardwareConcurrency;fe.wasm.numThreads=Math.min(4,Math.ceil((t||1)/2))}},sa=class{async init(e){aa(),await Qf(),await Yf(e)}async createInferenceSessionHandler(e,t){let r=new am;return await r.loadModel(e,t),r}},om=new sa});Ge();Ge();Ge();var by="1.27.0",wy=qp;{let e=(yy(),Sr(sm)).wasmBackend;Pt("webgpu",e,5),Pt("webnn",e,5),Pt("cpu",e,10),Pt("wasm",e,10)}Object.defineProperty(fe.versions,"web",{value:by,enumerable:!0});var ie="https://media.githubusercontent.com/media/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main",xe="https://raw.githubusercontent.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main",$y={detection:`${ie}/detection/ort/PP-OCRv6_small_det.ort`,recognition:`${ie}/recognition/ort/PP-OCRv6_small_rec.ort`,charactersDictionary:`${xe}/recognition/ppocrv6_dict.txt`},vy={detection:`${ie}/detection/ort/PP-OCRv6_medium_det.ort`,recognition:`${ie}/recognition/ort/PP-OCRv6_medium_rec.ort`,charactersDictionary:`${xe}/recognition/ppocrv6_dict.txt`},fi={detection:`${ie}/detection/ort/PP-OCRv6_tiny_det.ort`,recognition:`${ie}/recognition/ort/PP-OCRv6_tiny_rec.ort`,charactersDictionary:`${xe}/recognition/ppocrv6_tiny_dict.txt`},xy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.ort`,recognition:`${ie}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer.ort`,charactersDictionary:`${xe}/recognition/multi/en/v5/ppocrv5_en_dict.txt`},Sy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.ort`,recognition:`${ie}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.ort`,charactersDictionary:`${xe}/recognition/multi/en/v5/ppocrv5_en_dict.txt`},Ty={detection:`${ie}/detection/PP-OCRv5_server_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv5_server_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv5_dict.txt`},Ey={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv5_dict.txt`},Iy={detection:`${ie}/detection/PP-OCRv5_server_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv5_server_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv5_dict.txt`},ky={detection:`${ie}/detection/PP-OCRv4_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/en/v4/en_PP-OCRv4_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/en/v4/en_dict.txt`},Cy={detection:`${ie}/detection/PP-OCRv4_mobile_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv4_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv4_dict.txt`},zy={detection:`${ie}/detection/PP-OCRv4_server_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv4_server_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv4_dict.txt`},Oy={detection:`${ie}/detection/PP-OCRv4_server_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv4_server_rec_doc_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv4_doc_dict.txt`},Ay={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/PP-OCRv3_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/ppocrv3_dict.txt`},Ry={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/japan/v3/japan_PP-OCRv3_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/japan/v3/japan_dict.txt`},By={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/arabic/v5/arabic_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/arabic/v5/ppocrv5_arabic_dict.txt`},My={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/cyrillic/v5/cyrillic_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/cyrillic/v5/ppocrv5_cyrillic_dict.txt`},Dy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/devanagari/v5/devanagari_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/devanagari/v5/ppocrv5_devanagari_dict.txt`},Ny={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/el/v5/el_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/el/v5/ppocrv5_el_dict.txt`},Py={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/eslav/v5/eslav_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/eslav/v5/ppocrv5_eslav_dict.txt`},Ly={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/korean/v5/korean_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/korean/v5/ppocrv5_korean_dict.txt`},Uy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/latin/v5/latin_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/latin/v5/ppocrv5_latin_dict.txt`},Wy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/ta/v5/ta_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/ta/v5/ppocrv5_ta_dict.txt`},qy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/te/v5/te_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/te/v5/ppocrv5_te_dict.txt`},Vy={detection:`${ie}/detection/PP-OCRv5_mobile_det_infer.onnx`,recognition:`${ie}/recognition/multi/th/v5/th_PP-OCRv5_mobile_rec_infer.onnx`,charactersDictionary:`${xe}/recognition/multi/th/v5/ppocrv5_th_dict.txt`},um=fi,xt=um;var Yt={verbose:!1,debug:!1,debugFolder:"out"},mi={mean:[.485,.456,.406],stdDeviation:[.229,.224,.225],maxSideLength:"auto",minimumAreaThreshold:20,paddingVertical:.4,paddingHorizontal:.6},gi={imageHeight:48,strategy:"per-line",crossLineWidthFactor:1,minimumConfidence:.5,charactersDictionary:[]},Gy={executionProviders:["cpu"],graphOptimizationLevel:"all",enableCpuMemArena:!0,enableMemPattern:!0,executionMode:"sequential",interOpNumThreads:0,intraOpNumThreads:0},_i="opencv",lm={engine:_i},Ir={model:{},detection:mi,recognition:gi,debugging:Yt,session:Gy,processing:lm};function bi(e,...t){if(!t.length)return e;let r=t.shift();if(yi(e)&&yi(r)){for(let i in r)if(Object.prototype.hasOwnProperty.call(r,i)){if(i==="__proto__"||i==="constructor"||i==="prototype")continue;let n=r[i],a=e[i];yi(n)?((!a||!yi(a))&&(e[i]={}),bi(e[i],n)):n!==void 0&&(e[i]=n)}}return bi(e,...t)}async function dm(e,t={}){let{timeoutMs:r=3e5,retries:i=2}=t,n;for(let a=0;a<=i;a++)try{let s=await fetch(e,{signal:AbortSignal.timeout(r)});if(!s.ok)throw new Error(`HTTP ${s.status} ${s.statusText}`);return await s.arrayBuffer()}catch(s){n=s,a<i&&await new Promise(o=>setTimeout(o,500*(a+1)))}throw new Error(`Failed to fetch ${e} after ${i+1} attempt(s): ${String(n)}`)}function kr(e){return(typeof e=="string"?e:new TextDecoder("utf-8").decode(e)).split(/\r?\n/)}function yi(e){return e!==null&&typeof e=="object"&&!Array.isArray(e)&&!(e instanceof Date)&&!(e instanceof RegExp)&&!(e instanceof ArrayBuffer)&&!ArrayBuffer.isView(e)}function pm(e,t){return e!=="auto"?e:Math.min(1920,Math.max(960,Math.round(t*.75/32)*32))}function cm(e,t,r){let i=e,n=t,a=1;return Math.max(n,i)>r&&(a=r/(n>i?n:i),i=Math.round(i*a),n=Math.round(n*a)),{width:i,height:n,ratio:a}}function Fy(e,t,r,i,n){let a=Math.round(e.height*i),s=Math.round(e.height*n),o=e.x-s,l=e.y-a;o=Math.max(0,o),l=Math.max(0,l);let d=Math.min(t,e.x+e.width+s),c=Math.min(r,e.y+e.height+a),h=d-o,m=c-l;return{x:o,y:l,width:h,height:m}}function Hy(e,t,r,i){let n=e.x/t,a=e.y/t,s=e.width/t,o=e.height/t,l=Math.max(0,Math.round(n)),d=Math.max(0,Math.round(a)),c=Math.min(r-l,Math.round(s)),h=Math.min(i-d,Math.round(o));return{x:l,y:d,width:c,height:h}}function hm(e,t,r,i,n,a,s,o,l){let d=[];return e.iterate(c=>{let h=e.getRect(c);if(h.width*h.height<=s)return;let m=Fy(h,t,r,o,l),y=Hy(m,i,n,a);y.width>5&&y.height>5&&d.push(y)}),d}function fm(e,t,r){let i=[];for(let n of e){let{bbox:a}=n,s={x:Math.max(0,a.x0),y:Math.max(0,a.y0),width:a.x1-a.x0,height:a.y1-a.y0};s.x+s.width>t&&(s.width=t-s.x),s.y+s.height>r&&(s.height=r-s.y),s.width>5&&s.height>5&&i.push(s)}return i}var jy=3;function mm(e,t,r,i,n){let o=e.getContext("2d").getImageData(0,0,t,r).data,l=r*t,d=new Float32Array(jy*l),c=i[0]??.485,h=i[1]??.456,m=i[2]??.406,y=n[0]??.229,_=n[1]??.224,w=n[2]??.225,S=1/(255*y),x=1/(255*_),b=1/(255*w),E=c/y,T=h/_,k=m/w,C=l,z=l*2;for(let $=0,D=0;$<l;$++,D+=4){let W=o[D],F=o[D+1],V=o[D+2];d[$]=W*S-E,d[C+$]=F*x-T,d[z+$]=V*b-k}return d}function gm(e,t,r,i){let n=i(t,r),a=n.getContext("2d"),s=a.createImageData(t,r),o=s.data,l=t*r;for(let d=0;d<l;d++){let c=e[d]||0,h=Math.round(c*255),m=d*4;o[m]=h,o[m+1]=h,o[m+2]=h,o[m+3]=255}return a.putImageData(s,0,0),n}var Jt=class{options;debugging;session;platform;engine;lastDetectionCanvas=null;constructor(t,r,i={},n={},a="opencv"){this.platform=t,this.session=r,this.options={...mi,...i},this.debugging={...Yt,...n},a==="opencv"&&!this.platform.imageProcessor?this.engine="canvas-native":this.engine=a}log(t){this.debugging.verbose&&console.log(`[DetectionService] ${t}`)}async run(t){this.log("Starting text detection process");try{let r;this.platform.isCanvas(t)?r=t:this.engine==="opencv"&&this.platform.imageProcessor?r=await this.platform.imageProcessor.prepareCanvas(t):r=await this.platform.canvas.prepareCanvas(t);let i=await this.preprocessDetection(r),n=await this.runInference(i.tensor,i.width,i.height);if(!n)return console.error("Text detection failed (output tensor is null)"),[];let a=this.postprocessDetection(n,i);return this.debugging.debug&&this.debugging.debugFolder&&this.lastDetectionCanvas&&(await this.debugDetectionCanvas(this.lastDetectionCanvas,i.width,i.height),await this.debugDetectedBoxes(r,a)),this.log(`Detected ${a.length} text boxes in image`),a}catch(r){return console.error("Error during text detection:",r instanceof Error?r.message:String(r)),[]}}async preprocessDetection(t){let{width:r,height:i}=t,n=pm(this.options.maxSideLength??"auto",Math.max(r,i)),{width:a,height:s,ratio:o}=cm(r,i,n),l=Math.ceil(a/32)*32,d=Math.ceil(s/32)*32,c=this.platform.createCanvas(l,d);c.getContext("2d").drawImage(t,0,0,r,i,0,0,a,s);let m=this.options.mean??[.485,.456,.406],y=this.options.stdDeviation??[.229,.224,.225],_=mm(c,l,d,m,y);return this.log(`Detection preprocessed: original(${r}x${i}), model_input(${l}x${d}), resize_ratio: ${o.toFixed(4)}, engine: ${this.engine}`),{tensor:_,width:l,height:d,resizeRatio:o,originalWidth:r,originalHeight:i}}async runInference(t,r,i){let n;try{this.log("Running detection inference..."),n=new this.platform.ort.Tensor("float32",t,[1,3,i,r]);let a={x:n},o=(await this.session.run(a))[this.session.outputNames[0]||"sigmoid_0.tmp_0"];return this.log("Detection inference complete!"),o?o.data:(console.error(`Output tensor ${this.session.outputNames[0]} not found in detection results`),null)}catch(a){throw console.error("Error during model inference:",a instanceof Error?a.message:String(a)),a}finally{n?.dispose()}}postprocessDetection(t,r,i=this.options.minimumAreaThreshold??50,n=this.options.paddingVertical||.4,a=this.options.paddingHorizontal||.6){this.log("Post-processing detection results...");let{width:s,height:o,resizeRatio:l,originalWidth:d,originalHeight:c}=r,h=gm(t,s,o,this.platform.createCanvas.bind(this.platform));return this.lastDetectionCanvas=h,this.engine==="opencv"&&this.platform.imageProcessor?this.postprocessWithOpenCV(h,s,o,l,d,c,i,n,a):this.postprocessWithCanvasNative(h,l,d,c,i,n,a)}postprocessWithOpenCV(t,r,i,n,a,s,o,l,d){let c=this.platform.imageProcessor,h=new c.ImageProcessor(t);try{h.grayscale().convert({rtype:c.cv.CV_8UC1});let m=new c.Contours(h.toMat(),{mode:c.cv.RETR_LIST,method:c.cv.CHAIN_APPROX_SIMPLE}),y=hm(m,r,i,n,a,s,o,l,d);return m.destroy(),this.log(`Found ${y.length} potential text boxes (opencv)`),y}finally{h.destroy()}}postprocessWithCanvasNative(t,r,i,n,a,s,o){let d=this.platform.canvas.createProcessor(t).grayscale().threshold({thresh:0}).findRegions({foreground:"light",minArea:a,thresh:0,padding:{vertical:s,horizontal:o},scale:1/r}),c=fm(d,i,n);return this.log(`Found ${c.length} potential text boxes (canvas-native)`),c}async debugDetectionCanvas(t,r,i){let n=this.debugging.debugFolder??"";await this.platform.saveDebugImage(t,"detection-debug",n),this.log(`Probability map visualized and saved to: ${n}`)}async debugDetectedBoxes(t,r){let i=this.platform.isCanvas(t)?t:await this.platform.canvas.prepareCanvas(t),n=i.getContext("2d");for(let s of r){let{x:o,y:l,width:d,height:c}=s;this.platform.canvas.getToolkit().drawLine({ctx:n,x:o,y:l,width:d,height:c})}let a=this.debugging.debugFolder??"";await this.platform.saveDebugImage(i,"boxes-debug",a),this.log(`Boxes visualized and saved to: ${a}`)}};function _m(e){return e.reason instanceof Error?e.reason:new DOMException("The batch operation was aborted.","AbortError")}function Ky(e){if(Symbol.asyncIterator in e)return e[Symbol.asyncIterator]();let t=e[Symbol.iterator]();return{next:()=>Promise.resolve(t.next()),return:r=>Promise.resolve(t.return?.(r)??{done:!0,value:void 0})}}async function Da(e,t,r,i){let{settle:n,signal:a}=t,s=Math.max(1,Math.floor(t.concurrency));if(a?.aborted)throw _m(a);let o=0,l=0,d=!1,c=!1,h,m=Array.isArray(e)?e:null,y=m?null:Ky(e),_=Promise.resolve(),w=async()=>{let b=_,E;_=new Promise(T=>{E=T}),await b;try{return await y.next()}finally{E()}},S=()=>{d=!0};a?.addEventListener("abort",S,{once:!0});let x=async()=>{for(;!d;){let b,E;if(m){if(o>=m.length)return;E=o++,b=m[E]}else{let T=await w();if(T.done||d)return;E=o++,b=T.value}try{let T=await r(b,E);if(d)return;i({index:E,status:"fulfilled",value:T})}catch(T){if(n)i({index:E,status:"rejected",reason:T});else{d=!0,c=!0,h=T;return}}finally{l++,t.onProgress?.(l,t.total)}}};try{await Promise.all(Array.from({length:s},()=>x()))}finally{a?.removeEventListener("abort",S),await y?.return?.()}if(a?.aborted)throw _m(a);if(c)throw h}function ym(){let e=[],t=null,r=!1,i=null,n=()=>{let a=t;t=null,a?.()};return{push(a){e.push(a),n()},close(){r=!0,n()},fail(a){i={error:a},r=!0,n()},async*drain(){for(;;){for(;e.length>0;)yield e.shift();if(i)throw i.error;if(r)return;await new Promise(a=>{t=a})}}}}async function bm(e,t,r,i){let n=e.canvas.getToolkit(),a=[];for(let[s,o]of r.entries()){let l=n.crop({bbox:{x0:o.x,y0:o.y,x1:o.x+o.width,y1:o.y+o.height},canvas:t});if(i.saveCropsTo&&e.saveImage){let d=`crop_${String(s).padStart(3,"0")}.png`;await e.saveImage(l,[i.saveCropsTo,d].join(e.pathSeparator))}i.crop&&a.push(await Xy(l))}return a}async function Xy(e){let t=e;if(typeof t.toBuffer=="function"){let r=t.toBuffer("image/png");return r.buffer.slice(r.byteOffset,r.byteOffset+r.byteLength)}if(typeof t.convertToBlob=="function")return(await t.convertToBlob({type:"image/png"})).arrayBuffer();if(typeof t.toBlob=="function"){let r=t.toBlob.bind(t);return(await new Promise((n,a)=>r(s=>s?n(s):a(new Error("Canvas toBlob() returned null")),"image/png"))).arrayBuffer()}throw new Error("Canvas cannot be encoded to a PNG buffer on this platform")}function $m(e){if(e.length===0)return{text:"",results:[],confidence:0};let t=e.map(i=>i.text).join(" "),r=e.reduce((i,n)=>i+n.confidence,0)/e.length;return{text:t,results:e,confidence:r}}function vm(e){if(e.length===0)return{text:"",lines:[],confidence:0};let t=[],r=[],i=e[0];if(!i)return{text:"",lines:[],confidence:0};let n=i.box.y,a=i.box.height;for(let d of e){let{box:c}=d;Math.abs(c.y-n)<a/2?(r.push(d),a=(a*(r.length-1)+c.height)/r.length):(r.sort((h,m)=>h.box.x-m.box.x),t.push(r),r=[d],n=c.y,a=c.height)}r.length>0&&(r.sort((d,c)=>d.box.x-c.box.x),t.push(r));let s=t.map(d=>d.map(c=>c.text).join(" ")).join(`
+`),o=t.reduce((d,c)=>d+c.reduce((h,m)=>h+m.confidence,0),0),l=t.reduce((d,c)=>d+c.length,0);return{text:s,lines:t,confidence:l>0?o/l:0}}function Na(e){if(e.length===0)return[];let t=[...e].sort((o,l)=>o.box.y-l.box.y||o.box.x-l.box.x),r=[],i=t[0];if(!i)return[];let n=[i],a=i.box.height,s=i.box.height;for(let o=1;o<t.length;o++){let l=t[o],d=t[o-1];if(!l||!d)continue;let c=Math.abs(l.box.y-d.box.y),h=s*.5;c<=h?(n.push(l),a+=l.box.height,s=a/n.length):(n.sort((m,y)=>m.box.x-y.box.x),r.push(n),n=[l],a=l.box.height,s=l.box.height)}return n.length>0&&(n.sort((o,l)=>o.box.x-l.box.x),r.push(n)),r}var Zy=4,wm=16384;function Pa(e,t,r,i){let n=Math.min(...t.map(b=>b.box.x)),a=Math.min(...t.map(b=>b.box.y)),s=Math.max(...t.map(b=>b.box.x+b.box.width)),o=Math.max(...t.map(b=>b.box.y+b.box.height)),l={x:n,y:a,width:s-n,height:o-a},d=o-a,c=Math.max(1,Math.round(d*.4)),h=t.map(({box:b})=>Math.max(1,Math.round(b.width*Math.min(d/b.height,Zy)))),m=h.reduce((b,E)=>b+E,0)+c*(t.length-1);if(m>wm){let b=wm/m;h=h.map(E=>Math.max(1,Math.round(E*b))),c=Math.max(1,Math.floor(c*b))}let y=h.reduce((b,E)=>b+E,0)+c*(t.length-1),_=r(y,d),w=_.getContext("2d");w.fillStyle="white",w.fillRect(0,0,y,d);let S=0,x=[];for(let b=0;b<t.length;b++){let E=t[b],T=h[b];if(!E||T===void 0)continue;let{box:k}=E,C=i.getToolkit().crop({bbox:{x0:k.x,y0:k.y,x1:k.x+k.width,y1:k.y+k.height},canvas:e});w.drawImage(C,0,0,k.width,k.height,S,0,T,d);let z=b<t.length-1?c:0;x.push(T+z),S+=T+z}return{mergedCanvas:_,mergedBox:l,cropWidths:x}}function La(e,t,r){let i=[...e];if(t.length!==i.length||r.length===0)return Yy(e,r);let n=r.reduce((l,d)=>l+d,0),a=r.map(()=>""),s=0,o=(r[0]??0)/n;for(let l=0;l<i.length;l++){let d=t[l]??0;for(;d>=o&&s<r.length-1;)s++,o+=(r[s]??0)/n;a[s]+=i[l]??""}return a}var Qy=4;function Yy(e,t){if(t.length===1)return[e];let r=t.reduce((o,l)=>o+l,0),i=[...e],n=i.length>0?r/i.length:0,a=[],s=0;for(let o=0;o<t.length;o++){if(o===t.length-1){a.push(i.slice(s).join(""));break}let l=Math.min(s+Math.round((t[o]??0)/n),i.length),d=l,c=!1;for(let h=0;h<=Qy&&!c;h++)for(let m of[l-h,l+h]){let y=i[m];if(m>s&&m<i.length&&y!==void 0&&/\s/.test(y)){d=m,c=!0;break}}a.push(i.slice(s,d).join("")),s=c?d+1:d}return a}function xm(e,t,r,i){let n=[...e].sort((o,l)=>t(l)-t(o)),a=[],s=[];for(let o of n){let l=!1;for(let d=0;d<a.length;d++){let c=a[d],h=s[d];if(c===void 0||h===void 0)continue;let m=i*c.length;if(h+m+t(o)<=r){c.push(o),s[d]=h+t(o),l=!0;break}}l||(a.push([o]),s.push(t(o)))}return a}var Cr=class{cache=new Map;maxSize;constructor(t=10){this.maxSize=t}get(t){let r=this.cache.get(t);if(r!==void 0)return this.cache.delete(t),this.cache.set(t,r),r}set(t,r){if(this.cache.has(t))this.cache.delete(t);else if(this.cache.size>=this.maxSize){let i=this.cache.keys().next().value;i!==void 0&&this.cache.delete(i)}this.cache.set(t,r)}clear(){this.cache.clear()}static generateKey(t){let r=new Uint8Array(t),i=Math.min(r.length,1024),n=0;for(let a=0;a<i;a++)n=(n<<5)-n+r[a],n=n&n;return`${n}_${r.length}`}},Ua=new Cr;var wi=class{options=Ir;detectionSession=null;recognitionSession=null;detector=null;recognitor=null;platform;constructor(t,r){this.platform=t,this.options=bi({},Ir,r),this.options.session=this.options.session||Ir.session}log(t){this.options.debugging?.verbose&&console.log(`[PaddleOcrService:Base] ${t}`)}async recognize(t,r){(!this.detector||!this.recognitor)&&await this.initSessions();try{let i;if(typeof t=="string"){if(!t.startsWith("http")&&!t.startsWith("/"))throw new Error("Invalid image string format. Must be an HTTP URL, an absolute path, ArrayBuffer, or Canvas");i=await this.platform.loadResource(t,t)}else if(t instanceof ArrayBuffer)i=t;else if(typeof t.toBuffer=="function"){let y=t.toBuffer("image/png");i=y.buffer.slice(y.byteOffset,y.byteOffset+y.byteLength)}else{let m=t,w=m.getContext("2d",{willReadFrequently:!0}).getImageData(0,0,m.width,m.height).data;i=w.buffer.slice(w.byteOffset,w.byteOffset+w.byteLength)}let n=Cr.generateKey(i);if(!r?.noCache&&!r?.dictionary){let m=Ua.get(n);if(m)return this.log("Using cached OCR result"),r?.flatten?{text:m.text,results:m.lines?m.lines.flat():m.results??[],confidence:m.confidence}:m}let a=[],s=typeof t=="string"||t instanceof ArrayBuffer?await this.platform.canvas.prepareCanvas(i):t;if(a=await this.detector.run(s),a.length===0)return r?.flatten?{text:"",results:[],confidence:0}:{text:"",lines:[],confidence:0};let o=this.options.recognition?.charactersDictionary;if(r?.dictionary){let m="";if(typeof r.dictionary=="string"){let y=await this.platform.loadResource(r.dictionary,r.dictionary);m=new TextDecoder("utf-8").decode(y)}else m=new TextDecoder("utf-8").decode(r.dictionary);o=kr(m)}let l=r?.strategy??this.options.recognition?.strategy??"per-line",d=await this.recognitor.run(s,a,o,l),c=vm(d),h=r?.flatten?$m(d):c;return!r?.noCache&&!r?.dictionary&&Ua.set(n,h),h}catch(i){let n=i instanceof Error?i:new Error(String(i));throw console.error("recognize: error",n.message,n.stack),i}}async detect(t,r){this.detector||await this.initSessions();let{crop:i,saveCropsTo:n,...a}=r??{},s=Object.keys(a).length>0?new Jt(this.platform,this.detectionSession,{...this.options.detection,...a},this.options.debugging,this.options.processing?.engine??_i):this.detector,o;if(typeof t=="string"){if(!t.startsWith("http")&&!t.startsWith("/"))throw new Error("Invalid image string format. Must be an HTTP URL, an absolute path, ArrayBuffer, or Canvas");o=await this.platform.canvas.prepareCanvas(await this.platform.loadResource(t,t))}else t instanceof ArrayBuffer?o=await this.platform.canvas.prepareCanvas(t):o=t;let l=(await s.run(o)).filter(c=>c.width>0&&c.height>0);if(!i&&!n)return{boxes:l};let d=await bm(this.platform,o,l,{crop:i,saveCropsTo:n});return i?{boxes:l,crops:d}:{boxes:l}}async batchRecognize(t,r){let i=r?.settle??!1,n=[];return await Da(t,{concurrency:this.resolveConcurrency(r?.concurrency),settle:i,signal:r?.signal,onProgress:r?.onProgress,total:Array.isArray(t)?t.length:void 0},a=>this.recognize(a,r),a=>{n[a.index]=a}),i?n:n.map(a=>a.status==="fulfilled"?a.value:void 0)}async*batchRecognizeStream(t,r){let i=ym(),n=(async()=>{try{await Da(t,{concurrency:this.resolveConcurrency(r?.concurrency),settle:r?.settle??!1,signal:r?.signal,onProgress:r?.onProgress,total:Array.isArray(t)?t.length:void 0},a=>this.recognize(a,r),a=>i.push(a)),i.close()}catch(a){i.fail(a)}})();yield*i.drain(),await n}resolveConcurrency(t){return typeof t=="number"&&t>0?Math.floor(t):(this.options.session?.executionProviders??[]).some(n=>{let a=(typeof n=="string"?n:n.name).toLowerCase();return a!=="cpu"&&a!=="wasm"})?1:4}};var Sm=new Set(["cpu","wasm"]);function Jy(e){return typeof e=="string"?e:e.name}async function Tm(e,t,r,i,n){let a=r??{};try{return await e.InferenceSession.create(t,a)}catch(s){let l=(a.executionProviders??[]).map(Jy);if(l.every(_=>Sm.has(_))||l.length===0)throw s;let h=l.find(_=>Sm.has(_))??(l.includes("wasm")?"wasm":"cpu"),m=s instanceof Error?s.message:String(s);i(`executionProviders=${JSON.stringify(l)} failed (${m}); falling back to ["${h}"].`);let y={...a,executionProviders:[h]};return n?.(y),e.InferenceSession.create(t,y)}}var Wa=null;function qa(e){Wa=e}function Ue(){if(!Wa)throw new Error('No canvas platform registered. Import "ppu-ocv" (Node), "ppu-ocv/web" (browser), "ppu-ocv/canvas" (Node canvas-only), "ppu-ocv/canvas-web" (browser canvas-only), or "ppu-ocv/canvas-mobile" (React Native / Skia) to auto-register.');return Wa}function Em(e){return typeof e=="object"&&e!==null&&typeof e.getContext=="function"&&typeof e.width=="number"&&typeof e.height=="number"}var $i={createCanvas(e,t){if(typeof OffscreenCanvas<"u")return new OffscreenCanvas(e,t);if(typeof document<"u"){let r=document.createElement("canvas");return r.width=e,r.height=t,r}throw new Error("No canvas implementation available in this environment.")},async loadImage(e){let t;if(e instanceof ArrayBuffer)t=new Blob([e]);else if(typeof e=="string")t=await(await fetch(e)).blob();else throw new Error("loadImage: unsupported source type");let r=await createImageBitmap(t),i=$i.createCanvas(r.width,r.height);return i.getContext("2d").drawImage(r,0,0),r.close(),i},isCanvas(e){return typeof HTMLCanvasElement<"u"&&e instanceof HTMLCanvasElement||typeof OffscreenCanvas<"u"&&e instanceof OffscreenCanvas}};var er=class e{static _baseInstance=null;step=0;constructor(){}static getInstance(){return e._baseInstance||(e._baseInstance=new e),e._baseInstance}crop(t){let{bbox:r,canvas:i}=t,n=Ue().createCanvas(r.x1-r.x0,r.y1-r.y0);return n.getContext("2d").drawImage(i,r.x0,r.y0,r.x1-r.x0,r.y1-r.y0,0,0,n.width,n.height),n}isDirty(t){let{canvas:r,threshold:i=127.5,majorColorThreshold:n=.97}=t,a=0,s=0,o=this.crop({bbox:{x0:r.width*.1,y0:r.height*.1,x1:r.width*.9,y1:r.height*.9},canvas:r}),d=o.getContext("2d").getImageData(0,0,o.width,o.height).data;for(let h=0;h<d.length;h+=4){let m=d[h],y=d[h+1],_=d[h+2];m>=i&&y>=i&&_>=i?a++:s++}return Math.max(a,s)/(s+a)<n}drawLine(t){let{ctx:r,x:i,y:n,width:a,height:s,lineWidth:o=2,color:l="blue"}=t;r.beginPath(),r.strokeStyle=l,r.lineWidth=o,r.strokeRect(i,n,a,s),r.closePath()}drawContour(t){let{ctx:r,contour:i,strokeStyle:n="red",lineWidth:a=2}=t,s=i.data32S;if(!(s.length<4)){r.strokeStyle=n,r.lineWidth=a,r.beginPath(),r.moveTo(s[0]??0,s[1]??0);for(let o=2;o<s.length;o+=2)r.lineTo(s[o]??0,s[o+1]??0);r.closePath(),r.stroke()}}};async function Im(e){return Em(e)?e:Ue().loadImage(e)}async function km(e){if(e instanceof ArrayBuffer)return e;if(typeof e.toBuffer=="function"){let a=e.toBuffer("image/png"),s=new ArrayBuffer(a.byteLength);return new Uint8Array(s).set(new Uint8Array(a)),s}let t=e.toBlob;if(typeof t=="function")return(await new Promise((s,o)=>{t.call(e,l=>l?s(l):o(new Error("toBlob returned null")),"image/png")})).arrayBuffer();if(typeof e.convertToBlob=="function")return(await e.convertToBlob({type:"image/png"})).arrayBuffer();if(typeof e.toDataURL=="function"){let s=e.toDataURL("image/png").replace(/^data:image\/png;base64,/,""),o=atob(s),l=new ArrayBuffer(o.length),d=new Uint8Array(l);for(let c=0;c<o.length;c++)d[c]=o.charCodeAt(c);return l}let i=e.getContext("2d").getImageData(0,0,e.width,e.height),n=new ArrayBuffer(i.data.byteLength);return new Uint8Array(n).set(new Uint8Array(i.data.buffer,i.data.byteOffset,i.data.byteLength)),n}function Cm(e,t,r,i={}){let{foreground:n="light",thresh:a=127,minArea:s=1,maxArea:o=1/0,padding:l,scale:d=1}=i,c=new Uint8Array(t*r),h=[],m=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]],y=_=>{let w=e[_]??0;return n==="light"?w>a:w<=a};for(let _=0;_<r;_++)for(let w=0;w<t;w++){let S=_*t+w;if(c[S]||(c[S]=1,!y(S*4)))continue;let x=[S],b=w,E=w,T=_,k=_,C=0;for(;x.length>0;){let z=x.pop();if(z===void 0)break;C++;let $=z%t,D=(z-$)/t;$<b?b=$:$>E&&(E=$),D<T?T=D:D>k&&(k=D);for(let[W,F]of m){let V=$+W,P=D+F;if(V<0||V>=t||P<0||P>=r)continue;let j=P*t+V;c[j]||(c[j]=1,y(j*4)&&x.push(j))}}if(C>=s&&C<=o){let z=b,$=T,D=E+1,W=k+1;if(l){let F=W-$,V=Math.round(F*(l.vertical??0)),P=Math.round(F*(l.horizontal??0));z=Math.max(0,z-P),$=Math.max(0,$-V),D=Math.min(t,D+P),W=Math.min(r,W+V)}d!==1&&(z=Math.max(0,Math.round(z*d)),$=Math.max(0,Math.round($*d)),D=Math.round(D*d),W=Math.round(W*d)),h.push({bbox:{x0:z,y0:$,x1:D,y1:W},area:C})}}return h}var tr=class{_canvas;constructor(t){this._canvas=t}get width(){return this._canvas.width}get height(){return this._canvas.height}resize(t){let{width:r,height:i}=t,n=Ue().createCanvas(r,i);return n.getContext("2d").drawImage(this._canvas,0,0,r,i),this._canvas=n,this}grayscale(){let{width:t,height:r}=this._canvas,i=this._canvas.getContext("2d").getImageData(0,0,t,r),n=i.data;for(let s=0;s<n.length;s+=4){let o=Math.round(.299*(n[s]??0)+.587*(n[s+1]??0)+.114*(n[s+2]??0));n[s]=o,n[s+1]=o,n[s+2]=o}let a=Ue().createCanvas(t,r);return a.getContext("2d").putImageData(i,0,0),this._canvas=a,this}convert(t={}){let{alpha:r=1,beta:i=0}=t;if(r===1&&i===0)return this;let{width:n,height:a}=this._canvas,s=this._canvas.getContext("2d").getImageData(0,0,n,a),o=s.data;for(let d=0;d<o.length;d+=4)o[d]=Math.round((o[d]??0)*r+i),o[d+1]=Math.round((o[d+1]??0)*r+i),o[d+2]=Math.round((o[d+2]??0)*r+i);let l=Ue().createCanvas(n,a);return l.getContext("2d").putImageData(s,0,0),this._canvas=l,this}invert(){let{width:t,height:r}=this._canvas,i=this._canvas.getContext("2d").getImageData(0,0,t,r),n=i.data;for(let s=0;s<n.length;s+=4)n[s]=255-(n[s]??0),n[s+1]=255-(n[s+1]??0),n[s+2]=255-(n[s+2]??0);let a=Ue().createCanvas(t,r);return a.getContext("2d").putImageData(i,0,0),this._canvas=a,this}threshold(t={}){let{thresh:r=127,maxValue:i=255}=t,{width:n,height:a}=this._canvas,s=this._canvas.getContext("2d").getImageData(0,0,n,a),o=s.data;for(let d=0;d<o.length;d+=4){let h=(o[d]===o[d+1]&&o[d+1]===o[d+2]?o[d]??0:Math.round(.299*(o[d]??0)+.587*(o[d+1]??0)+.114*(o[d+2]??0)))>r?i:0;o[d]=h,o[d+1]=h,o[d+2]=h}let l=Ue().createCanvas(n,a);return l.getContext("2d").putImageData(s,0,0),this._canvas=l,this}border(t={}){let{size:r=10,color:i="white"}=t,{width:n,height:a}=this._canvas,s=Ue().createCanvas(n+r*2,a+r*2),o=s.getContext("2d");return o.fillStyle=i,o.fillRect(0,0,s.width,s.height),o.drawImage(this._canvas,r,r),this._canvas=s,this}rotate(t){let{angle:r,cx:i=this._canvas.width/2,cy:n=this._canvas.height/2}=t;if(r===0)return this;let{width:a,height:s}=this._canvas,o=Ue().createCanvas(a,s),l=o.getContext("2d");return l.save(),l.translate(i,n),l.rotate(-r*Math.PI/180),l.drawImage(this._canvas,-i,-n),l.restore(),this._canvas=o,this}findRegions(t={}){let{width:r,height:i}=this._canvas,n=this._canvas.getContext("2d").getImageData(0,0,r,i).data;return Cm(n,r,i,t)}toCanvas(){return this._canvas}static async prepareCanvas(t){return Im(t)}static async prepareBuffer(t){return km(t)}};qa($i);var St=class{pathSeparator="/";ort=Gt;createCanvas(t,r){let i=document.createElement("canvas");return i.width=t,i.height=r,i.getContext("2d",{willReadFrequently:!0}),i}isCanvas(t){return!!(t instanceof HTMLCanvasElement||typeof OffscreenCanvas<"u"&&t instanceof OffscreenCanvas||t&&typeof t.getContext=="function")}async loadResource(t,r){if(t instanceof ArrayBuffer)return t;let i=typeof t=="string"?t:r,n=await fetch(i);if(!n.ok)throw new Error(`Failed to fetch resource from ${i}`);return n.arrayBuffer()}async saveDebugImage(t,r,i){return Promise.resolve()}canvas={prepareCanvas:t=>tr.prepareCanvas(t),createProcessor:t=>new tr(t),getToolkit:()=>er.getInstance()}};typeof window<"u"&&!fe.wasm.wasmPaths&&(fe.wasm.wasmPaths="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/");async function zm(){if(typeof navigator>"u")return!1;let e=navigator;if(!e.gpu||typeof e.gpu.requestAdapter!="function")return!1;try{let t=await e.gpu.requestAdapter();return t!=null}catch{return!1}}async function Va(){return await zm()?["webgpu","wasm"]:["wasm"]}var rr=class extends Jt{constructor(t,r={},i={}){super(new St,t,r,i,"canvas-native")}};zr();zr();ja();function Um(e,t,r){return r.getToolkit().crop({bbox:{x0:t.x,y0:t.y,x1:t.x+t.width,y1:t.y+t.height},canvas:e})}async function Ka(e,t,r){let i=t.options.imageHeight??48,n=t.engine==="opencv"?t.platform.imageProcessor:void 0,{imageTensor:a,tensorWidth:s,tensorHeight:o}=await Fa(e,i,n,t.platform.canvas.createProcessor.bind(t.platform.canvas)),l;try{l=new t.platform.ort.Tensor("float32",a,[1,3,o,s]);let d=await t.runInference(l),c=r??t.options.charactersDictionary??[];return Ga(d,c,s,t.debugging.verbose)}finally{l?.dispose()}}function Xa(e){return[...e].sort((t,r)=>Math.abs(t.box.y-r.box.y)<(t.box.height+r.box.height)/4?t.box.x-r.box.x:t.box.y-r.box.y)}async function Wm(e,t,r,i,n){let a=r.debugging.debugFolder?`${r.debugging.debugFolder}${r.platform.pathSeparator}crops`:"";if(r.debugging.debug&&a){let o=r.platform.canvas.getToolkit();"clearOutput"in o&&typeof o.clearOutput=="function"&&o.clearOutput(a)}let s=[];for(let{box:o,index:l}of t){let d=await i(e,o,l,t.length,a,n);d!==null&&s.push(d)}return Xa(s)}async function qm(e,t,r,i){let n=Na(t),a=[];for(let s of n)if(s.length===1){let o=s[0];if(!o)continue;let{box:l}=o,d=Um(e,l,r.platform.canvas),{text:c,confidence:h}=await Ka(d,r,i);a.push({text:c,box:l,confidence:h})}else{let{mergedCanvas:o,cropWidths:l}=Pa(e,s,r.platform.createCanvas.bind(r.platform),r.platform.canvas),{text:d,confidence:c,positions:h}=await Ka(o,r,i),m=La(d,h,l);for(let y=0;y<s.length;y++){let _=s[y];_&&a.push({text:(m[y]??"").trim(),box:_.box,confidence:c})}}return Xa(a)}async function Vm(e,t,r,i){let n=Na(t),a=r.options.imageHeight??48,s=20,o=[];for(let _ of n)if(_.length===1){let w=_[0];if(!w)continue;let S=Um(e,w.box,r.platform.canvas);o.push({canvas:S,boxes:_,cropWidths:[S.width]})}else{let{mergedCanvas:w,cropWidths:S}=Pa(e,_,r.platform.createCanvas.bind(r.platform),r.platform.canvas);o.push({canvas:w,boxes:_,cropWidths:S})}let l=o.map(({canvas:_,boxes:w,cropWidths:S},x)=>{let b=_.width/_.height,E=Math.max(ir,Math.round(a*b));return{canvas:_,boxes:w,cropWidths:S,resizedWidth:E,originalHeight:_.height,index:x}}),d=Math.max(...l.map(_=>_.resizedWidth)),c=r.options.crossLineWidthFactor??1.5,h=Math.round(d*c),m=xm(l,_=>_.resizedWidth,h,s),y=[];for(let _ of m){let w=[..._].sort((P,j)=>P.index-j.index),S=Math.max(...w.map(P=>P.originalHeight)),x=w.map(P=>{if(P.originalHeight>=S)return P.resizedWidth;let j=S/P.originalHeight;return Math.max(ir,Math.round(P.resizedWidth*j))}),E=x.reduce((P,j)=>P+j,0)+s*(w.length-1),T=r.platform.createCanvas(E,a),k=T.getContext("2d");k.fillStyle="white",k.fillRect(0,0,E,a);let C=0;for(let P=0;P<w.length;P++){let j=w[P],O=x[P];j===void 0||O===void 0||(k.drawImage(j.canvas,0,0,j.canvas.width,j.canvas.height,C,0,O,a),C+=O,P<w.length-1&&(C+=s))}let{text:z,confidence:$,positions:D}=await Ka(T,r,i),W=[],F=[];for(let P=0;P<w.length;P++){let j=w[P],O=x[P];if(!j||O===void 0)continue;let U=O/j.canvas.width;for(let J=0;J<j.boxes.length;J++){let te=j.boxes[J];if(!te)continue;let X=(j.cropWidths[J]??0)*U;J===j.boxes.length-1&&P<w.length-1&&(X+=s),W.push(X),F.push(te)}}let V=La(z,D,W);for(let P=0;P<F.length;P++){let j=F[P];j&&y.push({text:(V[P]??"").trim(),box:j.box,confidence:$})}}return Xa(y)}var vi=class{options;debugging;session;platform;engine;constructor(t,r,i={},n={},a="opencv"){this.platform=t,this.session=r,this.options={...gi,...i},this.debugging={...Yt,...n},a==="opencv"&&!this.platform.imageProcessor?this.engine="canvas-native":this.engine=a}log(t){this.debugging.verbose&&console.log(`[RecognitionService] ${t}`)}async run(t,r,i,n="per-line"){this.log("Starting text recognition process");try{let a;this.platform.isCanvas(t)?a=t:this.engine==="opencv"&&this.platform.imageProcessor?a=await this.platform.imageProcessor.prepareCanvas(t):a=await this.platform.canvas.prepareCanvas(t);let s=this.filterValidBoxes(r);if(s.length===0)return[];let o=this.buildContext(),l;switch(n){case"cross-line":l=await Vm(a,s,o,i);break;case"per-line":l=await qm(a,s,o,i);break;default:l=await Wm(a,s,o,(c,h,m,y,_,w)=>this.processBox(c,h,m,y,_,w),i)}let d=this.options.minimumConfidence??.5;return d>0?l.filter(c=>{let h=/[\p{L}\p{N}]/u.test(c.text)?d:Math.min(1,d+.3);return c.confidence>=h}):l}catch(a){return console.error("Error during text recognition:",a instanceof Error?a.message:String(a)),[]}}buildContext(){return{platform:this.platform,options:this.options,debugging:this.debugging,engine:this.engine,runInference:t=>this.runInference(t)}}filterValidBoxes(t){return t.map((r,i)=>({box:r,index:i})).filter(({box:r,index:i})=>this.isValidBox(r,i))}async processBox(t,r,i,n,a,s){let o=Date.now();try{let l=this.platform.canvas.getToolkit().crop({bbox:{x0:r.x,y0:r.y,x1:r.x+r.width,y1:r.y+r.height},canvas:t}),d=this.buildContext(),{text:c,confidence:h}=await this.recognizeTextViaContext(l,d,s);if(this.debugging.debug&&a){await this.platform.saveDebugImage(l,`crop_${String(i).padStart(3,"0")}.png`,a);let m=Date.now()-o;this.log(`Box ${i+1}/${n}: [x:${r.x}, y:${r.y}, w:${r.width}, h:${r.height}]
+	 \u2192 "${c}" (processed in ${m}ms)
+`)}return{text:c,box:r,confidence:h}}catch(l){let d=l instanceof Error?l:new Error(String(l));return console.error(`Error processing box ${i+1}: ${d.message}`,d.stack),null}}async recognizeTextViaContext(t,r,i){let{preprocessImage:n}=await Promise.resolve().then(()=>(ja(),Lm)),{decodeResults:a}=await Promise.resolve().then(()=>(zr(),Nm)),s=r.options.imageHeight??48,o=r.engine==="opencv"?r.platform.imageProcessor:void 0,{imageTensor:l,tensorWidth:d,tensorHeight:c}=await n(t,s,o,r.platform.canvas.createProcessor.bind(r.platform.canvas)),h;try{h=new r.platform.ort.Tensor("float32",l,[1,3,c,d]);let m=await r.runInference(h),y=i??r.options.charactersDictionary??[];return a(m,y,d,this.debugging.verbose)}finally{h?.dispose()}}isValidBox(t,r){return t.width<=0||t.height<=0?(console.warn(`Skipping invalid box ${r+1}: w=${t.width}, h=${t.height}`),!1):!0}async runInference(t){let r={x:t},i=await this.session.run(r),n=Object.keys(i)[0],a=n?i[n]:void 0;if(!a)throw new Error(`Recognition output tensor '${n}' not found. Available keys: ${Object.keys(i)}`);return a}};var nr=class extends vi{constructor(t,r={},i={}){super(new St,t,r,i,"canvas-native")}};var nb={graphOptimizationLevel:"all"},Or=class extends wi{constructor(t){super(new St,t),(this.options.session===void 0||Object.keys(this.options.session).length===0)&&(this.options.session=nb)}async initSessions(){throw new Error("Initialization is handled proactively in PaddleOcrService. Call initialize() instead.")}async _loadResource(t,r){if(t instanceof ArrayBuffer)return this.log("Loading resource from ArrayBuffer"),t;let i=typeof t=="string"?t:r;return this.log(`Fetching resource from URL: ${i}`),dm(i)}async _resolveSessionExecutionProviders(){let t=this.options.session??{};if(t.executionProviders&&t.executionProviders.length>0){this.log(`Using user-provided executionProviders: ${JSON.stringify(t.executionProviders)}`);return}let r=await Va();this.options.session={...t,executionProviders:r},this.log(`Resolved executionProviders: ${JSON.stringify(r)}`)}async _createSession(t){return Tm(Gt,t,this.options.session,r=>console.warn(`[PaddleOcrService] ${r}`),r=>this.options.session=r)}async initialize(){try{this.log("Initializing PaddleOcrService (Web)..."),await this._resolveSessionExecutionProviders();let[t,r,i]=await Promise.all([this._loadResource(this.options.model?.detection,xt.detection),this._loadResource(this.options.model?.recognition,xt.recognition),this._loadResource(this.options.model?.charactersDictionary,xt.charactersDictionary)]),[n,a]=await Promise.all([this._createSession(new Uint8Array(t)),this._createSession(new Uint8Array(r))]);this.detectionSession=n,this.recognitionSession=a,this.options.model&&(this.options.model.detection=t),this.options.model&&(this.options.model.recognition=r),this.log(`Detection ONNX model loaded successfully
+	input: ${n.inputNames}
+	output: ${n.outputNames}`),this.log(`Recognition ONNX model loaded successfully
+	input: ${a.inputNames}
+	output: ${a.outputNames}`);let s=kr(i);if(s.length===0)throw new Error("Character dictionary is empty or could not be loaded.");this.options.model&&(this.options.model.charactersDictionary=i),this.options.recognition&&(this.options.recognition.charactersDictionary=s),this.log(`Character dictionary loaded with ${s.length} entries.`),this.detector=new rr(n,this.options.detection,this.options.debugging),this.recognitor=new nr(a,this.options.recognition,this.options.debugging),this.options.model&&(this.options.model.detection=void 0),this.options.model&&(this.options.model.recognition=void 0)}catch(t){throw console.error("Failed to initialize PaddleOcrService Web:",t),t}}isInitialized(){return this.detectionSession!==null&&this.recognitionSession!==null}async changeDetectionModel(t){this.log("Changing detection model...");let r=await this._loadResource(t,xt.detection);await this.detectionSession?.release(),this.detectionSession=await this._createSession(new Uint8Array(r)),this.detector=new rr(this.detectionSession,this.options.detection,this.options.debugging),this.options.model&&(this.options.model.detection=r),this.log("Detection model changed successfully.")}async changeRecognitionModel(t){this.log("Changing recognition model...");let r=await this._loadResource(t,xt.recognition);await this.recognitionSession?.release(),this.recognitionSession=await this._createSession(new Uint8Array(r)),this.recognitor=new nr(this.recognitionSession,this.options.recognition,this.options.debugging),this.options.model&&(this.options.model.recognition=r),this.log("Recognition model changed successfully.")}async changeTextDictionary(t){this.log("Changing text dictionary...");let r=await this._loadResource(t,xt.charactersDictionary),i=kr(r);if(i.length===0)throw new Error("Character dictionary is empty or could not be loaded.");this.options.model&&(this.options.model.charactersDictionary=r),this.options.recognition&&(this.options.recognition.charactersDictionary=i),this.log(`Character dictionary changed successfully with ${i.length} entries.`)}async recognize(t,r){return super.recognize(t,r)}async destroy(){await this.detectionSession?.release(),await this.recognitionSession?.release(),this.detectionSession=null,this.recognitionSession=null,this.detector=null,this.recognitor=null}};var Za="https://cdn.jsdelivr.net/gh/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models@main";fe.wasm.wasmPaths="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/";fe.wasm.numThreads=1;fe.wasm.proxy=!1;globalThis.FlmPaddleOcr={ort:Gt,PaddleOcrService:Or,model:{...fi,detection:`${Za}/detection/ort/PP-OCRv6_tiny_det.ort`,recognition:`${Za}/recognition/ort/PP-OCRv6_tiny_rec.ort`,charactersDictionary:`${Za}/recognition/ppocrv6_tiny_dict.txt`}};})();
+/*! Bundled license information:
+
+onnxruntime-web/dist/ort.bundle.min.mjs:
+  (*!
+   * ONNX Runtime Web v1.27.0
+   * Copyright (c) Microsoft Corporation. All rights reserved.
+   * Licensed under the MIT License.
+   *)
+
+onnxruntime-web/dist/ort.bundle.min.mjs:
+  (**
+   * @license
+   * Copyright 2021 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   *)
+  (**
+   * @license
+   * Copyright 2020 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   *)
+  (**
+   * @license
+   * Copyright 2019 Google LLC. All Rights Reserved.
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =============================================================================
+   *)
+*/
+/* FLM_PADDLE_OCR_BUNDLE_END */
+// Embedded local computer-vision runtime. PaddleOCR models download once and are cached; evidence photos are never uploaded.
+/*! jsfeat 0.0.8 | Copyright Eugene Zatepyakin | MIT License | embedded for local ORB matching */
+var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e-37;var m=256,i=512,h=1024,x=2048,w=4096;var A=1,n=2,b=3,p=4;var z=new Int32Array([-1,1,4,-1,4,-1,-1,-1,8,-1,-1,-1,-1,-1,-1,-1,8]);var y=(function(){return function(B){return(B&65280)}})();var k=(function(){return function(B){return(B&255)}})();var c=(function(){return function(B){return z[(B&65280)>>8]}})();var a=0;var f=1;var e=2;var u=3;var d=1;var s=1;var g=2;var v=(function(){function B(D,C){this.size=((D+7)|0)&-8;if(typeof C==="undefined"){this.buffer=new ArrayBuffer(this.size)}else{this.buffer=C;this.size=C.length}this.u8=new Uint8Array(this.buffer);this.i32=new Int32Array(this.buffer);this.f32=new Float32Array(this.buffer);this.f64=new Float64Array(this.buffer)}return B})();var q=(function(){function B(F,D,E,C){this.type=y(E)|0;this.channel=k(E)|0;this.cols=F|0;this.rows=D|0;if(typeof C==="undefined"){this.allocate()}else{this.buffer=C;this.data=this.type&m?this.buffer.u8:(this.type&i?this.buffer.i32:(this.type&h?this.buffer.f32:this.buffer.f64))}}B.prototype.allocate=function(){delete this.data;delete this.buffer;this.buffer=new v((this.cols*c(this.type)*this.channel)*this.rows);this.data=this.type&m?this.buffer.u8:(this.type&i?this.buffer.i32:(this.type&h?this.buffer.f32:this.buffer.f64))};B.prototype.copy_to=function(D){var C=D.data,G=this.data;var E=0,F=(this.cols*this.rows*this.channel)|0;for(;E<F-4;E+=4){C[E]=G[E];C[E+1]=G[E+1];C[E+2]=G[E+2];C[E+3]=G[E+3]}for(;E<F;++E){C[E]=G[E]}};B.prototype.resize=function(F,D,C){if(typeof C==="undefined"){C=this.channel}var E=(F*c(this.type)*C)*D;if(E>this.buffer.size){this.cols=F;this.rows=D;this.channel=C;this.allocate()}else{this.cols=F;this.rows=D;this.channel=C}};return B})();var t=(function(){function B(C){this.levels=C|0;this.data=new Array(C);this.pyrdown=jsfeat.imgproc.pyrdown}B.prototype.allocate=function(C,E,F){var D=this.levels;while(--D>=0){this.data[D]=new q(C>>D,E>>D,F)}};B.prototype.build=function(F,E){if(typeof E==="undefined"){E=true}var H=2,D=F,C=this.data[0];if(!E){var G=F.cols*F.rows;while(--G>=0){C.data[G]=F.data[G]}}C=this.data[1];this.pyrdown(D,C);for(;H<this.levels;++H){D=C;C=this.data[H];this.pyrdown(D,C)}};return B})();var j=(function(){function B(C,G,E,F,D){if(typeof C==="undefined"){C=0}if(typeof G==="undefined"){G=0}if(typeof E==="undefined"){E=0}if(typeof F==="undefined"){F=0}if(typeof D==="undefined"){D=-1}this.x=C;this.y=G;this.score=E;this.level=F;this.angle=D}return B})();r.U8_t=m;r.S32_t=i;r.F32_t=h;r.S64_t=x;r.F64_t=w;r.C1_t=A;r.C2_t=n;r.C3_t=b;r.C4_t=p;r.U8C1_t=m|A;r.U8C3_t=m|b;r.U8C4_t=m|p;r.F32C1_t=h|A;r.F32C2_t=h|n;r.S32C1_t=i|A;r.S32C2_t=i|n;r.EPSILON=o;r.FLT_MIN=l;r.COLOR_RGBA2GRAY=a;r.COLOR_RGB2GRAY=f;r.COLOR_BGRA2GRAY=e;r.COLOR_BGR2GRAY=u;r.BOX_BLUR_NOSCALE=d;r.SVD_U_T=s;r.SVD_V_T=g;r.get_data_type=y;r.get_channel=k;r.get_data_type_size=c;r.data_t=v;r.matrix_t=q;r.pyramid_t=t;r.keypoint_t=j})(jsfeat);(function(b){var a=(function(){var f=(function(){function g(h){this.next=null;this.data=new jsfeat.data_t(h);this.size=this.data.size;this.buffer=this.data.buffer;this.u8=this.data.u8;this.i32=this.data.i32;this.f32=this.data.f32;this.f64=this.data.f64}g.prototype.resize=function(h){delete this.data;this.data=new jsfeat.data_t(h);this.size=this.data.size;this.buffer=this.data.buffer;this.u8=this.data.u8;this.i32=this.data.i32;this.f32=this.data.f32;this.f64=this.data.f64};return g})();var e,c;var d=0;return{allocate:function(g,k){e=c=new f(k);for(var h=0;h<g;++h){var j=new f(k);c=c.next=j;d++}},get_buffer:function(g){var h=e;e=e.next;d--;if(g>h.size){h.resize(g)}return h},put_buffer:function(g){c=c.next=g;d++}}})();b.cache=a;a.allocate(30,640*4)})(jsfeat);(function(b){var a=(function(){var c=new Int32Array(48*2);return{get_gaussian_kernel:function(p,m,e,l){var f=0,j=0,o=0,n=0,d=0;var g=0;var h=jsfeat.cache.get_buffer(p<<2);var k=h.f32;if((p&1)==1&&p<=7&&m<=0){switch(p>>1){case 0:k[0]=1;g=1;break;case 1:k[0]=0.25,k[1]=0.5,k[2]=0.25;g=0.25+0.5+0.25;break;case 2:k[0]=0.0625,k[1]=0.25,k[2]=0.375,k[3]=0.25,k[4]=0.0625;g=0.0625+0.25+0.375+0.25+0.0625;break;case 3:k[0]=0.03125,k[1]=0.109375,k[2]=0.21875,k[3]=0.28125,k[4]=0.21875,k[5]=0.109375,k[6]=0.03125;g=0.03125+0.109375+0.21875+0.28125+0.21875+0.109375+0.03125;break}}else{n=m>0?m:((p-1)*0.5-1)*0.3+0.8;d=-0.5/(n*n);for(;f<p;++f){j=f-(p-1)*0.5;o=Math.exp(d*j*j);k[f]=o;g+=o}}if(l&jsfeat.U8_t){g=256/g;for(f=0;f<p;++f){e[f]=(k[f]*g+0.5)|0}}else{g=1/g;for(f=0;f<p;++f){e[f]=k[f]*g}}jsfeat.cache.put_buffer(h)},perspective_4point_transform:function(x,B,r,w,g,A,q,v,f,z,p,u,e,y,o,t,d){var Y=B;var X=z;var W=q;var V=Y*X*W;var U=o;var T=Y*U;var S=X*T;var R=p;var n=Y*R;var m=A;var k=r;var j=y;var i=k*j;var h=i*m;var ax=j*m*R;var aw=j*W;var aq=j*R;var ao=X*W;var am=U*X;var aj=U*m;var ag=R*m;var Q=1/(aw-aq-ao+am-aj+ag);var O=Y*j;var N=k*m;var M=W*Y;var L=U*M;var K=k*X;var I=i*R;var G=k*R*m;var D=W*U*X;var C=U*k;var av=-(S-V+n*m-m*T-i*X+h-ax+aw*X)*Q;var au=(V-S-O*W+O*R+h-X*N+aj*X-ax)*Q;var ar=Y;var ap=(-R*T+L+K*W-i*W+I-G+aj*R-D)*Q;var an=(-L+M*R-C*X+I-G+C*m+D-aw*R)*Q;var al=k;var ai=(-n+M+K-N+aq-aw-am+aj)*Q;var af=(-T+n+i-K+aj-ag-aw+ao)*Q;Y=w;X=u;W=f;V=Y*X*W;U=d;T=Y*U;S=X*T;R=e;n=Y*R;m=v;k=g;j=t;i=k*j;h=i*m;ax=j*m*R;aw=j*W;aq=j*R;ao=X*W;am=U*X;aj=U*m;ag=R*m;Q=1/(aw-aq-ao+am-aj+ag);O=Y*j;N=k*m;M=W*Y;L=U*M;K=k*X;I=i*R;G=k*R*m;D=W*U*X;C=U*k;var ak=-(S-V+n*m-m*T-i*X+h-ax+aw*X)*Q;var ah=(V-S-O*W+O*R+h-X*N+aj*X-ax)*Q;var ae=Y;var ad=(-R*T+L+K*W-i*W+I-G+aj*R-D)*Q;var ac=(-L+M*R-C*X+I-G+C*m+D-aw*R)*Q;var ab=k;var aa=(-n+M+K-N+aq-aw-am+aj)*Q;var Z=(-T+n+i-K+aj-ag-aw+ao)*Q;X=an-af*al;W=av*an;V=av*al;T=ap*au;S=ar*ap;n=au*ai;var l=ar*ai;j=1/(W-V*af-T+S*af+n*al-l*an);h=-ap+al*ai;var at=-ap*af+an*ai;ag=-au+ar*af;var P=av-l;N=av*af-n;M=-au*al+ar*an;var J=V-S;var H=W-T;G=X*j;var F=ag*j;var E=M*j;var s=x.data;s[0]=ak*G+ah*(h*j)-ae*(at*j);s[1]=ak*F+ah*(P*j)-ae*(N*j);s[2]=-ak*E-ah*(J*j)+ae*(H*j);s[3]=ad*G+ac*(h*j)-ab*(at*j);s[4]=ad*F+ac*(P*j)-ab*(N*j);s[5]=-ad*E-ac*(J*j)+ab*(H*j);s[6]=aa*G+Z*(h*j)-at*j;s[7]=aa*F+Z*(P*j)-N*j;s[8]=-aa*E-Z*(J*j)+H*j},qsort:function(o,J,s,u){var D=7;var v,r,q,p;var C=0,j=0,G=0,B=0,z=0,A=0,e=0,y=0,E=0;var x=0,w=0,h=0,g=0,l=0,I=0,H=0,F=0,f=0;var k=c;if((s-J+1)<=1){return}k[0]=J;k[1]=s;while(C>=0){j=k[C<<1];G=k[(C<<1)+1];C--;for(;;){z=(G-j)+1;if(z<=D){for(e=j+1;e<=G;e++){for(y=e;y>j&&u(o[y],o[y-1]);y--){v=o[y];o[y]=o[y-1];o[y-1]=v}}break}else{f=0;x=j;h=G;l=j+(z>>1);if(z>40){E=z>>3;I=j,H=j+E,F=j+(E<<1);r=o[I],q=o[H],p=o[F];j=u(r,q)?(u(q,p)?H:(u(r,p)?F:I)):(u(p,q)?H:(u(r,p)?I:F));I=l-E,H=l,F=l+E;r=o[I],q=o[H],p=o[F];l=u(r,q)?(u(q,p)?H:(u(r,p)?F:I)):(u(p,q)?H:(u(r,p)?I:F));I=G-(E<<1),H=G-E,F=G;r=o[I],q=o[H],p=o[F];G=u(r,q)?(u(q,p)?H:(u(r,p)?F:I)):(u(p,q)?H:(u(r,p)?I:F))}I=j,H=l,F=G;r=o[I],q=o[H],p=o[F];l=u(r,q)?(u(q,p)?H:(u(r,p)?F:I)):(u(p,q)?H:(u(r,p)?I:F));if(l!=x){v=o[l];o[l]=o[x];o[x]=v;l=x}j=w=x+1;G=g=h;r=o[l];for(;;){while(j<=G&&!u(r,o[j])){if(!u(o[j],r)){if(j>w){v=o[w];o[w]=o[j];o[j]=v}f=1;w++}j++}while(j<=G&&!u(o[G],r)){if(!u(r,o[G])){if(G<g){v=o[g];o[g]=o[G];o[G]=v}f=1;g--}G--}if(j>G){break}v=o[j];o[j]=o[G];o[G]=v;f=1;j++;G--}if(f==0){j=x,G=h;for(e=j+1;e<=G;e++){for(y=e;y>j&&u(o[y],o[y-1]);y--){v=o[y];o[y]=o[y-1];o[y-1]=v}}break}z=Math.min((w-x),(j-w));A=(j-z)|0;for(B=0;B<z;++B,++A){v=o[x+B];o[x+B]=o[A];o[A]=v}z=Math.min((h-g),(g-G));A=(h-z+1)|0;for(B=0;B<z;++B,++A){v=o[j+B];o[j+B]=o[A];o[A]=v}z=(j-w);A=(g-G);if(z>1){if(A>1){if(z>A){++C;k[C<<1]=x;k[(C<<1)+1]=x+z-1;j=h-A+1,G=h}else{++C;k[C<<1]=h-A+1;k[(C<<1)+1]=h;j=x,G=x+z-1}}else{j=x,G=x+z-1}}else{if(A>1){j=h-A+1,G=h}else{break}}}}}},median:function(k,d,i){var e;var f=0,j=0,g=0,h=(d+i)>>1;for(;;){if(i<=d){return k[h]}if(i==(d+1)){if(k[d]>k[i]){e=k[d];k[d]=k[i];k[i]=e}return k[h]}f=((d+i)>>1);if(k[f]>k[i]){e=k[f];k[f]=k[i];k[i]=e}if(k[d]>k[i]){e=k[d];k[d]=k[i];k[i]=e}if(k[f]>k[d]){e=k[f];k[f]=k[d];k[d]=e}j=(d+1);e=k[f];k[f]=k[j];k[j]=e;g=i;for(;;){do{++j}while(k[d]>k[j]);do{--g}while(k[g]>k[d]);if(g<j){break}e=k[j];k[j]=k[g];k[g]=e}e=k[d];k[d]=k[g];k[g]=e;if(g<=h){d=j}else{if(g>=h){i=(g-1)}}}return 0}}})();b.math=a})(jsfeat);(function(b){var a=(function(){return{identity:function(j,g){if(typeof g==="undefined"){g=1}var i=j.data;var f=j.rows,h=j.cols,e=(h+1)|0;var c=f*h;var d=c;while(--c>=0){i[c]=0}c=d;d=0;while(d<c){i[d]=g;d=d+e}},transpose:function(f,d){var l=0,h=0,k=d.rows,c=d.cols;var n=0,e=0,m=0;var o=d.data,g=f.data;for(;l<k;e+=1,n+=c,l++){m=e;for(h=0;h<c;m+=k,h++){g[m]=o[n+h]}}},multiply:function(l,n,m){var u=0,s=0,o=0;var r=0,t=0,q=0,w=0,g=0;var f=n.cols,e=n.rows,p=m.cols;var v=n.data,d=m.data,h=l.data;var c=0;for(;u<e;r+=f,u++){for(w=0,s=0;s<p;g++,w++,s++){q=w;t=r;c=0;for(o=0;o<f;t++,q+=p,o++){c+=v[t]*d[q]}h[g]=c}}},multiply_ABt:function(c,g,d){var p=0,n=0,m=0;var r=0,l=0,f=0,u=0;var e=g.cols,o=g.rows,q=d.rows;var v=g.data,t=d.data,h=c.data;var s=0;for(;p<o;r+=e,p++){for(f=0,n=0;n<q;u++,n++){l=r;s=0;for(m=0;m<e;l++,f++,m++){s+=v[l]*t[f]}h[u]=s}}},multiply_AtB:function(l,n,m){var u=0,s=0,o=0;var r=0,t=0,q=0,w=0,g=0;var f=n.cols,e=n.rows,p=m.cols;var v=n.data,d=m.data,h=l.data;var c=0;for(;u<f;r++,u++){for(w=0,s=0;s<p;g++,w++,s++){q=w;t=r;c=0;for(o=0;o<e;t+=f,q+=p,o++){c+=v[t]*d[q]}h[g]=c}}},multiply_AAt:function(d,h){var q=0,o=0,n=0;var c=0,r=0,m=0,g=0,e=0,u=0;var f=h.cols,p=h.rows;var t=h.data,l=d.data;var s=0;for(;q<p;c+=p+1,r=m,q++){e=c;u=c;g=r;for(o=q;o<p;e++,u+=p,o++){m=r;s=0;for(n=0;n<f;n++){s+=t[m++]*t[g++]}l[e]=s;l[u]=s}}},multiply_AtA:function(c,g){var r=0,p=0,n=0;var s=0,m=0,f=0,o=0,d=0,l=0;var e=g.cols,q=g.rows;var u=g.data,h=c.data;var t=0;for(;r<e;o+=e,r++){s=r;l=o+r;d=l;for(p=r;p<e;d++,l+=e,p++){m=s;f=p;t=0;for(n=0;n<q;m+=e,f+=e,n++){t+=u[m]*u[f]}h[d]=t;h[l]=t}}},identity_3x3:function(e,d){if(typeof d==="undefined"){d=1}var c=e.data;c[0]=c[4]=c[8]=d;c[1]=c[2]=c[3]=0;c[5]=c[6]=c[7]=0},invert_3x3:function(s,e){var o=s.data,h=e.data;var n=o[4];var m=o[8];var l=o[5];var k=o[7];var j=o[0];var i=j*n;var v=j*l;var u=o[3];var t=o[1];var r=u*t;var q=o[2];var p=u*q;var g=o[6];var f=g*t;var d=g*q;var c=1/(i*m-v*k-r*m+p*k+f*l-d*n);h[0]=(n*m-l*k)*c;h[1]=-(t*m-q*k)*c;h[2]=-(-t*l+q*n)*c;h[3]=-(u*m-l*g)*c;h[4]=(j*m-d)*c;h[5]=-(v-p)*c;h[6]=-(-u*k+n*g)*c;h[7]=-(j*k-f)*c;h[8]=(i-r)*c},multiply_3x3:function(r,v,t){var y=r.data,z=v.data,l=t.data;var x=z[0],w=z[1],u=z[2];var s=z[3],q=z[4],p=z[5];var o=z[6],n=z[7],m=z[8];var k=l[0],j=l[1],i=l[2];var h=l[3],g=l[4],f=l[5];var e=l[6],d=l[7],c=l[8];y[0]=x*k+w*h+u*e;y[1]=x*j+w*g+u*d;y[2]=x*i+w*f+u*c;y[3]=s*k+q*h+p*e;y[4]=s*j+q*g+p*d;y[5]=s*i+q*f+p*c;y[6]=o*k+n*h+m*e;y[7]=o*j+n*g+m*d;y[8]=o*i+n*f+m*c},mat3x3_determinant:function(d){var c=d.data;return c[0]*c[4]*c[8]-c[0]*c[5]*c[7]-c[3]*c[1]*c[8]+c[3]*c[2]*c[7]+c[6]*c[1]*c[5]-c[6]*c[2]*c[4]},determinant_3x3:function(h,g,f,e,d,c,k,j,i){return h*d*i-h*c*j-e*g*i+e*f*j+k*g*c-k*f*d}}})();b.matmath=a})(jsfeat);(function(b){var a=(function(){var f=function(g,j,i,h){h=g[j];g[j]=g[i];g[i]=h};var d=function(h,g){h=Math.abs(h);g=Math.abs(g);if(h>g){g/=h;return h*Math.sqrt(1+g*g)}if(g>0){h/=g;return g*Math.sqrt(1+h*h)}return 0};var c=function(H,o,q,r,h,I){var C=jsfeat.EPSILON;var N=0,M=0,L=0,J=0,K=0,D=0,R=0,G=0;var u=0,v=I*I*30;var E=0,U=0,F=0,x=0,z=0,B=0,Q=0,T=0,w=0;var P=jsfeat.cache.get_buffer(I<<2);var S=jsfeat.cache.get_buffer(I<<2);var O=P.i32;var g=S.i32;if(r){for(;N<I;N++){L=N*h;for(M=0;M<I;M++){r[L+M]=0}r[L+N]=1}}for(L=0;L<I;L++){q[L]=H[(o+1)*L];if(L<I-1){for(J=L+1,E=Math.abs(H[o*L+J]),N=L+2;N<I;N++){U=Math.abs(H[o*L+N]);if(E<U){E=U,J=N}}O[L]=J}if(L>0){for(J=0,E=Math.abs(H[L]),N=1;N<L;N++){U=Math.abs(H[o*N+L]);if(E<U){E=U,J=N}}g[L]=J}}if(I>1){for(;u<v;u++){for(L=0,E=Math.abs(H[O[0]]),N=1;N<I-1;N++){U=Math.abs(H[o*N+O[N]]);if(E<U){E=U,L=N}}K=O[L];for(N=1;N<I;N++){U=Math.abs(H[o*g[N]+N]);if(E<U){E=U,L=g[N],K=N}}F=H[o*L+K];if(Math.abs(F)<=C){break}x=(q[K]-q[L])*0.5;z=Math.abs(x)+d(F,x);B=d(F,z);Q=z/B;B=F/B;z=(F/z)*F;if(x<0){B=-B,z=-z}H[o*L+K]=0;q[L]-=z;q[K]+=z;for(N=0;N<L;N++){R=(o*N+L);G=(o*N+K);T=H[R];w=H[G];H[R]=T*Q-w*B;H[G]=T*B+w*Q}for(N=(L+1);N<K;N++){R=(o*L+N);G=(o*N+K);T=H[R];w=H[G];H[R]=T*Q-w*B;H[G]=T*B+w*Q}N=K+1;R=(o*L+N);G=(o*K+N);for(;N<I;N++,R++,G++){T=H[R];w=H[G];H[R]=T*Q-w*B;H[G]=T*B+w*Q}if(r){R=h*L;G=h*K;for(N=0;N<I;N++,R++,G++){T=r[R];w=r[G];r[R]=T*Q-w*B;r[G]=T*B+w*Q}}for(M=0;M<2;M++){D=M==0?L:K;if(D<I-1){for(J=D+1,E=Math.abs(H[o*D+J]),N=D+2;N<I;N++){U=Math.abs(H[o*D+N]);if(E<U){E=U,J=N}}O[D]=J}if(D>0){for(J=0,E=Math.abs(H[D]),N=1;N<D;N++){U=Math.abs(H[o*N+D]);if(E<U){E=U,J=N}}g[D]=J}}}}for(L=0;L<I-1;L++){J=L;for(N=L+1;N<I;N++){if(q[J]<q[N]){J=N}}if(L!=J){f(q,J,L,E);if(r){for(N=0;N<I;N++){f(r,h*J+N,h*L+N,E)}}}}jsfeat.cache.put_buffer(P);jsfeat.cache.put_buffer(S)};var e=function(D,l,h,M,v,T,S,E){var C=jsfeat.EPSILON*2;var q=jsfeat.FLT_MIN;var X=0,V=0,U=0,A=0,u=Math.max(T,30);var K=0,J=0,R=0,Q=0,F=0;var Y=0,O=0,N=0;var H=0,G=0,x=0,I=0,w=0,L=0,aa=0,P=0,Z=0;var z=4660;var B=0,y=0,o=0;var r=jsfeat.cache.get_buffer(S<<3);var g=r.f64;for(;X<S;X++){for(U=0,x=0;U<T;U++){N=D[X*l+U];x+=N*N}g[X]=x;if(M){for(U=0;U<S;U++){M[X*v+U]=0}M[X*v+X]=1}}for(;A<u;A++){F=0;for(X=0;X<S-1;X++){for(V=X+1;V<S;V++){K=(X*l)|0,J=(V*l)|0;aa=g[X],P=0,Z=g[V];U=2;P+=D[K]*D[J];P+=D[K+1]*D[J+1];for(;U<T;U++){P+=D[K+U]*D[J+U]}if(Math.abs(P)<=C*Math.sqrt(aa*Z)){continue}P*=2;I=aa-Z,w=d(P,I);if(I<0){L=(w-I)*0.5;O=Math.sqrt(L/w);Y=(P/(w*O*2))}else{Y=Math.sqrt((w+I)/(w*2));O=(P/(w*Y*2))}aa=0,Z=0;U=2;H=Y*D[K]+O*D[J];G=-O*D[K]+Y*D[J];D[K]=H;D[J]=G;aa+=H*H;Z+=G*G;H=Y*D[K+1]+O*D[J+1];G=-O*D[K+1]+Y*D[J+1];D[K+1]=H;D[J+1]=G;aa+=H*H;Z+=G*G;for(;U<T;U++){H=Y*D[K+U]+O*D[J+U];G=-O*D[K+U]+Y*D[J+U];D[K+U]=H;D[J+U]=G;aa+=H*H;Z+=G*G}g[X]=aa;g[V]=Z;F=1;if(M){R=(X*v)|0,Q=(V*v)|0;U=2;H=Y*M[R]+O*M[Q];G=-O*M[R]+Y*M[Q];M[R]=H;M[Q]=G;H=Y*M[R+1]+O*M[Q+1];G=-O*M[R+1]+Y*M[Q+1];M[R+1]=H;M[Q+1]=G;for(;U<S;U++){H=Y*M[R+U]+O*M[Q+U];G=-O*M[R+U]+Y*M[Q+U];M[R+U]=H;M[Q+U]=G}}}}if(F==0){break}}for(X=0;X<S;X++){for(U=0,x=0;U<T;U++){N=D[X*l+U];x+=N*N}g[X]=Math.sqrt(x)}for(X=0;X<S-1;X++){V=X;for(U=X+1;U<S;U++){if(g[V]<g[U]){V=U}}if(X!=V){f(g,X,V,x);if(M){for(U=0;U<T;U++){f(D,X*l+U,V*l+U,N)}for(U=0;U<S;U++){f(M,X*v+U,V*v+U,N)}}}}for(X=0;X<S;X++){h[X]=g[X]}if(!M){jsfeat.cache.put_buffer(r);return}for(X=0;X<E;X++){x=X<S?g[X]:0;while(x<=q){y=(1/T);for(U=0;U<T;U++){z=(z*214013+2531011);B=(((z>>16)&32767)&256)!=0?y:-y;D[X*l+U]=B}for(A=0;A<2;A++){for(V=0;V<X;V++){x=0;for(U=0;U<T;U++){x+=D[X*l+U]*D[V*l+U]}o=0;for(U=0;U<T;U++){N=(D[X*l+U]-x*D[V*l+U]);D[X*l+U]=N;o+=Math.abs(N)}o=o?1/o:0;for(U=0;U<T;U++){D[X*l+U]*=o}}}x=0;for(U=0;U<T;U++){N=D[X*l+U];x+=N*N}x=Math.sqrt(x)}O=(1/x);for(U=0;U<T;U++){D[X*l+U]*=O}}jsfeat.cache.put_buffer(r)};return{lu_solve:function(l,g){var q=0,o=0,n=0,h=1,v=l.cols;var w=l.data,r=g.data;var x,m,u,y;for(q=0;q<v;q++){n=q;for(o=q+1;o<v;o++){if(Math.abs(w[o*v+q])>Math.abs(w[n*v+q])){n=o}}if(Math.abs(w[n*v+q])<jsfeat.EPSILON){return 0}if(n!=q){for(o=q;o<v;o++){f(w,q*v+o,n*v+o,x)}f(r,q,n,x);h=-h}u=-1/w[q*v+q];for(o=q+1;o<v;o++){m=w[o*v+q]*u;for(n=q+1;n<v;n++){w[o*v+n]+=m*w[q*v+n]}r[o]+=m*r[q]}w[q*v+q]=-u}for(q=v-1;q>=0;q--){y=r[q];for(n=q+1;n<v;n++){y-=w[q*v+n]*r[n]}r[q]=y*w[q*v+q]}return 1},cholesky_solve:function(h,g){var l=0,v=0,r=0,s=0,n=0,p=0,o=0;var u=h.cols;var t=h.data,q=g.data;var k,m;for(l=0;l<u;l++){m=1;s=(l*u);n=s;for(v=l;v<u;v++){k=t[(n+l)];for(r=0;r<l;r++){k-=t[(r*u+l)]*t[(n+r)]}if(v==l){t[(n+l)]=k;if(k==0){return 0}m=1/k}else{t[(s+v)]=k;t[(n+l)]=k*m}n=(n+u)}}s=0;for(p=0;p<u;p++){k=q[p];for(o=0;o<p;o++){k-=t[(s+o)]*q[o]}q[p]=k;s=(s+u)}s=0;for(p=0;p<u;p++){q[p]/=t[(s+p)];s=(s+u)}p=(u-1);for(;p>=0;p--){k=q[p];o=(p+1);s=(o*u);for(;o<u;o++){k-=t[(s+p)]*q[o];s=(s+u)}q[p]=k}return 1},svd_decompose:function(t,k,p,l,o){if(typeof o==="undefined"){o=0}var r=0,z=0,x=0,g=t.rows,D=t.cols,w=g,v=D;var s=t.type|jsfeat.C1_t;if(w<v){r=1;z=w;w=v;v=z}var q=jsfeat.cache.get_buffer((w*w)<<3);var h=jsfeat.cache.get_buffer(v<<3);var C=jsfeat.cache.get_buffer((v*v)<<3);var u=new jsfeat.matrix_t(w,w,s,q.data);var B=new jsfeat.matrix_t(1,v,s,h.data);var y=new jsfeat.matrix_t(v,v,s,C.data);if(r==0){jsfeat.matmath.transpose(u,t)}else{for(z=0;z<D*g;z++){u.data[z]=t.data[z]}for(;z<v*w;z++){u.data[z]=0}}e(u.data,w,B.data,y.data,v,w,v,w);if(k){for(z=0;z<v;z++){k.data[z]=B.data[z]}for(;z<D;z++){k.data[z]=0}}if(r==0){if(p&&(o&jsfeat.SVD_U_T)){z=w*w;while(--z>=0){p.data[z]=u.data[z]}}else{if(p){jsfeat.matmath.transpose(p,u)}}if(l&&(o&jsfeat.SVD_V_T)){z=v*v;while(--z>=0){l.data[z]=y.data[z]}}else{if(l){jsfeat.matmath.transpose(l,y)}}}else{if(p&&(o&jsfeat.SVD_U_T)){z=v*v;while(--z>=0){p.data[z]=y.data[z]}}else{if(p){jsfeat.matmath.transpose(p,y)}}if(l&&(o&jsfeat.SVD_V_T)){z=w*w;while(--z>=0){l.data[z]=u.data[z]}}else{if(l){jsfeat.matmath.transpose(l,u)}}}jsfeat.cache.put_buffer(q);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(C)},svd_solve:function(v,l,s){var E=0,C=0,z=0;var w=0,u=0;var o=v.rows,p=v.cols;var h=0,I=0,x=0;var r=v.type|jsfeat.C1_t;var F=jsfeat.cache.get_buffer((o*o)<<3);var m=jsfeat.cache.get_buffer(p<<3);var H=jsfeat.cache.get_buffer((p*p)<<3);var t=new jsfeat.matrix_t(o,o,r,F.data);var G=new jsfeat.matrix_t(1,p,r,m.data);var D=new jsfeat.matrix_t(p,p,r,H.data);var n=s.data,y=t.data,q=G.data,g=D.data;this.svd_decompose(v,G,t,D,0);x=jsfeat.EPSILON*q[0]*p;for(;E<p;E++,u+=p){I=0;for(C=0;C<p;C++){if(q[C]>x){for(z=0,h=0,w=0;z<o;z++,w+=p){h+=y[w+C]*n[z]}I+=h*g[u+C]/q[C]}}l.data[E]=I}jsfeat.cache.put_buffer(F);jsfeat.cache.put_buffer(m);jsfeat.cache.put_buffer(H)},svd_invert:function(E,t){var C=0,z=0,y=0;var v=0,s=0,h=0;var n=t.rows,o=t.cols;var l=0,w=0;var q=t.type|jsfeat.C1_t;var D=jsfeat.cache.get_buffer((n*n)<<3);var m=jsfeat.cache.get_buffer(o<<3);var G=jsfeat.cache.get_buffer((o*o)<<3);var u=new jsfeat.matrix_t(n,n,q,D.data);var F=new jsfeat.matrix_t(1,o,q,m.data);var B=new jsfeat.matrix_t(o,o,q,G.data);var r=E.data,x=u.data,p=F.data,g=B.data;this.svd_decompose(t,F,u,B,0);w=jsfeat.EPSILON*p[0]*o;for(;C<o;C++,s+=o){for(z=0,v=0;z<n;z++,h++){for(y=0,l=0;y<o;y++,v++){if(p[y]>w){l+=g[s+y]*x[v]/p[y]}}r[h]=l}}jsfeat.cache.put_buffer(D);jsfeat.cache.put_buffer(m);jsfeat.cache.put_buffer(G)},eigenVV:function(j,p,r){var k=j.cols,m=k*k;var g=j.type|jsfeat.C1_t;var o=jsfeat.cache.get_buffer((k*k)<<3);var h=jsfeat.cache.get_buffer(k<<3);var l=new jsfeat.matrix_t(k,k,g,o.data);var q=new jsfeat.matrix_t(1,k,g,h.data);while(--m>=0){l.data[m]=j.data[m]}c(l.data,k,q.data,p?p.data:null,k,k);if(r){while(--k>=0){r.data[k]=q.data[k]}}jsfeat.cache.put_buffer(o);jsfeat.cache.put_buffer(h)}}})();b.linalg=a})(jsfeat);(function(a){var c=(function(){var m=function(p){return p*p};var e=function(z,A,x,w,u){var t=0;var y=0,s=0,q=0,C=0;var v=0,r=0,p=0,B=0;var E=0,D=0;for(;t<u;++t){y+=z[t].x;s+=z[t].y;v+=A[t].x;r+=A[t].y}y/=u;s/=u;v/=u;r/=u;for(t=0;t<u;++t){E=z[t].x-y;D=z[t].y-s;q+=Math.sqrt(E*E+D*D);E=A[t].x-v;D=A[t].y-r;p+=Math.sqrt(E*E+D*D)}q/=u;p/=u;C=Math.SQRT2/q;B=Math.SQRT2/p;x[0]=x[4]=C;x[2]=-y*C;x[5]=-s*C;x[1]=x[3]=x[6]=x[7]=0;x[8]=1;w[0]=w[4]=B;w[2]=-v*B;w[5]=-r*B;w[1]=w[3]=w[6]=w[7]=0;w[8]=1};var h=function(x,u){var q=0,p=0,r=(u-1)|0;var w=0,t=0,v=0,s=0;for(;q<r;++q){w=x[q].x-x[r].x;t=x[q].y-x[r].y;for(p=0;p<q;++p){v=x[p].x-x[r].x;s=x[p].y-x[r].y;if(Math.abs(v*t-s*w)<=jsfeat.EPSILON*(Math.abs(w)+Math.abs(t)+Math.abs(v)+Math.abs(s))){return true}}}return false};var k=new jsfeat.matrix_t(3,3,jsfeat.F32_t|jsfeat.C1_t);var i=new jsfeat.matrix_t(3,3,jsfeat.F32_t|jsfeat.C1_t);var o=new jsfeat.matrix_t(6,6,jsfeat.F32_t|jsfeat.C1_t);var n=new jsfeat.matrix_t(6,1,jsfeat.F32_t|jsfeat.C1_t);var j=(function(){function p(){}p.prototype.run=function(D,q,r,t){var G=0,F=0;var B=r.type|jsfeat.C1_t;var J=r.data,v=k.data,E=i.data;var x,w,A=0,z=0;e(D,q,v,E,t);var u=jsfeat.cache.get_buffer((2*t*6)<<3);var y=jsfeat.cache.get_buffer((2*t)<<3);var C=new jsfeat.matrix_t(6,2*t,B,u.data);var H=new jsfeat.matrix_t(1,2*t,B,y.data);var I=C.data,s=H.data;for(;G<t;++G){x=D[G];w=q[G];A=v[0]*x.x+v[1]*x.y+v[2];z=v[3]*x.x+v[4]*x.y+v[5];F=G*2*6;I[F]=A,I[F+1]=z,I[F+2]=1,I[F+3]=0,I[F+4]=0,I[F+5]=0;F+=6;I[F]=0,I[F+1]=0,I[F+2]=0,I[F+3]=A,I[F+4]=z,I[F+5]=1;s[G<<1]=E[0]*w.x+E[1]*w.y+E[2];s[(G<<1)+1]=E[3]*w.x+E[4]*w.y+E[5]}jsfeat.matmath.multiply_AtA(o,C);jsfeat.matmath.multiply_AtB(n,C,H);jsfeat.linalg.lu_solve(o,n);J[0]=n.data[0],J[1]=n.data[1],J[2]=n.data[2];J[3]=n.data[3],J[4]=n.data[4],J[5]=n.data[5];J[6]=0,J[7]=0,J[8]=1;jsfeat.matmath.invert_3x3(i,i);jsfeat.matmath.multiply_3x3(r,i,r);jsfeat.matmath.multiply_3x3(r,r,k);jsfeat.cache.put_buffer(u);jsfeat.cache.put_buffer(y);return 1};p.prototype.error=function(v,w,t,r,u){var s=0;var y,x;var q=t.data;for(;s<u;++s){y=v[s];x=w[s];r[s]=m(x.x-q[0]*y.x-q[1]*y.y-q[2])+m(x.y-q[3]*y.x-q[4]*y.y-q[5])}};p.prototype.check_subset=function(s,r,q){return true};return p})();var g=new jsfeat.matrix_t(9,9,jsfeat.F32_t|jsfeat.C1_t);var f=new jsfeat.matrix_t(9,9,jsfeat.F32_t|jsfeat.C1_t);var l=(function(){function p(){}p.prototype.run=function(I,r,v,C){var L=0,K=0;var O=v.data,D=k.data,J=i.data;var M=g.data,N=f.data;var H=0,G=0,s=0,q=0;var u=0,t=0,B=0,A=0,z=0,w=0,F=0,E=0;for(;L<C;++L){B+=r[L].x;A+=r[L].y;F+=I[L].x;E+=I[L].y}B/=C;A/=C;F/=C;E/=C;for(L=0;L<C;++L){u+=Math.abs(r[L].x-B);t+=Math.abs(r[L].y-A);z+=Math.abs(I[L].x-F);w+=Math.abs(I[L].y-E)}if(Math.abs(u)<jsfeat.EPSILON||Math.abs(t)<jsfeat.EPSILON||Math.abs(z)<jsfeat.EPSILON||Math.abs(w)<jsfeat.EPSILON){return 0}u=C/u;t=C/t;z=C/z;w=C/w;D[0]=z;D[1]=0;D[2]=-F*z;D[3]=0;D[4]=w;D[5]=-E*w;D[6]=0;D[7]=0;D[8]=1;J[0]=1/u;J[1]=0;J[2]=B;J[3]=0;J[4]=1/t;J[5]=A;J[6]=0;J[7]=0;J[8]=1;L=81;while(--L>=0){M[L]=0}for(L=0;L<C;++L){H=(r[L].x-B)*u;G=(r[L].y-A)*t;s=(I[L].x-F)*z;q=(I[L].y-E)*w;M[0]+=s*s;M[1]+=s*q;M[2]+=s;M[6]+=s*-H*s;M[7]+=s*-H*q;M[8]+=s*-H;M[10]+=q*q;M[11]+=q;M[15]+=q*-H*s;M[16]+=q*-H*q;M[17]+=q*-H;M[20]+=1;M[24]+=-H*s;M[25]+=-H*q;M[26]+=-H;M[30]+=s*s;M[31]+=s*q;M[32]+=s;M[33]+=s*-G*s;M[34]+=s*-G*q;M[35]+=s*-G;M[40]+=q*q;M[41]+=q;M[42]+=q*-G*s;M[43]+=q*-G*q;M[44]+=q*-G;M[50]+=1;M[51]+=-G*s;M[52]+=-G*q;M[53]+=-G;M[60]+=-H*s*-H*s+-G*s*-G*s;M[61]+=-H*s*-H*q+-G*s*-G*q;M[62]+=-H*s*-H+-G*s*-G;M[70]+=-H*q*-H*q+-G*q*-G*q;M[71]+=-H*q*-H+-G*q*-G;M[80]+=-H*-H+-G*-G}for(L=0;L<9;++L){for(K=0;K<L;++K){M[L*9+K]=M[K*9+L]}}jsfeat.linalg.eigenVV(g,f);O[0]=N[72],O[1]=N[73],O[2]=N[74];O[3]=N[75],O[4]=N[76],O[5]=N[77];O[6]=N[78],O[7]=N[79],O[8]=N[80];jsfeat.matmath.multiply_3x3(v,i,v);jsfeat.matmath.multiply_3x3(v,v,k);H=1/O[8];O[0]*=H;O[1]*=H;O[2]*=H;O[3]*=H;O[4]*=H;O[5]*=H;O[6]*=H;O[7]*=H;O[8]=1;return 1};p.prototype.error=function(w,x,u,r,v){var t=0;var z,y,s=0,B=0,A=0;var q=u.data;for(;t<v;++t){z=w[t];y=x[t];s=1/(q[6]*z.x+q[7]*z.y+1);B=(q[0]*z.x+q[1]*z.y+q[2])*s-y.x;A=(q[3]*z.x+q[4]*z.y+q[5])*s-y.y;r[t]=(B*B+A*A)}};p.prototype.check_subset=function(M,s,B){if(B==4){var N=0;var I=M[0],H=M[1],G=M[2],E=M[3];var A=s[0],y=s[1],w=s[2],u=s[3];var L=I.x,K=I.y,J=1;var V=H.x,U=H.y,T=1;var z=G.x,x=G.y,v=1;var t=A.x,r=A.y,q=1;var F=y.x,D=y.y,C=1;var Q=w.x,P=w.y,O=1;var S=jsfeat.matmath.determinant_3x3(L,K,J,V,U,T,z,x,v);var R=jsfeat.matmath.determinant_3x3(t,r,q,F,D,C,Q,P,O);if(S*R<0){N++}L=H.x,K=H.y;V=G.x,U=G.y;z=E.x,x=E.y;t=y.x,r=y.y;F=w.x,D=w.y;Q=u.x,P=u.y;S=jsfeat.matmath.determinant_3x3(L,K,J,V,U,T,z,x,v);R=jsfeat.matmath.determinant_3x3(t,r,q,F,D,C,Q,P,O);if(S*R<0){N++}L=I.x,K=I.y;V=G.x,U=G.y;z=E.x,x=E.y;t=A.x,r=A.y;F=w.x,D=w.y;Q=u.x,P=u.y;S=jsfeat.matmath.determinant_3x3(L,K,J,V,U,T,z,x,v);R=jsfeat.matmath.determinant_3x3(t,r,q,F,D,C,Q,P,O);if(S*R<0){N++}L=I.x,K=I.y;V=H.x,U=H.y;z=E.x,x=E.y;t=A.x,r=A.y;F=y.x,D=y.y;Q=u.x,P=u.y;S=jsfeat.matmath.determinant_3x3(L,K,J,V,U,T,z,x,v);R=jsfeat.matmath.determinant_3x3(t,r,q,F,D,C,Q,P,O);if(S*R<0){N++}if(N!=0&&N!=4){return false}}return true};return p})();return{affine2d:j,homography2d:l}})();var b=(function(){function e(h,i,f,g){if(typeof h==="undefined"){h=0}if(typeof i==="undefined"){i=0.5}if(typeof f==="undefined"){f=0.5}if(typeof g==="undefined"){g=0.99}this.size=h;this.thresh=i;this.eps=f;this.prob=g}e.prototype.update_iters=function(g,i){var h=Math.log(1-this.prob);var f=Math.log(1-Math.pow(1-g,this.size));return(f>=0||-h>=i*(-f)?i:Math.round(h/f))|0};return e})();var d=(function(){var e=function(l,q,r,p,t,m,g){var v=1000;var s=[];var n=0,k=0,u=0,h=0,o=false;for(;u<v;++u){n=0;for(;n<p&&u<v;){o=false;h=0;while(!o){o=true;h=s[n]=Math.floor(Math.random()*t)|0;for(k=0;k<n;++k){if(h==s[k]){o=false;break}}}m[n]=q[h];g[n]=r[h];if(!l.check_subset(m,g,n+1)){u++;continue}++n}break}return(n==p&&u<v)};var f=function(k,m,p,q,o,g,h,s){var j=0,l=0,n=0;var r=g*g;k.error(p,q,m,h,o);for(;l<o;++l){n=h[l]<=r;s[l]=n;j+=n}return j};return{ransac:function(E,m,x,i,l,j,y,g){if(typeof g==="undefined"){g=1000}if(l<E.size){return false}var v=E.size;var A=g,z=0;var q=false;var D=[];var C=[];var r=false;var G=j.cols,w=j.rows;var u=j.type|jsfeat.C1_t;var B=jsfeat.cache.get_buffer((G*w)<<3);var h=jsfeat.cache.get_buffer(l);var t=jsfeat.cache.get_buffer(l<<2);var o=new jsfeat.matrix_t(G,w,u,B.data);var s=new jsfeat.matrix_t(l,1,jsfeat.U8C1_t,h.data);var F=-1,p=0;var n=0;var k=t.f32;if(l==v){if(m.run(x,i,o,l)<=0){jsfeat.cache.put_buffer(B);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(t);return false}o.copy_to(j);if(y){while(--l>=0){y.data[l]=1}}jsfeat.cache.put_buffer(B);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(t);return true}for(;z<A;++z){r=e(m,x,i,v,l,D,C);if(!r){if(z==0){jsfeat.cache.put_buffer(B);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(t);return false}break}n=m.run(D,C,o,v);if(n<=0){continue}p=f(m,o,x,i,l,E.thresh,k,s.data);if(p>Math.max(F,v-1)){o.copy_to(j);F=p;if(y){s.copy_to(y)}A=E.update_iters((l-p)/l,A);q=true}}jsfeat.cache.put_buffer(B);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(t);return q},lmeds:function(H,n,z,i,l,j,B,g){if(typeof g==="undefined"){g=1000}if(l<H.size){return false}var w=H.size;var D=g,C=0;var r=false;var G=[];var F=[];var s=false;var I=j.cols,y=j.rows;var v=j.type|jsfeat.C1_t;var E=jsfeat.cache.get_buffer((I*y)<<3);var h=jsfeat.cache.get_buffer(l);var u=jsfeat.cache.get_buffer(l<<2);var p=new jsfeat.matrix_t(I,y,v,E.data);var t=new jsfeat.matrix_t(l,1,jsfeat.U8_t|jsfeat.C1_t,h.data);var q=0;var o=0;var k=u.f32;var A=1000000000,x=0,m=0;H.eps=0.45;D=H.update_iters(H.eps,D);if(l==w){if(n.run(z,i,p,l)<=0){jsfeat.cache.put_buffer(E);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(u);return false}p.copy_to(j);if(B){while(--l>=0){B.data[l]=1}}jsfeat.cache.put_buffer(E);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(u);return true}for(;C<D;++C){s=e(n,z,i,w,l,G,F);if(!s){if(C==0){jsfeat.cache.put_buffer(E);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(u);return false}break}o=n.run(G,F,p,w);if(o<=0){continue}n.error(z,i,p,k,l);m=jsfeat.math.median(k,0,l-1);if(m<A){A=m;p.copy_to(j);r=true}}if(r){x=2.5*1.4826*(1+5/(l-w))*Math.sqrt(A);x=Math.max(x,0.001);q=f(n,j,z,i,l,x,k,t.data);if(B){t.copy_to(B)}r=q>=w}jsfeat.cache.put_buffer(E);jsfeat.cache.put_buffer(h);jsfeat.cache.put_buffer(u);return r}}})();a.ransac_params_t=b;a.motion_model=c;a.motion_estimator=d})(jsfeat);(function(b){var a=(function(){var c=function(q,S,O,p){var r=0;var y=q.channel,v=q.cols,J=q.rows;var P=q.data,m=S.data;var I=v/O,H=J/p;var n=(I*H*65536)|0;var x=0,u=0,C=0,A=0,t=0,s=0,G=0,F=0,D=0,B=0;var Q=0,N=0,K=0,o=0,M=0,E=0;var l=jsfeat.cache.get_buffer((O*y)<<2);var g=jsfeat.cache.get_buffer((O*y)<<2);var R=jsfeat.cache.get_buffer((v*2*3)<<2);var L=l.i32;var j=g.i32;var z=R.i32;for(;x<O;x++){D=x*I,B=D+I;t=(D+1-0.000001)|0,s=B|0;t=Math.min(t,v-1);s=Math.min(s,v-1);if(t>D){z[F++]=(x*y)|0;z[F++]=((t-1)*y)|0;z[F++]=((t-D)*256)|0;r++}for(C=t;C<s;C++){r++;z[F++]=(x*y)|0;z[F++]=(C*y)|0;z[F++]=256}if(B-s>0.001){r++;z[F++]=(x*y)|0;z[F++]=(s*y)|0;z[F++]=((B-s)*256)|0}}for(x=0;x<O*y;x++){L[x]=j[x]=0}u=0;for(A=0;A<J;A++){Q=v*A;for(F=0;F<r;F++){K=z[F*3];t=z[F*3+1];o=z[F*3+2];for(G=0;G<y;G++){L[K+G]+=P[Q+t+G]*o}}if((u+1)*H<=A+1||A==J-1){M=(Math.max(A+1-(u+1)*H,0)*256)|0;E=256-M;N=O*u;if(M<=0){for(x=0;x<O*y;x++){m[N+x]=Math.min(Math.max((j[x]+L[x]*256)/n,0),255);j[x]=L[x]=0}}else{for(x=0;x<O*y;x++){m[N+x]=Math.min(Math.max((j[x]+L[x]*E)/n,0),255);j[x]=L[x]*M;L[x]=0}}u++}else{for(x=0;x<O*y;x++){j[x]+=L[x]*256;L[x]=0}}}jsfeat.cache.put_buffer(g);jsfeat.cache.put_buffer(l);jsfeat.cache.put_buffer(R)};var f=function(p,S,N,o){var q=0;var x=p.channel,u=p.cols,I=p.rows;var O=p.data,m=S.data;var H=u/N,G=I/o;var Q=1/(H*G);var v=0,t=0,B=0,z=0,s=0,r=0,F=0,E=0,C=0,A=0;var P=0,M=0,J=0,n=0,L=0,D=0;var l=jsfeat.cache.get_buffer((N*x)<<2);var g=jsfeat.cache.get_buffer((N*x)<<2);var R=jsfeat.cache.get_buffer((u*2*3)<<2);var K=l.f32;var j=g.f32;var y=R.f32;for(;v<N;v++){C=v*H,A=C+H;s=(C+1-0.000001)|0,r=A|0;s=Math.min(s,u-1);r=Math.min(r,u-1);if(s>C){q++;y[E++]=((s-1)*x)|0;y[E++]=(v*x)|0;y[E++]=(s-C)*Q}for(B=s;B<r;B++){q++;y[E++]=(B*x)|0;y[E++]=(v*x)|0;y[E++]=Q}if(A-r>0.001){q++;y[E++]=(r*x)|0;y[E++]=(v*x)|0;y[E++]=(A-r)*Q}}for(v=0;v<N*x;v++){K[v]=j[v]=0}t=0;for(z=0;z<I;z++){P=u*z;for(E=0;E<q;E++){s=y[E*3]|0;J=y[E*3+1]|0;n=y[E*3+2];for(F=0;F<x;F++){K[J+F]+=O[P+s+F]*n}}if((t+1)*G<=z+1||z==I-1){L=Math.max(z+1-(t+1)*G,0);D=1-L;M=N*t;if(Math.abs(L)<0.001){for(v=0;v<N*x;v++){m[M+v]=j[v]+K[v];j[v]=K[v]=0}}else{for(v=0;v<N*x;v++){m[M+v]=j[v]+K[v]*D;j[v]=K[v]*L;K[v]=0}}t++}else{for(v=0;v<N*x;v++){j[v]+=K[v];K[v]=0}}}jsfeat.cache.put_buffer(g);jsfeat.cache.put_buffer(l);jsfeat.cache.put_buffer(R)};var e=function(D,F,m,s,B,t,g,n){var z=0,y=0,x=0,A=0,u=0,l=0,G=0,E=0,C=0,v=t[0],r=0;var q=s<<1,p=s*3,o=s<<2;for(;z<B;++z){l=F[A];for(y=0;y<n;++y){D[y]=l}for(y=0;y<=s-2;y+=2){D[y+n]=F[A+y];D[y+n+1]=F[A+y+1]}for(;y<s;++y){D[y+n]=F[A+y]}l=F[A+s-1];for(y=s;y<n+s;++y){D[y+n]=l}for(y=0;y<=s-4;y+=4){l=D[y]*v,G=D[y+1]*v,E=D[y+2]*v,C=D[y+3]*v;for(x=1;x<g;++x){r=t[x];l+=D[x+y]*r;G+=D[x+y+1]*r;E+=D[x+y+2]*r;C+=D[x+y+3]*r}m[u+y]=Math.min(l>>8,255);m[u+y+1]=Math.min(G>>8,255);m[u+y+2]=Math.min(E>>8,255);m[u+y+3]=Math.min(C>>8,255)}for(;y<s;++y){l=D[y]*v;for(x=1;x<g;++x){l+=D[x+y]*t[x]}m[u+y]=Math.min(l>>8,255)}A+=s;u+=s}for(z=0;z<s;++z){l=m[z];for(y=0;y<n;++y){D[y]=l}x=z;for(y=0;y<=B-2;y+=2,x+=q){D[y+n]=m[x];D[y+n+1]=m[x+s]}for(;y<B;++y,x+=s){D[y+n]=m[x]}l=m[(B-1)*s+z];for(y=B;y<n+B;++y){D[y+n]=l}u=z;for(y=0;y<=B-4;y+=4,u+=o){l=D[y]*v,G=D[y+1]*v,E=D[y+2]*v,C=D[y+3]*v;for(x=1;x<g;++x){r=t[x];l+=D[x+y]*r;G+=D[x+y+1]*r;E+=D[x+y+2]*r;C+=D[x+y+3]*r}m[u]=Math.min(l>>8,255);m[u+s]=Math.min(G>>8,255);m[u+q]=Math.min(E>>8,255);m[u+p]=Math.min(C>>8,255)}for(;y<B;++y,u+=s){l=D[y]*v;for(x=1;x<g;++x){l+=D[x+y]*t[x]}m[u]=Math.min(l>>8,255)}}};var d=function(D,F,m,s,B,t,g,n){var z=0,y=0,x=0,A=0,u=0,l=0,G=0,E=0,C=0,v=t[0],r=0;var q=s<<1,p=s*3,o=s<<2;for(;z<B;++z){l=F[A];for(y=0;y<n;++y){D[y]=l}for(y=0;y<=s-2;y+=2){D[y+n]=F[A+y];D[y+n+1]=F[A+y+1]}for(;y<s;++y){D[y+n]=F[A+y]}l=F[A+s-1];for(y=s;y<n+s;++y){D[y+n]=l}for(y=0;y<=s-4;y+=4){l=D[y]*v,G=D[y+1]*v,E=D[y+2]*v,C=D[y+3]*v;for(x=1;x<g;++x){r=t[x];l+=D[x+y]*r;G+=D[x+y+1]*r;E+=D[x+y+2]*r;C+=D[x+y+3]*r}m[u+y]=l;m[u+y+1]=G;m[u+y+2]=E;m[u+y+3]=C}for(;y<s;++y){l=D[y]*v;for(x=1;x<g;++x){l+=D[x+y]*t[x]}m[u+y]=l}A+=s;u+=s}for(z=0;z<s;++z){l=m[z];for(y=0;y<n;++y){D[y]=l}x=z;for(y=0;y<=B-2;y+=2,x+=q){D[y+n]=m[x];D[y+n+1]=m[x+s]}for(;y<B;++y,x+=s){D[y+n]=m[x]}l=m[(B-1)*s+z];for(y=B;y<n+B;++y){D[y+n]=l}u=z;for(y=0;y<=B-4;y+=4,u+=o){l=D[y]*v,G=D[y+1]*v,E=D[y+2]*v,C=D[y+3]*v;for(x=1;x<g;++x){r=t[x];l+=D[x+y]*r;G+=D[x+y+1]*r;E+=D[x+y+2]*r;C+=D[x+y+3]*r}m[u]=l;m[u+s]=G;m[u+q]=E;m[u+p]=C}for(;y<B;++y,u+=s){l=D[y]*v;for(x=1;x<g;++x){l+=D[x+y]*t[x]}m[u]=l}}};return{grayscale:function(n,r,A,D,g){if(typeof g==="undefined"){g=jsfeat.COLOR_RGBA2GRAY}var q=0,p=0,z=0,v=0,m=0,u=0;var s=4899,B=9617,C=1868,o=4;if(g==jsfeat.COLOR_BGRA2GRAY||g==jsfeat.COLOR_BGR2GRAY){s=1868;C=4899}if(g==jsfeat.COLOR_RGB2GRAY||g==jsfeat.COLOR_BGR2GRAY){o=3}var l=o<<1,k=(o*3)|0;D.resize(r,A,1);var t=D.data;for(p=0;p<A;++p,v+=r,z+=r*o){for(q=0,m=z,u=v;q<=r-4;q+=4,m+=o<<2,u+=4){t[u]=(n[m]*s+n[m+1]*B+n[m+2]*C+8192)>>14;t[u+1]=(n[m+o]*s+n[m+o+1]*B+n[m+o+2]*C+8192)>>14;t[u+2]=(n[m+l]*s+n[m+l+1]*B+n[m+l+2]*C+8192)>>14;t[u+3]=(n[m+k]*s+n[m+k+1]*B+n[m+k+2]*C+8192)>>14}for(;q<r;++q,++u,m+=o){t[u]=(n[m]*s+n[m+1]*B+n[m+2]*C+8192)>>14}}},resample:function(l,m,i,k){var j=l.rows,g=l.cols;if(j>k&&g>i){m.resize(i,k,l.channel);if(l.type&jsfeat.U8_t&&m.type&jsfeat.U8_t&&j*g/(k*i)<256){c(l,m,i,k)}else{f(l,m,i,k)}}},box_blur_gray:function(r,J,n,l){if(typeof l==="undefined"){l=0}var z=r.cols,E=r.rows,s=E<<1,v=z<<1;var D=0,u=0,t=0,m=0;var B=((n<<1)+1)|0;var p=(n+1)|0,H=(p+1)|0;var I=l&jsfeat.BOX_BLUR_NOSCALE?1:(1/(B*B));var C=jsfeat.cache.get_buffer((z*E)<<2);var j=0,G=0,o=0,q=0,k=0;var F=C.i32;var g=r.data;var A=0;J.resize(z,E,r.channel);for(t=0;t<E;++t){G=t;j=p*g[o];for(D=(o+1)|0,m=(o+n)|0;D<=m;++D){j+=g[D]}q=(o+p)|0;k=o;A=g[k];for(u=0;u<n;++u,G+=E){F[G]=j;j+=g[q]-A;q++}for(;u<z-H;u+=2,G+=s){F[G]=j;j+=g[q]-g[k];F[G+E]=j;j+=g[q+1]-g[k+1];q+=2;k+=2}for(;u<z-p;++u,G+=E){F[G]=j;j+=g[q]-g[k];q++;k++}A=g[q-1];for(;u<z;++u,G+=E){F[G]=j;j+=A-g[k];k++}o+=z}o=0;g=J.data;if(I==1){for(t=0;t<z;++t){G=t;j=p*F[o];for(D=(o+1)|0,m=(o+n)|0;D<=m;++D){j+=F[D]}q=o+p;k=o;A=F[k];for(u=0;u<n;++u,G+=z){g[G]=j;j+=F[q]-A;q++}for(;u<E-H;u+=2,G+=v){g[G]=j;j+=F[q]-F[k];g[G+z]=j;j+=F[q+1]-F[k+1];q+=2;k+=2}for(;u<E-p;++u,G+=z){g[G]=j;j+=F[q]-F[k];q++;k++}A=F[q-1];for(;u<E;++u,G+=z){g[G]=j;j+=A-F[k];k++}o+=E}}else{for(t=0;t<z;++t){G=t;j=p*F[o];for(D=(o+1)|0,m=(o+n)|0;D<=m;++D){j+=F[D]}q=o+p;k=o;A=F[k];for(u=0;u<n;++u,G+=z){g[G]=j*I;j+=F[q]-A;q++}for(;u<E-H;u+=2,G+=v){g[G]=j*I;j+=F[q]-F[k];g[G+z]=j*I;j+=F[q+1]-F[k+1];q+=2;k+=2}for(;u<E-p;++u,G+=z){g[G]=j*I;j+=F[q]-F[k];q++;k++}A=F[q-1];for(;u<E;++u,G+=z){g[G]=j*I;j+=A-F[k];k++}o+=E}}jsfeat.cache.put_buffer(C)},gaussian_blur:function(g,s,r,v){if(typeof v==="undefined"){v=0}if(typeof r==="undefined"){r=0}r=r==0?(Math.max(1,(4*v+1-1e-8))*2+1)|0:r;var x=r>>1;var t=g.cols,p=g.rows;var u=g.type,n=u&jsfeat.U8_t;s.resize(t,p,g.channel);var m=g.data,j=s.data;var k,i,q=(r+Math.max(p,t))|0;var l=jsfeat.cache.get_buffer(q<<2);var o=jsfeat.cache.get_buffer(r<<2);if(n){k=l.i32;i=o.i32}else{if(u&jsfeat.S32_t){k=l.i32;i=o.f32}else{k=l.f32;i=o.f32}}jsfeat.math.get_gaussian_kernel(r,v,i,u);if(n){e(k,m,j,t,p,i,r,x)}else{d(k,m,j,t,p,i,r,x)}jsfeat.cache.put_buffer(l);jsfeat.cache.put_buffer(o)},hough_transform:function(D,q,C,m){var v=D.data;var x=D.cols;var u=D.rows;var p=x;min_theta=0;max_theta=Math.PI;numangle=Math.round((max_theta-min_theta)/C);numrho=Math.round(((x+u)*2+1)/q);irho=1/q;var A=new Int32Array((numangle+2)*(numrho+2));var g=new Float32Array(numangle);var k=new Float32Array(numangle);var w=0;var B=min_theta;for(;w<numangle;w++){g[w]=Math.sin(B)*irho;k[w]=Math.cos(B)*irho;B+=C}for(var z=0;z<u;z++){for(var y=0;y<x;y++){if(v[z*p+y]!=0){for(var w=0;w<numangle;w++){var t=Math.round(y*k[w]+z*g[w]);t+=(numrho-1)/2;A[(w+1)*(numrho+2)+t+1]+=1}}}}_sort_buf=new Array();for(var t=0;t<numrho;t++){for(var w=0;w<numangle;w++){var o=(w+1)*(numrho+2)+t+1;if(A[o]>m&&A[o]>A[o-1]&&A[o]>=A[o+1]&&A[o]>A[o-numrho-2]&&A[o]>=A[o+numrho+2]){_sort_buf.push(o)}}}_sort_buf.sort(function(j,i){return A[j]>A[i]||(A[j]==A[i]&&j<i)});linesMax=Math.min(numangle*numrho,_sort_buf.length);scale=1/(numrho+2);lines=new Array();for(var z=0;z<linesMax;z++){var s=_sort_buf[z];var w=Math.floor(s*scale)-1;var t=s-(w+1)*(numrho+2)-1;var l=(t-(numrho-1)*0.5)*q;var h=w*C;lines.push([l,h])}return lines},pyrdown:function(k,A,s,r){if(typeof s==="undefined"){s=0}if(typeof r==="undefined"){r=0}var q=k.cols,t=k.rows;var p=q>>1,l=t>>1;var B=p-(s<<1),u=l-(r<<1);var o=0,n=0,g=s+r*q,m=0,v=0,i=0;A.resize(p,l,k.channel);var z=k.data,j=A.data;for(n=0;n<u;++n){m=g;i=v;for(o=0;o<=B-2;o+=2,i+=2,m+=4){j[i]=(z[m]+z[m+1]+z[m+q]+z[m+q+1]+2)>>2;j[i+1]=(z[m+2]+z[m+3]+z[m+q+2]+z[m+q+3]+2)>>2}for(;o<B;++o,++i,m+=2){j[i]=(z[m]+z[m+1]+z[m+q]+z[m+q+1]+2)>>2}g+=q<<1;v+=p}},scharr_derivatives:function(j,G){var p=j.cols,s=j.rows;var H=p<<1,o=0,m=0,u=0,E,D,C,B,A,z;var v=0,t=0,r=0,i=0;var n,l;G.resize(p,s,2);var F=j.data,g=G.data;var k=jsfeat.cache.get_buffer((p+2)<<2);var q=jsfeat.cache.get_buffer((p+2)<<2);if(j.type&jsfeat.U8_t||j.type&jsfeat.S32_t){n=k.i32;l=q.i32}else{n=k.f32;l=q.f32}for(;m<s;++m,t+=p){v=((m>0?m-1:1)*p)|0;r=((m<s-1?m+1:s-2)*p)|0;i=(m*H)|0;for(o=0,u=1;o<=p-2;o+=2,u+=2){E=F[v+o],D=F[r+o];n[u]=((E+D)*3+(F[t+o])*10);l[u]=(D-E);E=F[v+o+1],D=F[r+o+1];n[u+1]=((E+D)*3+(F[t+o+1])*10);l[u+1]=(D-E)}for(;o<p;++o,++u){E=F[v+o],D=F[r+o];n[u]=((E+D)*3+(F[t+o])*10);l[u]=(D-E)}o=(p+1)|0;n[0]=n[1];n[o]=n[p];l[0]=l[1];l[o]=l[p];for(o=0;o<=p-4;o+=4){E=l[o+2],D=l[o+1],C=l[o+3],B=l[o+4],A=n[o+2],z=n[o+3];g[i++]=(A-n[o]);g[i++]=((E+l[o])*3+D*10);g[i++]=(z-n[o+1]);g[i++]=((C+D)*3+E*10);g[i++]=((n[o+4]-A));g[i++]=(((B+E)*3+C*10));g[i++]=((n[o+5]-z));g[i++]=(((l[o+5]+C)*3+B*10))}for(;o<p;++o){g[i++]=((n[o+2]-n[o]));g[i++]=(((l[o+2]+l[o])*3+l[o+1]*10))}}jsfeat.cache.put_buffer(k);jsfeat.cache.put_buffer(q)},sobel_derivatives:function(j,G){var p=j.cols,s=j.rows;var H=p<<1,o=0,m=0,u=0,E,D,C,B,A,z;var v=0,t=0,r=0,i=0;var n,l;G.resize(p,s,2);var F=j.data,g=G.data;var k=jsfeat.cache.get_buffer((p+2)<<2);var q=jsfeat.cache.get_buffer((p+2)<<2);if(j.type&jsfeat.U8_t||j.type&jsfeat.S32_t){n=k.i32;l=q.i32}else{n=k.f32;l=q.f32}for(;m<s;++m,t+=p){v=((m>0?m-1:1)*p)|0;r=((m<s-1?m+1:s-2)*p)|0;i=(m*H)|0;for(o=0,u=1;o<=p-2;o+=2,u+=2){E=F[v+o],D=F[r+o];n[u]=((E+D)+(F[t+o]*2));l[u]=(D-E);E=F[v+o+1],D=F[r+o+1];n[u+1]=((E+D)+(F[t+o+1]*2));l[u+1]=(D-E)}for(;o<p;++o,++u){E=F[v+o],D=F[r+o];n[u]=((E+D)+(F[t+o]*2));l[u]=(D-E)}o=(p+1)|0;n[0]=n[1];n[o]=n[p];l[0]=l[1];l[o]=l[p];for(o=0;o<=p-4;o+=4){E=l[o+2],D=l[o+1],C=l[o+3],B=l[o+4],A=n[o+2],z=n[o+3];g[i++]=(A-n[o]);g[i++]=(E+l[o]+D*2);g[i++]=(z-n[o+1]);g[i++]=(C+D+E*2);g[i++]=(n[o+4]-A);g[i++]=(B+E+C*2);g[i++]=(n[o+5]-z);g[i++]=(l[o+5]+C+B*2)}for(;o<p;++o){g[i++]=(n[o+2]-n[o]);g[i++]=(l[o+2]+l[o]+l[o+1]*2)}}jsfeat.cache.put_buffer(k);jsfeat.cache.put_buffer(q)},compute_integral_image:function(g,l,y,u){var t=g.cols|0,w=g.rows|0,o=g.data;var r=(t+1)|0;var B=0,z=0,h=0,x=0,q=0,n=0,A=0,m=0;if(l&&y){for(;q<r;++q){l[q]=0,y[q]=0}h=(r+1)|0,x=1;for(q=0,m=0;q<w;++q,++h,++x){B=z=0;for(n=0;n<=t-2;n+=2,m+=2,h+=2,x+=2){A=o[m];B+=A,z+=A*A;l[h]=l[x]+B;y[h]=y[x]+z;A=o[m+1];B+=A,z+=A*A;l[h+1]=l[x+1]+B;y[h+1]=y[x+1]+z}for(;n<t;++n,++m,++h,++x){A=o[m];B+=A,z+=A*A;l[h]=l[x]+B;y[h]=y[x]+z}}}else{if(l){for(;q<r;++q){l[q]=0}h=(r+1)|0,x=1;for(q=0,m=0;q<w;++q,++h,++x){B=0;for(n=0;n<=t-2;n+=2,m+=2,h+=2,x+=2){B+=o[m];l[h]=l[x]+B;B+=o[m+1];l[h+1]=l[x+1]+B}for(;n<t;++n,++m,++h,++x){B+=o[m];l[h]=l[x]+B}}}else{if(y){for(;q<r;++q){y[q]=0}h=(r+1)|0,x=1;for(q=0,m=0;q<w;++q,++h,++x){z=0;for(n=0;n<=t-2;n+=2,m+=2,h+=2,x+=2){A=o[m];z+=A*A;y[h]=y[x]+z;A=o[m+1];z+=A*A;y[h+1]=y[x+1]+z}for(;n<t;++n,++m,++h,++x){A=o[m];z+=A*A;y[h]=y[x]+z}}}}}if(u){for(q=0;q<r;++q){u[q]=0}h=(r+1)|0,x=0;for(q=0,m=0;q<w;++q,++h,++x){for(n=0;n<=t-2;n+=2,m+=2,h+=2,x+=2){u[h]=o[m]+u[x];u[h+1]=o[m+1]+u[x+1]}for(;n<t;++n,++m,++h,++x){u[h]=o[m]+u[x]}}h=(r+t)|0,x=t;for(q=0;q<w;++q,h+=r,x+=r){u[h]+=u[x]}for(n=t-1;n>0;--n){h=n+w*r,x=h-r;for(q=w;q>0;--q,h-=r,x-=r){u[h]+=u[x]+u[x+1]}}}},equalize_histogram:function(j,r){var s=j.cols,q=j.rows,o=j.data;r.resize(s,q,j.channel);var l=r.data,t=s*q;var p=0,n=0,k,g;var m=jsfeat.cache.get_buffer(256<<2);k=m.i32;for(;p<256;++p){k[p]=0}for(p=0;p<t;++p){++k[o[p]]}n=k[0];for(p=1;p<256;++p){n=k[p]+=n}g=255/t;for(p=0;p<t;++p){l[p]=(k[o[p]]*g+0.5)|0}jsfeat.cache.put_buffer(m)},canny:function(u,V,E,k){var C=u.cols,L=u.rows,S=u.data;V.resize(C,L,u.channel);var o=V.data;var K=0,H=0,q=0,A=C<<1,R=0,J=0,N=0,z=0,v=0,D=0;var g=0,U=0;var p=jsfeat.cache.get_buffer((L*A)<<2);var m=jsfeat.cache.get_buffer((3*(C+2))<<2);var n=jsfeat.cache.get_buffer(((L+2)*(C+2))<<2);var t=jsfeat.cache.get_buffer((L*C)<<2);var Q=m.i32;var T=n.i32;var r=t.i32;var G=p.i32;var l=new jsfeat.matrix_t(C,L,jsfeat.S32C2_t,p.data);var P=1,O=(C+2+1)|0,M=(2*(C+2)+1)|0,B=(C+2)|0,I=(B+1)|0,F=0;this.sobel_derivatives(u,l);if(E>k){K=E;E=k;k=K}K=(3*(C+2))|0;while(--K>=0){Q[K]=0}K=((L+2)*(C+2))|0;while(--K>=0){T[K]=0}for(;H<C;++H,q+=2){z=G[q],v=G[q+1];Q[O+H]=((z^(z>>31))-(z>>31))+((v^(v>>31))-(v>>31))}for(K=1;K<=L;++K,q+=A){if(K==L){H=M+C;while(--H>=M){Q[H]=0}}else{for(H=0;H<C;H++){z=G[q+(H<<1)],v=G[q+(H<<1)+1];Q[M+H]=((z^(z>>31))-(z>>31))+((v^(v>>31))-(v>>31))}}R=(q-A)|0;T[I-1]=0;J=0;for(H=0;H<C;++H,R+=2){N=Q[O+H];if(N>E){z=G[R];v=G[R+1];D=z^v;z=((z^(z>>31))-(z>>31))|0;v=((v^(v>>31))-(v>>31))|0;g=z*13573;U=g+((z+z)<<15);v<<=15;if(v<g){if(N>Q[O+H-1]&&N>=Q[O+H+1]){if(N>k&&!J&&T[I+H-B]!=2){T[I+H]=2;J=1;r[F++]=I+H}else{T[I+H]=1}continue}}else{if(v>U){if(N>Q[P+H]&&N>=Q[M+H]){if(N>k&&!J&&T[I+H-B]!=2){T[I+H]=2;J=1;r[F++]=I+H}else{T[I+H]=1}continue}}else{D=D<0?-1:1;if(N>Q[P+H-D]&&N>Q[M+H+D]){if(N>k&&!J&&T[I+H-B]!=2){T[I+H]=2;J=1;r[F++]=I+H}else{T[I+H]=1}continue}}}}T[I+H]=0;J=0}T[I+C]=0;I+=B;H=P;P=O;O=M;M=H}H=I-B-1;for(K=0;K<B;++K,++H){T[H]=0}while(F>0){I=r[--F];I-=B+1;if(T[I]==1){T[I]=2,r[F++]=I}I+=1;if(T[I]==1){T[I]=2,r[F++]=I}I+=1;if(T[I]==1){T[I]=2,r[F++]=I}I+=B;if(T[I]==1){T[I]=2,r[F++]=I}I-=2;if(T[I]==1){T[I]=2,r[F++]=I}I+=B;if(T[I]==1){T[I]=2,r[F++]=I}I+=1;if(T[I]==1){T[I]=2,r[F++]=I}I+=1;if(T[I]==1){T[I]=2,r[F++]=I}}I=B+1;P=0;for(K=0;K<L;++K,I+=B){for(H=0;H<C;++H){o[P++]=(T[I+H]==2)*255}}jsfeat.cache.put_buffer(p);jsfeat.cache.put_buffer(m);jsfeat.cache.put_buffer(n);jsfeat.cache.put_buffer(t)},warp_perspective:function(t,D,A,r){if(typeof r==="undefined"){r=0}var l=t.cols|0,v=t.rows|0,L=D.cols|0,j=D.rows|0;var H=t.data,q=D.data;var F=0,E=0,G=0,u=0,k=0,C=0,p=0,h=0,O=0,P=0,s=0,R=0,Q=0,N=0,M=0;var i=A.data;var o=i[0],n=i[1],m=i[2],K=i[3],J=i[4],I=i[5],B=i[6],z=i[7],w=i[8];for(var g=0;E<j;++E){h=n*E+m,O=J*E+I,P=z*E+w;for(F=0;F<L;++F,++g,h+=o,O+=K,P+=B){s=1/P;C=h*s,p=O*s;u=C|0,k=p|0;if(C>0&&p>0&&u<(l-1)&&k<(v-1)){R=Math.max(C-u,0);Q=Math.max(p-k,0);G=(l*k+u)|0;N=H[G]+R*(H[G+1]-H[G]);M=H[G+l]+R*(H[G+l+1]-H[G+l]);q[g]=N+Q*(M-N)}else{q[g]=r}}}},warp_affine:function(k,K,p,J){if(typeof J==="undefined"){J=0}var u=k.cols,z=k.rows,j=K.cols,v=K.rows;var E=k.data,i=K.data;var o=0,n=0,I=0,q=0,A=0,m=0,w=0,G=0,D=0,h=0,g=0;var l=p.data;var t=l[0],s=l[1],r=l[2],H=l[3],F=l[4],C=l[5];for(var B=0;n<v;++n){m=s*n+r;w=F*n+C;for(o=0;o<j;++o,++B,m+=t,w+=H){q=m|0;A=w|0;if(q>=0&&A>=0&&q<(u-1)&&A<(z-1)){G=m-q;D=w-A;I=u*A+q;h=E[I]+G*(E[I+1]-E[I]);g=E[I+u]+G*(E[I+u+1]-E[I+u]);i[B]=h+D*(g-h)}else{i[B]=J}}}},skindetector:function(o,p){var n,m,h,k;var l=o.width*o.height;while(l--){k=l*4;n=o.data[k];m=o.data[k+1];h=o.data[k+2];if((n>95)&&(m>40)&&(h>20)&&(n>m)&&(n>h)&&(n-Math.min(m,h)>15)&&(Math.abs(n-m)>15)){p[l]=255}else{p[l]=0}}}}})();b.imgproc=a})(jsfeat);(function(a){var b=(function(){var h=new Int32Array([0,3,1,3,2,2,3,1,3,0,3,-1,2,-2,1,-3,0,-3,-1,-3,-2,-2,-3,-1,-3,0,-3,1,-2,2,-1,3]);var f=new Uint8Array(512);var e=new Int32Array(25);var i=new Int32Array(25);var d=function(l,n,o){var j=0;var m=h;for(;j<o;++j){l[j]=m[j<<1]+m[(j<<1)+1]*n}for(;j<25;++j){l[j]=l[j-o]}},g=function(j,n,l,r,p){var q=25,o=0,w=j[n];var m=p,t=0,u=0,s=0;for(;o<q;++o){r[o]=w-j[n+l[o]]}for(o=0;o<16;o+=2){t=Math.min(r[o+1],r[o+2]);t=Math.min(t,r[o+3]);if(t<=m){continue}t=Math.min(t,r[o+4]);t=Math.min(t,r[o+5]);t=Math.min(t,r[o+6]);t=Math.min(t,r[o+7]);t=Math.min(t,r[o+8]);m=Math.max(m,Math.min(t,r[o]));m=Math.max(m,Math.min(t,r[o+9]))}u=-m;for(o=0;o<16;o+=2){s=Math.max(r[o+1],r[o+2]);s=Math.max(s,r[o+3]);s=Math.max(s,r[o+4]);s=Math.max(s,r[o+5]);if(s>=u){continue}s=Math.max(s,r[o+6]);s=Math.max(s,r[o+7]);s=Math.max(s,r[o+8]);u=Math.min(u,Math.max(s,r[o]));u=Math.min(u,Math.max(s,r[o+9]))}return -u-1};var c=20;return{set_threshold:function(j){c=Math.min(Math.max(j,0),255);for(var k=-255;k<=255;++k){f[(k+255)]=(k<-c?1:(k>c?2:0))}return c},detect:function(L,H,D){if(typeof D==="undefined"){D=3}var A=8,t=25;var u=L.data,X=L.cols,ar=L.rows;var ap=0,an=0,al=0,E=0,W=0,aq=0;var B=jsfeat.cache.get_buffer(3*X);var O=jsfeat.cache.get_buffer(((X+1)*3)<<2);var I=B.u8;var F=O.i32;var M=e;var J=i;var y=Math.max(3,D);var Z=Math.min((ar-2),(ar-D));var z=Math.max(3,D);var aa=Math.min((X-3),(X-D));var ah=0,P=0,C;var Q=g;var G=f;var p=c;var Y=0,ao=0,au=0,aw=0,U=0,V=0,av=0,R=0,at=0;var T=0,S=0,o=0;d(M,X,16);var am=M[0];var ak=M[1];var aj=M[2];var ai=M[3];var ag=M[4];var af=M[5];var ae=M[6];var ad=M[7];var ac=M[8];var ab=M[9];var s=M[10];var r=M[11];var q=M[12];var n=M[13];var m=M[14];var l=M[15];for(ap=0;ap<X*3;++ap){I[ap]=0}for(ap=y;ap<Z;++ap){av=((ap*X)+z)|0;aq=(ap-3)%3;V=(aq*X)|0;U=(aq*(X+1))|0;for(an=0;an<X;++an){I[V+an]=0}aw=0;if(ap<(Z-1)){an=z;for(;an<aa;++an,++av){Y=u[av];ao=(-Y+255);au=(G[ao+u[av+am]]|G[ao+u[av+ac]]);if(au==0){continue}au&=(G[ao+u[av+aj]]|G[ao+u[av+s]]);au&=(G[ao+u[av+ag]]|G[ao+u[av+q]]);au&=(G[ao+u[av+ae]]|G[ao+u[av+m]]);if(au==0){continue}au&=(G[ao+u[av+ak]]|G[ao+u[av+ab]]);au&=(G[ao+u[av+ai]]|G[ao+u[av+r]]);au&=(G[ao+u[av+af]]|G[ao+u[av+n]]);au&=(G[ao+u[av+ad]]|G[ao+u[av+l]]);if(au&1){E=(Y-p);ah=0;for(al=0;al<t;++al){W=u[(av+M[al])];if(W<E){++ah;if(ah>A){++aw;F[U+aw]=an;I[V+an]=Q(u,av,M,J,p);break}}else{ah=0}}}if(au&2){E=(Y+p);ah=0;for(al=0;al<t;++al){W=u[(av+M[al])];if(W>E){++ah;if(ah>A){++aw;F[U+aw]=an;I[V+an]=Q(u,av,M,J,p);break}}else{ah=0}}}}}F[U+X]=aw;if(ap==y){continue}aq=(ap-4+3)%3;R=(aq*X)|0;U=(aq*(X+1))|0;aq=(ap-5+3)%3;at=(aq*X)|0;aw=F[U+X];for(al=0;al<aw;++al){an=F[U+al];T=(an+1)|0;S=(an-1)|0;o=I[R+an];if((o>I[R+T]&&o>I[R+S]&&o>I[at+S]&&o>I[at+an]&&o>I[at+T]&&o>I[V+S]&&o>I[V+an]&&o>I[V+T])){C=H[P];C.x=an,C.y=(ap-1),C.score=o;P++}}}jsfeat.cache.put_buffer(B);jsfeat.cache.put_buffer(O);return P}}})();a.fast_corners=b;b.set_threshold(20)})(jsfeat);(function(b){var a=(function(){var d=function(e,l,q,i,r,g,p,n,k,j){var m=0,o=0,f=(n*q+p)|0,s=f;for(m=n;m<j;++m,f+=q,s=f){for(o=p;o<k;++o,++s){l[s]=-4*e[s]+e[s+r]+e[s-r]+e[s+g]+e[s-g]}}};var c=function(e,f,k,m,g,l,h){var o=-2*e[f]+e[f+m]+e[f-m];var i=-2*e[f]+e[f+g]+e[f-g];var n=e[f+l]+e[f-l]-e[f+h]-e[f-h];var j=(Math.sqrt(((o-i)*(o-i)+4*n*n)))|0;return Math.min(Math.abs(k-j),Math.abs(-(k+j)))};return{laplacian_threshold:30,min_eigen_value_threshold:25,detect:function(l,A,z){if(typeof z==="undefined"){z=5}var o=0,n=0;var p=l.cols,B=l.rows,q=l.data;var H=5,f=(5*p)|0;var G=(3+3*p)|0,g=(3-3*p)|0;var e=jsfeat.cache.get_buffer((p*B)<<2);var j=e.i32;var i=0,k=0,m=0,r=0,v;var u=0;var F=this.laplacian_threshold;var D=this.min_eigen_value_threshold;var t=Math.max(5,z)|0;var s=Math.max(3,z)|0;var E=Math.min(p-5,p-z)|0;var C=Math.min(B-3,B-z)|0;o=p*B;while(--o>=0){j[o]=0}d(q,j,p,B,H,f,t,s,E,C);k=(s*p+t)|0;for(n=s;n<C;++n,k+=p){for(o=t,m=k;o<E;++o,++m){i=j[m];if((i<-F&&i<j[m-1]&&i<j[m+1]&&i<j[m-p]&&i<j[m+p]&&i<j[m-p-1]&&i<j[m+p-1]&&i<j[m-p+1]&&i<j[m+p+1])||(i>F&&i>j[m-1]&&i>j[m+1]&&i>j[m-p]&&i>j[m+p]&&i>j[m-p-1]&&i>j[m+p-1]&&i>j[m-p+1]&&i>j[m+p+1])){r=c(q,m,i,H,f,G,g);if(r>D){v=A[u];v.x=o,v.y=n,v.score=r;++u;++o,++m}}}}jsfeat.cache.put_buffer(e);return u}}})();b.yape06=a})(jsfeat);(function(a){var b=(function(){var d=function(l,m,k){var j=0;var h,n;h=k;for(n=0;n<h;n++,j++){h=(Math.sqrt((k*k-n*n))+0.5)|0;m[j]=(h+l*n)}for(h--;h<n&&h>=0;h--,j++){n=(Math.sqrt((k*k-h*h))+0.5)|0;m[j]=(h+l*n)}for(;-h<n;h--,j++){n=(Math.sqrt((k*k-h*h))+0.5)|0;m[j]=(h+l*n)}for(n--;n>=0;n--,j++){h=(-Math.sqrt((k*k-n*n))-0.5)|0;m[j]=(h+l*n)}for(;n>h;n--,j++){h=(-Math.sqrt((k*k-n*n))-0.5)|0;m[j]=(h+l*n)}for(h++;h<=0;h++,j++){n=(-Math.sqrt((k*k-h*h))-0.5)|0;m[j]=(h+l*n)}for(;h<-n;h++,j++){n=(-Math.sqrt((k*k-h*h))-0.5)|0;m[j]=(h+l*n)}for(n++;n<0;n++,j++){h=(Math.sqrt((k*k-n*n))+0.5)|0;m[j]=(h+l*n)}m[j]=m[0];m[j+1]=m[1];return j};var g=function(h,j,i){var k=0;if(h[j+1]!=0){k++}if(h[j-1]!=0){k++}if(h[j+i]!=0){k++}if(h[j+i+1]!=0){k++}if(h[j+i-1]!=0){k++}if(h[j-i]!=0){k++}if(h[j-i+1]!=0){k++}if(h[j-i-1]!=0){k++}return k};var c=function(l,m,i,k,j){var h,n;if(i>0){m-=k*j;for(n=-j;n<=j;++n){for(h=-j;h<=j;++h){if(l[m+h]>i){return false}}m+=k}}else{m-=k*j;for(n=-j;n<=j;++n){for(h=-j;h<=j;++h){if(l[m+h]<i){return false}}m+=k}}return true};var e=function(s,r,m,u,p,i,l,n){var k=0;var q=0,o=(l-1)|0;var j=0,w=0,v=0,t=0;var h=0;j=s[r+i[q]];if((j<=p)){if((j>=u)){w=s[r+i[o]];if((w<=p)){if((w>=u)){m[r]=0;return}else{o++;v=s[r+i[o]];if((v>p)){o++;t=s[r+i[o]];if((t>p)){h=3}else{if((t<u)){h=6}else{m[r]=0;return}}}else{o++;t=s[r+i[o]];if((t>p)){h=7}else{if((t<u)){h=2}else{m[r]=0;return}}}}}else{o++;v=s[r+i[o]];if((v>p)){o++;t=s[r+i[o]];if((t>p)){h=3}else{if((t<u)){h=6}else{m[r]=0;return}}}else{if((v<u)){o++;t=s[r+i[o]];if((t>p)){h=7}else{if((t<u)){h=2}else{m[r]=0;return}}}else{m[r]=0;return}}}}else{w=s[r+i[o]];if((w>p)){m[r]=0;return}o++;v=s[r+i[o]];if((v>p)){m[r]=0;return}o++;t=s[r+i[o]];if((t>p)){m[r]=0;return}h=1}}else{w=s[r+i[o]];if((w<u)){m[r]=0;return}o++;v=s[r+i[o]];if((v<u)){m[r]=0;return}o++;t=s[r+i[o]];if((t<u)){m[r]=0;return}h=0}for(q=1;q<=l;q++){j=s[r+i[q]];switch(h){case 0:if((j>p)){v=t;o++;t=s[r+i[o]];if((t<u)){m[r]=0;return}k-=j+v;h=0;break}if((j<u)){if((v>p)){m[r]=0;return}if((t>p)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t>p)){m[r]=0;return}k-=j+v;h=8;break}if((v<=p)){m[r]=0;return}if((t<=p)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t>p)){k-=j+v;h=3;break}if((t<u)){k-=j+v;h=6;break}m[r]=0;return;case 1:if((j<u)){v=t;o++;t=s[r+i[o]];if((t>p)){m[r]=0;return}k-=j+v;h=1;break}if((j>p)){if((v<u)){m[r]=0;return}if((t<u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t<u)){m[r]=0;return}k-=j+v;h=9;break}if((v>=u)){m[r]=0;return}if((t>=u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t<u)){k-=j+v;h=2;break}if((t>p)){k-=j+v;h=7;break}m[r]=0;return;case 2:if((j>p)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((j<u)){if((t>p)){m[r]=0;return}k-=j+v;h=4;break}if((t>p)){k-=j+v;h=7;break}if((t<u)){k-=j+v;h=2;break}m[r]=0;return;case 3:if((j<u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((j>p)){if((t<u)){m[r]=0;return}k-=j+v;h=5;break}if((t>p)){k-=j+v;h=3;break}if((t<u)){k-=j+v;h=6;break}m[r]=0;return;case 4:if((j>p)){m[r]=0;return}if((j<u)){v=t;o++;t=s[r+i[o]];if((t>p)){m[r]=0;return}k-=j+v;h=1;break}if((t>=u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t<u)){k-=j+v;h=2;break}if((t>p)){k-=j+v;h=7;break}m[r]=0;return;case 5:if((j<u)){m[r]=0;return}if((j>p)){v=t;o++;t=s[r+i[o]];if((t<u)){m[r]=0;return}k-=j+v;h=0;break}if((t<=p)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t>p)){k-=j+v;h=3;break}if((t<u)){k-=j+v;h=6;break}m[r]=0;return;case 7:if((j>p)){m[r]=0;return}if((j<u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t>p)){k-=j+v;h=3;break}if((t<u)){k-=j+v;h=6;break}m[r]=0;return;case 6:if((j>p)){m[r]=0;return}if((j<u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t<u)){k-=j+v;h=2;break}if((t>p)){k-=j+v;h=7;break}m[r]=0;return;case 8:if((j>p)){if((t<u)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t<u)){m[r]=0;return}k-=j+v;h=9;break}if((j<u)){v=t;o++;t=s[r+i[o]];if((t>p)){m[r]=0;return}k-=j+v;h=1;break}m[r]=0;return;case 9:if((j<u)){if((t>p)){m[r]=0;return}v=t;o++;t=s[r+i[o]];if((t>p)){m[r]=0;return}k-=j+v;h=8;break}if((j>p)){v=t;o++;t=s[r+i[o]];if((t<u)){m[r]=0;return}k-=j+v;h=0;break}m[r]=0;return;default:break}}m[r]=(k+n*s[r])};var f=(function(){function h(i,j,k){this.dirs=new Int32Array(1024);this.dirs_count=d(i,this.dirs,k)|0;this.scores=new Int32Array(i*j);this.radius=k|0}return h})();return{level_tables:[],tau:7,init:function(m,j,h,l){if(typeof l==="undefined"){l=1}var k;h=Math.min(h,7);h=Math.max(h,3);for(k=0;k<l;++k){this.level_tables[k]=new f(m>>k,j>>k,h)}},detect:function(k,J,G){if(typeof G==="undefined"){G=4}var A=this.level_tables[0];var i=A.radius|0,q=(i-1)|0;var m=A.dirs;var n=A.dirs_count|0;var v=n>>1;var O=k.data,u=k.cols|0,K=k.rows|0,N=u>>1;var H=A.scores;var s=0,r=0,j=0,l=0,o=0,p=0,z=0,I=0;var F=this.tau|0;var D=0,E;var C=Math.max(i+1,G)|0;var B=Math.max(i+1,G)|0;var M=Math.min(u-i-2,u-G)|0;var L=Math.min(K-i-2,K-G)|0;j=(B*u+C)|0;for(r=B;r<L;++r,j+=u){for(s=C,l=j;s<M;++s,++l){o=O[l]+F,p=O[l]-F;if(p<O[l+i]&&O[l+i]<o&&p<O[l-i]&&O[l-i]<o){H[l]=0}else{e(O,l,H,p,o,m,v,n)}}}j=(B*u+C)|0;for(r=B;r<L;++r,j+=u){for(s=C,l=j;s<M;++s,++l){I=H[l];z=Math.abs(I);if(z<5){++s,++l}else{if(g(H,l,u)>=3&&c(H,l,I,N,i)){E=J[D];E.x=s,E.y=r,E.score=z;++D;s+=q,l+=q}}}}return D}}})();a.yape=b})(jsfeat);(function(b){var a=(function(){var d=new Int32Array([8,-3,9,5,4,2,7,-12,-11,9,-8,2,7,-12,12,-13,2,-13,2,12,1,-7,1,6,-2,-10,-2,-4,-13,-13,-11,-8,-13,-3,-12,-9,10,4,11,9,-13,-8,-8,-9,-11,7,-9,12,7,7,12,6,-4,-5,-3,0,-13,2,-12,-3,-9,0,-7,5,12,-6,12,-1,-3,6,-2,12,-6,-13,-4,-8,11,-13,12,-8,4,7,5,1,5,-3,10,-3,3,-7,6,12,-8,-7,-6,-2,-2,11,-1,-10,-13,12,-8,10,-7,3,-5,-3,-4,2,-3,7,-10,-12,-6,11,5,-12,6,-7,5,-6,7,-1,1,0,4,-5,9,11,11,-13,4,7,4,12,2,-1,4,4,-4,-12,-2,7,-8,-5,-7,-10,4,11,9,12,0,-8,1,-13,-13,-2,-8,2,-3,-2,-2,3,-6,9,-4,-9,8,12,10,7,0,9,1,3,7,-5,11,-10,-13,-6,-11,0,10,7,12,1,-6,-3,-6,12,10,-9,12,-4,-13,8,-8,-12,-13,0,-8,-4,3,3,7,8,5,7,10,-7,-1,7,1,-12,3,-10,5,6,2,-4,3,-10,-13,0,-13,5,-13,-7,-12,12,-13,3,-11,8,-7,12,-4,7,6,-10,12,8,-9,-1,-7,-6,-2,-5,0,12,-12,5,-7,5,3,-10,8,-13,-7,-7,-4,5,-3,-2,-1,-7,2,9,5,-11,-11,-13,-5,-13,-1,6,0,-1,5,-3,5,2,-4,-13,-4,12,-9,-6,-9,6,-12,-10,-8,-4,10,2,12,-3,7,12,12,12,-7,-13,-6,5,-4,9,-3,4,7,-1,12,2,-7,6,-5,1,-13,11,-12,5,-3,7,-2,-6,7,-8,12,-7,-13,-7,-11,-12,1,-3,12,12,2,-6,3,0,-4,3,-2,-13,-1,-13,1,9,7,1,8,-6,1,-1,3,12,9,1,12,6,-1,-9,-1,3,-13,-13,-10,5,7,7,10,12,12,-5,12,9,6,3,7,11,5,-13,6,10,2,-12,2,3,3,8,4,-6,2,6,12,-13,9,-12,10,3,-8,4,-7,9,-11,12,-4,-6,1,12,2,-8,6,-9,7,-4,2,3,3,-2,6,3,11,0,3,-3,8,-8,7,8,9,3,-11,-5,-6,-4,-10,11,-5,10,-5,-8,-3,12,-10,5,-9,0,8,-1,12,-6,4,-6,6,-11,-10,12,-8,7,4,-2,6,7,-2,0,-2,12,-5,-8,-5,2,7,-6,10,12,-9,-13,-8,-8,-5,-13,-5,-2,8,-8,9,-13,-9,-11,-9,0,1,-8,1,-2,7,-4,9,1,-2,1,-1,-4,11,-6,12,-11,-12,-9,-6,4,3,7,7,12,5,5,10,8,0,-4,2,8,-9,12,-5,-13,0,7,2,12,-1,2,1,7,5,11,7,-9,3,5,6,-8,-13,-4,-8,9,-5,9,-3,-3,-4,-7,-3,-12,6,5,8,0,-7,6,-6,12,-13,6,-5,-2,1,-10,3,10,4,1,8,-4,-2,-2,2,-13,2,-12,12,12,-2,-13,0,-6,4,1,9,3,-6,-10,-3,-5,-3,-13,-1,1,7,5,12,-11,4,-2,5,-7,-13,9,-9,-5,7,1,8,6,7,-8,7,6,-7,-4,-7,1,-8,11,-7,-8,-13,6,-12,-8,2,4,3,9,10,-5,12,3,-6,-5,-6,7,8,-3,9,-8,2,-12,2,8,-11,-2,-10,3,-12,-13,-7,-9,-11,0,-10,-5,5,-3,11,8,-2,-13,-1,12,-1,-8,0,9,-13,-11,-12,-5,-10,-2,-10,11,-3,9,-2,-13,2,-3,3,2,-9,-13,-4,0,-4,6,-3,-10,-4,12,-2,-7,-6,-11,-4,9,6,-3,6,11,-13,11,-5,5,11,11,12,6,7,-5,12,-2,-1,12,0,7,-4,-8,-3,-2,-7,1,-6,7,-13,-12,-8,-13,-7,-2,-6,-8,-8,5,-6,-9,-5,-1,-4,5,-13,7,-8,10,1,5,5,-13,1,0,10,-13,9,12,10,-1,5,-8,10,-9,-1,11,1,-13,-9,-3,-6,2,-1,-10,1,12,-13,1,-8,-10,8,-11,10,-6,2,-13,3,-6,7,-13,12,-9,-10,-10,-5,-7,-10,-8,-8,-13,4,-6,8,5,3,12,8,-13,-4,2,-3,-3,5,-13,10,-12,4,-13,5,-1,-9,9,-4,3,0,3,3,-9,-12,1,-6,1,3,2,4,-8,-10,-10,-10,9,8,-13,12,12,-8,-12,-6,-5,2,2,3,7,10,6,11,-8,6,8,8,-12,-7,10,-6,5,-3,-9,-3,9,-1,-13,-1,5,-3,-7,-3,4,-8,-2,-8,3,4,2,12,12,2,-5,3,11,6,-9,11,-13,3,-1,7,12,11,-1,12,4,-3,0,-3,6,4,-11,4,12,2,-4,2,1,-10,-6,-8,1,-13,7,-11,1,-13,12,-11,-13,6,0,11,-13,0,-1,1,4,-13,3,-9,-2,-9,8,-6,-3,-13,-6,-8,-2,5,-9,8,10,2,7,3,-9,-1,-6,-1,-1,9,5,11,-2,11,-3,12,-8,3,0,3,5,-1,4,0,10,3,-6,4,5,-13,0,-10,5,5,8,12,11,8,9,9,-6,7,-4,8,-12,-10,4,-10,9,7,3,12,4,9,-7,10,-2,7,0,12,-2,-1,-6,0,-11]);var c=new jsfeat.matrix_t(3,3,jsfeat.F32_t|jsfeat.C1_t);var f=new jsfeat.matrix_t(32,32,jsfeat.U8_t|jsfeat.C1_t);var e=function(l,n,k,i,h,j){var m=Math.cos(k);var g=Math.sin(k);c.data[0]=m,c.data[1]=-g,c.data[2]=(-m+g)*j*0.5+i,c.data[3]=g,c.data[4]=m,c.data[5]=(-g-m)*j*0.5+h;jsfeat.imgproc.warp_affine(l,n,c,128)};return{describe:function(j,u,g,B){var r=32;var x=0,A=0,q=0,p=0,z=0;var o=0,m=0,D=0;var C=j.data,n=j.cols,y=j.rows;var t=f.data;var v=16*32+16;var k=0;if(!(B.type&jsfeat.U8_t)){B.type=jsfeat.U8_t;B.cols=r;B.rows=g;B.channel=1;B.allocate()}else{B.resize(r,g,1)}var l=B.data;var s=0;for(x=0;x<g;++x){q=u[x].x;p=u[x].y;z=u[x].angle;e(j,f,z,q,p,32);k=0;for(A=0;A<r;++A){o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D=(o<m)|0;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<1;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<2;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<3;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<4;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<5;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<6;o=t[v+d[k+1]*32+d[k]];k+=2;m=t[v+d[k+1]*32+d[k]];k+=2;D|=(o<m)<<7;l[s+A]=D}s+=r}}}})();b.orb=a})(jsfeat);(function(b){var a=(function(){var c=jsfeat.imgproc.scharr_derivatives;return{track:function(n,u,ap,aL,k,N,R,K,f,q){if(typeof R==="undefined"){R=30}if(typeof K==="undefined"){K=new Uint8Array(k)}if(typeof f==="undefined"){f=0.01}if(typeof q==="undefined"){q=0.0001}var e=(N-1)*0.5;var h=(N*N)|0;var aa=h<<1;var r=n.data,S=u.data;var g=r[0].data,F=S[0].data;var M=r[0].cols,aB=r[0].rows,ay=0,aH=0;var az=jsfeat.cache.get_buffer(h<<2);var s=jsfeat.cache.get_buffer(aa<<2);var t=jsfeat.cache.get_buffer((aB*(M<<1))<<2);var V=new jsfeat.matrix_t(M,aB,jsfeat.S32C2_t,t.data);var w=az.i32;var ac=s.i32;var aA=t.i32;var ab=0,I=0,aM=0,at=0,aI=0,au=0;var am=0,aF=0,aD=0,af=0,ae=0;var E=0,z=0,Y=0,W=0;var p=0,o=0,aE=0,aC=0;var Q=0,P=0,J=0,H=0,ai=0,ak=0,l=0;var d=0,A=0,O=0;var U=0,T=0,aw=0,av=0;var ah=14;var C=14;var Z=C-5;var ax=(1<<((Z)-1));var ad=(1<<ah);var m=(1<<((C)-1));var X=1/(1<<20);var aK=0,aJ=0,ar=0,aq=0,al=0,v=0,B=0;var ao=0,an=0,ag=0,aj=0,aG=0;var G=1.1920929e-7;f*=f;for(;Q<k;++Q){K[Q]=1}var L=(n.levels-1)|0;ai=L;for(;ai>=0;--ai){am=(1/(1<<ai));ay=M>>ai;aH=aB>>ai;ab=ay<<1;g=r[ai].data;F=S[ai].data;A=(ay-N)|0;O=(aH-N)|0;c(r[ai],V);for(ak=0;ak<k;++ak){Q=ak<<1;P=Q+1;aF=ap[Q]*am;aD=ap[P]*am;if(ai==L){af=aF;ae=aD}else{af=aL[Q]*2;ae=aL[P]*2}aL[Q]=af;aL[P]=ae;aF-=e;aD-=e;p=aF|0;o=aD|0;J=(p<=d)|(p>=A)|(o<=d)|(o>=O);if(J!=0){if(ai==0){K[ak]=0}continue}U=aF-p;T=aD-o;aK=(((1-U)*(1-T)*ad)+0.5)|0;aJ=((U*(1-T)*ad)+0.5)|0;ar=(((1-U)*T*ad)+0.5)|0;aq=(ad-aK-aJ-ar);ao=0,an=0,ag=0;for(H=0;H<N;++H){I=((H+o)*ay+p)|0;aM=I<<1;at=(H*N)|0;aI=at<<1;for(J=0;J<N;++J,++I,++at,aM+=2){al=((g[I])*aK+(g[I+1])*aJ+(g[I+ay])*ar+(g[I+ay+1])*aq);al=(((al)+ax)>>(Z));v=(aA[aM]*aK+aA[aM+2]*aJ+aA[aM+ab]*ar+aA[aM+ab+2]*aq);v=(((v)+m)>>(C));B=(aA[aM+1]*aK+aA[aM+3]*aJ+aA[aM+ab+1]*ar+aA[aM+ab+3]*aq);B=(((B)+m)>>(C));w[at]=al;ac[aI++]=v;ac[aI++]=B;ao+=v*v;an+=v*B;ag+=B*B}}ao*=X;an*=X;ag*=X;aj=ao*ag-an*an;aG=(ag+ao-Math.sqrt((ao-ag)*(ao-ag)+4*an*an))/aa;if(aG<q||aj<G){if(ai==0){K[ak]=0}continue}aj=1/aj;af-=e;ae-=e;E=0;z=0;for(l=0;l<R;++l){aE=af|0;aC=ae|0;J=(aE<=d)|(aE>=A)|(aC<=d)|(aC>=O);if(J!=0){if(ai==0){K[ak]=0}break}U=af-aE;T=ae-aC;aK=(((1-U)*(1-T)*ad)+0.5)|0;aJ=((U*(1-T)*ad)+0.5)|0;ar=(((1-U)*T*ad)+0.5)|0;aq=(ad-aK-aJ-ar);aw=0,av=0;for(H=0;H<N;++H){au=((H+aC)*ay+aE)|0;at=(H*N)|0;aI=at<<1;for(J=0;J<N;++J,++au,++at){al=((F[au])*aK+(F[au+1])*aJ+(F[au+ay])*ar+(F[au+ay+1])*aq);al=(((al)+ax)>>(Z));al=(al-w[at]);aw+=al*ac[aI++];av+=al*ac[aI++]}}aw*=X;av*=X;Y=((an*av-ag*aw)*aj);W=((an*aw-ao*av)*aj);af+=Y;ae+=W;aL[Q]=af+e;aL[P]=ae+e;if(Y*Y+W*W<=f){break}if(l>0&&Math.abs(Y+E)<0.01&&Math.abs(W+z)<0.01){aL[Q]-=Y*0.5;aL[P]-=W*0.5;break}E=Y;z=W}}}jsfeat.cache.put_buffer(az);jsfeat.cache.put_buffer(s);jsfeat.cache.put_buffer(t)}}})();b.optical_flow_lk=a})(jsfeat);(function(b){var a=(function(){var c=function(e,d){var f=(e.width*0.25+0.5)|0;return d.x<=e.x+f&&d.x>=e.x-f&&d.y<=e.y+f&&d.y>=e.y-f&&d.width<=(e.width*1.5+0.5)|0&&(d.width*1.5+0.5)|0>=e.width};return{edges_density:0.07,detect_single_scale:function(E,ad,af,q,d,f,D,B){var z=(B.size[0]*D)|0,N=(B.size[1]*D)|0,V=(0.5*D+1.5)|0,U=V;var Z,X,W,Q,O,T=(d-z)|0,R=(f-N)|0;var H=(d+1)|0,w,p,r,S;var e=1/(z*N);var t,o,l,u,s,ae,A,g=true,L,h,n,G,m;var M,K,J,I,v,C;var ac=0,ab=z,aa=N*H,Y=aa+z;var F=((z*N)*255*this.edges_density)|0;var P=[];for(O=0;O<R;O+=U){ac=O*H;for(Q=0;Q<T;Q+=V,ac+=V){p=E[ac]-E[ac+ab]-E[ac+aa]+E[ac+Y];if(q){w=(q[ac]-q[ac+ab]-q[ac+aa]+q[ac+Y]);if(w<F||p<20){Q+=V,ac+=V;continue}}p*=e;r=(ad[ac]-ad[ac+ab]-ad[ac+aa]+ad[ac+Y])*e-p*p;S=r>0?Math.sqrt(r):1;t=B.complexClassifiers;s=t.length;g=true;for(Z=0;Z<s;++Z){o=t[Z];L=o.threshold;l=o.simpleClassifiers;ae=l.length;h=0;for(X=0;X<ae;++X){u=l[X];n=0;m=u.features;A=m.length;if(u.tilted===1){for(W=0;W<A;++W){G=m[W];M=~~(Q+G[0]*D)+~~(O+G[1]*D)*H;v=~~(G[2]*D);C=~~(G[3]*D);K=v*H;J=C*H;n+=(af[M]-af[M+v+K]-af[M-C+J]+af[M+v-C+K+J])*G[4]}}else{for(W=0;W<A;++W){G=m[W];M=~~(Q+G[0]*D)+~~(O+G[1]*D)*H;v=~~(G[2]*D);C=~~(G[3]*D);J=C*H;n+=(E[M]-E[M+v]-E[M+J]+E[M+J+v])*G[4]}}h+=(n*e<u.threshold*S)?u.left_val:u.right_val}if(h<L){g=false;break}}if(g){P.push({x:Q,y:O,width:z,height:N,neighbor:1,confidence:h});Q+=V,ac+=V}}}return P},detect_multi_scale:function(e,m,f,h,d,n,i,g,k){if(typeof g==="undefined"){g=1.2}if(typeof k==="undefined"){k=1}var o=i.size[0];var j=i.size[1];var l=[];while(k*o<d&&k*j<n){l=l.concat(this.detect_single_scale(e,m,f,h,d,n,k,i));k*=g}return l},group_rectangles:function(g,l){if(typeof l==="undefined"){l=1}var y,v,q=g.length;var r=[];for(y=0;y<q;++y){r[y]={parent:-1,element:g[y],rank:0}}for(y=0;y<q;++y){if(!r[y].element){continue}var t=y;while(r[t].parent!=-1){t=r[t].parent}for(v=0;v<q;++v){if(y!=v&&r[v].element&&c(r[y].element,r[v].element)){var s=v;while(r[s].parent!=-1){s=r[s].parent}if(s!=t){if(r[t].rank>r[s].rank){r[s].parent=t}else{r[t].parent=s;if(r[t].rank==r[s].rank){r[s].rank++}t=s}var A,d=v;while(r[d].parent!=-1){A=d;d=r[d].parent;r[A].parent=t}d=y;while(r[d].parent!=-1){A=d;d=r[d].parent;r[A].parent=t}}}}}var w=[];var o=0;for(y=0;y<q;y++){v=-1;var e=y;if(r[e].element){while(r[e].parent!=-1){e=r[e].parent}if(r[e].rank>=0){r[e].rank=~o++}v=~r[e].rank}w[y]=v}var m=[];for(y=0;y<o+1;++y){m[y]={neighbors:0,x:0,y:0,width:0,height:0,confidence:0}}for(y=0;y<q;++y){var z=g[y];var k=w[y];if(m[k].neighbors==0){m[k].confidence=z.confidence}++m[k].neighbors;m[k].x+=z.x;m[k].y+=z.y;m[k].width+=z.width;m[k].height+=z.height;m[k].confidence=Math.max(m[k].confidence,z.confidence)}var h=[];for(y=0;y<o;++y){q=m[y].neighbors;if(q>=l){h.push({x:(m[y].x*2+q)/(2*q),y:(m[y].y*2+q)/(2*q),width:(m[y].width*2+q)/(2*q),height:(m[y].height*2+q)/(2*q),neighbors:m[y].neighbors,confidence:m[y].confidence})}}var p=[];q=h.length;for(y=0;y<q;++y){var z=h[y];var x=true;for(v=0;v<q;++v){var u=h[v];var f=(u.width*0.25+0.5)|0;if(y!=v&&z.x>=u.x-f&&z.y>=u.y-f&&z.x+z.width<=u.x+u.width+f&&z.y+z.height<=u.y+u.height+f&&(u.neighbors>Math.max(3,z.neighbors)||z.neighbors<3)){x=false;break}}if(x){p.push(z)}}return p}}})();b.haar=a})(jsfeat);(function(a){var b=(function(){var c=function(f,e){var g=(f.width*0.25+0.5)|0;return e.x<=f.x+g&&e.x>=f.x-g&&e.y<=f.y+g&&e.y>=f.y-g&&e.width<=(f.width*1.5+0.5)|0&&(e.width*1.5+0.5)|0>=f.width};var d=new jsfeat.pyramid_t(1);return{interval:4,scale:1.1486,next:5,scale_to:1,prepare_cascade:function(g){var m=g.stage_classifier.length;for(var h=0;h<m;h++){var l=g.stage_classifier[h].feature;var e=g.stage_classifier[h].count;var i=g.stage_classifier[h]._feature=new Array(e);for(var f=0;f<e;f++){i[f]={size:l[f].size,px:new Array(l[f].size),pz:new Array(l[f].size),nx:new Array(l[f].size),nz:new Array(l[f].size)}}}},build_pyramid:function(e,k,s,f){if(typeof f==="undefined"){f=4}var q=e.cols,m=e.rows;var l=0,n=0,h=0;var p=false;var j=e,g=e;var r=jsfeat.U8_t|jsfeat.C1_t;this.interval=f;this.scale=Math.pow(2,1/(this.interval+1));this.next=(this.interval+1)|0;this.scale_to=(Math.log(Math.min(q/k,m/s))/Math.log(this.scale))|0;var o=((this.scale_to+this.next*2)*4)|0;if(d.levels!=o){d.levels=o;d.data=new Array(o);p=true;d.data[0]=e}for(l=1;l<=this.interval;++l){n=(q/Math.pow(this.scale,l))|0;h=(m/Math.pow(this.scale,l))|0;j=d.data[l<<2];if(p||n!=j.cols||h!=j.rows){d.data[l<<2]=new jsfeat.matrix_t(n,h,r);j=d.data[l<<2]}jsfeat.imgproc.resample(e,j,n,h)}for(l=this.next;l<this.scale_to+this.next*2;++l){g=d.data[(l<<2)-(this.next<<2)];j=d.data[l<<2];n=g.cols>>1;h=g.rows>>1;if(p||n!=j.cols||h!=j.rows){d.data[l<<2]=new jsfeat.matrix_t(n,h,r);j=d.data[l<<2]}jsfeat.imgproc.pyrdown(g,j)}for(l=this.next*2;l<this.scale_to+this.next*2;++l){g=d.data[(l<<2)-(this.next<<2)];n=g.cols>>1;h=g.rows>>1;j=d.data[(l<<2)+1];if(p||n!=j.cols||h!=j.rows){d.data[(l<<2)+1]=new jsfeat.matrix_t(n,h,r);j=d.data[(l<<2)+1]}jsfeat.imgproc.pyrdown(g,j,1,0);j=d.data[(l<<2)+2];if(p||n!=j.cols||h!=j.rows){d.data[(l<<2)+2]=new jsfeat.matrix_t(n,h,r);j=d.data[(l<<2)+2]}jsfeat.imgproc.pyrdown(g,j,0,1);j=d.data[(l<<2)+3];if(p||n!=j.cols||h!=j.rows){d.data[(l<<2)+3]=new jsfeat.matrix_t(n,h,r);j=d.data[(l<<2)+3]}jsfeat.imgproc.pyrdown(g,j,1,1)}return d},detect:function(G,L){var h=this.interval;var N=this.scale;var m=this.next;var l=this.scale_to;var ab=0,aa=0,Z=0,W=0,S=0,R=0,U=0,B=0,J=0,I=0,V=0,ae=0,M=0,ad=0,w=0,Y=0,g=0;var E=0,X,Q,D,H,F,O=true,o=true;var z=1,v=1;var s=[0,1,0,1];var r=[0,0,1,1];var K=[];var C=G.data,ac=1,u=2,t=4;var A=[],e=[0,0,0];var P=[0,0,0];var T=[0,0,0];for(ab=0;ab<l;ab++){w=(ab<<2);Y=C[w+(m<<3)].cols-(L.width>>2);g=C[w+(m<<3)].rows-(L.height>>2);P[0]=C[w].cols*ac;P[1]=C[w+(m<<2)].cols*ac;P[2]=C[w+(m<<3)].cols*ac;T[0]=(C[w].cols*t)-(Y*t);T[1]=(C[w+(m<<2)].cols*u)-(Y*u);T[2]=(C[w+(m<<3)].cols*ac)-(Y*ac);B=L.stage_classifier.length;for(aa=0;aa<B;aa++){D=L.stage_classifier[aa].feature;Q=L.stage_classifier[aa]._feature;J=L.stage_classifier[aa].count;for(Z=0;Z<J;Z++){H=Q[Z];F=D[Z];I=F.size|0;for(U=0;U<I;U++){H.px[U]=(F.px[U]*ac)+F.py[U]*P[F.pz[U]];H.pz[U]=F.pz[U];H.nx[U]=(F.nx[U]*ac)+F.ny[U]*P[F.nz[U]];H.nz[U]=F.nz[U]}}}A[0]=C[w].data;A[1]=C[w+(m<<2)].data;for(U=0;U<4;U++){A[2]=C[w+(m<<3)+U].data;e[0]=(s[U]*u)+r[U]*(C[w].cols*u);e[1]=(s[U]*ac)+r[U]*(C[w+(m<<2)].cols*ac);e[2]=0;for(R=0;R<g;R++){for(S=0;S<Y;S++){E=0;O=true;B=L.stage_classifier.length;for(aa=0;aa<B;aa++){E=0;X=L.stage_classifier[aa].alpha;Q=L.stage_classifier[aa]._feature;J=L.stage_classifier[aa].count;for(Z=0;Z<J;Z++){H=Q[Z];ae=A[H.pz[0]][e[H.pz[0]]+H.px[0]];M=A[H.nz[0]][e[H.nz[0]]+H.nx[0]];if(ae<=M){E+=X[Z<<1]}else{o=true;I=H.size;for(ad=1;ad<I;ad++){if(H.pz[ad]>=0){V=A[H.pz[ad]][e[H.pz[ad]]+H.px[ad]];if(V<ae){if(V<=M){o=false;break}ae=V}}if(H.nz[ad]>=0){W=A[H.nz[ad]][e[H.nz[ad]]+H.nx[ad]];if(W>M){if(ae<=W){o=false;break}M=W}}}E+=(o)?X[(Z<<1)+1]:X[Z<<1]}}if(E<L.stage_classifier[aa].threshold){O=false;break}}if(O){K.push({x:(S*4+s[U]*2)*z,y:(R*4+r[U]*2)*v,width:L.width*z,height:L.height*v,neighbor:1,confidence:E});++S;e[0]+=t;e[1]+=u;e[2]+=ac}e[0]+=t;e[1]+=u;e[2]+=ac}e[0]+=T[0];e[1]+=T[1];e[2]+=T[2]}}z*=N;v*=N}return K},group_rectangles:function(h,m){if(typeof m==="undefined"){m=1}var z,w,r=h.length;var s=[];for(z=0;z<r;++z){s[z]={parent:-1,element:h[z],rank:0}}for(z=0;z<r;++z){if(!s[z].element){continue}var u=z;while(s[u].parent!=-1){u=s[u].parent}for(w=0;w<r;++w){if(z!=w&&s[w].element&&c(s[z].element,s[w].element)){var t=w;while(s[t].parent!=-1){t=s[t].parent}if(t!=u){if(s[u].rank>s[t].rank){s[t].parent=u}else{s[u].parent=t;if(s[u].rank==s[t].rank){s[t].rank++}u=t}var B,e=w;while(s[e].parent!=-1){B=e;e=s[e].parent;s[B].parent=u}e=z;while(s[e].parent!=-1){B=e;e=s[e].parent;s[B].parent=u}}}}}var x=[];var p=0;for(z=0;z<r;z++){w=-1;var f=z;if(s[f].element){while(s[f].parent!=-1){f=s[f].parent}if(s[f].rank>=0){s[f].rank=~p++}w=~s[f].rank}x[z]=w}var o=[];for(z=0;z<p+1;++z){o[z]={neighbors:0,x:0,y:0,width:0,height:0,confidence:0}}for(z=0;z<r;++z){var A=h[z];var l=x[z];if(o[l].neighbors==0){o[l].confidence=A.confidence}++o[l].neighbors;o[l].x+=A.x;o[l].y+=A.y;o[l].width+=A.width;o[l].height+=A.height;o[l].confidence=Math.max(o[l].confidence,A.confidence)}var k=[];for(z=0;z<p;++z){r=o[z].neighbors;if(r>=m){k.push({x:(o[z].x*2+r)/(2*r),y:(o[z].y*2+r)/(2*r),width:(o[z].width*2+r)/(2*r),height:(o[z].height*2+r)/(2*r),neighbors:o[z].neighbors,confidence:o[z].confidence})}}var q=[];r=k.length;for(z=0;z<r;++z){var A=k[z];var y=true;for(w=0;w<r;++w){var v=k[w];var g=(v.width*0.25+0.5)|0;if(z!=w&&A.x>=v.x-g&&A.y>=v.y-g&&A.x+A.width<=v.x+v.width+g&&A.y+A.height<=v.y+v.height+g&&(v.neighbors>Math.max(3,A.neighbors)||A.neighbors<3)){y=false;break}}if(y){q.push(A)}}return q}}})();a.bbf=b})(jsfeat);(function(a){if(typeof module==="undefined"||typeof module.exports==="undefined"){window.jsfeat=a}else{module.exports=a}})(jsfeat);
 
 (/* @global echarts */ function() {
     'use strict';
@@ -5379,7 +8263,7 @@
     // Q7/Q10 福临门本地识油助手（无大模型、无训练、无图片上传）
     // 只读取当前题目卡左侧“照片证据”，绝不读取右侧“审核参考”或说明示例图。
     // ==========================================
-    const FLM_LOCAL_OIL_REF_VERSION = 'company-ppt-20260801-two-stage-v4';
+    const FLM_LOCAL_OIL_REF_VERSION = 'paddle-ocr-v6-tiny-orb-fallback-v1';
     const FLM_LOCAL_OIL_REF_CACHE_KEY = 'flm_local_oil_reference_cache_' + FLM_LOCAL_OIL_REF_VERSION;
     const FLM_LOCAL_OIL_RESULT_PREFIX = 'flm_local_oil_result_v1_';
     const FLM_LOCAL_OIL_FEATURE_WIDTH = 8;
@@ -5399,10 +8283,18 @@
         flax: { label: '福临门亚麻籽油或胡麻油', words: ['亚麻', '胡麻'] },
         olive: { label: '福临门橄榄油或安达露西橄榄油', words: ['橄榄', '安达露西'] }
     };
+    // 调和油包装相似度高、现场文字又常模糊，自动判断价值低；保留网页选项供人工编辑，
+    // 但不让它占用 OCR、ORB 回退、图片标注和侧栏自动结论的识别预算。
+    const FLM_LOCAL_OIL_TARGET_CATEGORIES = Object.freeze([
+        'sunflower', 'corn', 'peanut', 'soybean', 'rapeseed', 'flax', 'olive'
+    ]);
+    const FLM_LOCAL_OIL_TARGET_CATEGORY_SET = new Set(FLM_LOCAL_OIL_TARGET_CATEGORIES);
     const FLM_LOCAL_OIL_SHORT_LABELS = {
         sunflower: '葵花籽油', corn: '玉米油', peanut: '花生油', soybean: '大豆油',
         rapeseed: '菜籽油', blend: '调和油', flax: '亚麻/胡麻油', olive: '橄榄油'
     };
+    // 公司 PPT 产品图离线生成的 ORB 特征点；不包含可还原原图。
+    const FLM_ORB_REFERENCE_DATA = {"version":1,"refs":[{"c":"flax","n":"slide01_01_image9.png","w":76,"h":300,"k":52,"p":"IAAwACwAdgAfAJcAHQAaABcAIAAVANQAMQA7ABkAugAgAKwAJQDAADUA2wAwADQANQDTAC8ANwAlAL4AOACmADUAJAAqANQAKgDaABkANAAgAJwALQA8ABQAtwA2ANYAHwDYABMA0wAVANIAMQCkADUAqgAgAIsAMwCmADIAuQAhAJ8AJACKACAA0gAaANkAJQCqAC8AkwAmAJ0AKQCkABwAuAA6AKMALQDMADAAiwAqALIAMgC1AC8AjQAUAKUAIAC2ACQAJwAWAD8AKQDzAA==","d":"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"},{"c":"flax","n":"slide01_05_image5.png","w":76,"h":300,"k":52,"p":"NACIACwA7QAuAIgAJQCHADUAjAAkALsANAAkACkA6gAUAIcAFQC7ADYAhwAoAMYAMwAfAC0A4wAlAOcALwA3ADUA5wAXACAAHQAaABsAiAA0AN0ALADnADQA7QAiALUAMgC7ADQA4gAwAO0AJgDgAB0A9AAaAOAAKwD1ACAArgA1AIQAKwBoABsAvAAZANgAJgDbADAAxAAwADQAJwCcACgAuwAeAOMAGgC3ACQAsQAXAMQAMgDJACcAtgAiAPYAIABzADAArgAnAO0AMgCbAA==","d":"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"},{"c":"flax","n":"slide01_09_image15.png","w":76,"h":300,"k":52,"p":"FQDTACAAMAAqANMAHQAaAC0AdQAXACAAJQC7ACUArQAxADsAGQCrACoA2gAgAHsAMAA0AC4AmAAvADcAEQCyADUA0gA1ACQAMwC5ABkANAAtADwAJQCfADUA2gAiALIAMQCNADYA1QA4ANgAGAC5ACsAkgAeAIsALABpADYAogAgAJ4AJQCRAB8AmgA0AKkAHQC4ACAA2AAsAIsAKwCeACUAygATAJIAGwD5AC0AuwAeAJgAGwCwADcApwAkAHUAGACcACUAmAAZANgAFQCnAA==","d":"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"},{"c":"flax","n":"slide01_10_image14.png","w":76,"h":300,"k":52,"p":"HwDUACAAMAAtAHUAJwCxAB0AGgAjAK8AFwAgADEAOwAWAJcALwC8ABgAuwA3ANQALQC9ACAAqwASAJQAFgDZABsAqgAwADQALwA3ADUAJAAeAHUAKgDbAB0AlAAZADQAIACzAC8AtgAVANIAKgDUACAAjAAtADwANADSABQAnAAwAKMAJgB4ADMAtAAqAHUALABpACQAiwAYAI8AJQCkABsAtgAxAI4AHQC6ABEAoQA0ALoAJQCcADcAnAAbAPoAGACxACEAvgAYANkAJAAnAA==","d":"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"},{"c":"flax","n":"slide01_11_image13.png","w":76,"h":300,"k":52,"p":"KwCzACAAMAAWANYAIACzACsAdQAdABoAFwAgACQAuQAxADsAKwBzACAAmwAaALsAHgB2ACYAlQAyAJsAMAA0AC8ANwA1ACQAIQDUAB0AjAAgAHUAMQCWABkAmwAgAJYAGQA0ACsAlgApANoALQA8ACUA2gAxALsAMgDZAC4AcAAbAI8AGgCWACsAmwAxAI0AEQCaABsAjQAsAGkAJQCpABMA2AAuAIwAKwCLADoAmgAwAJMAKQC8ACwAqgAyANUANQDaABsA+gA2ALgAKgDUAA==","d":"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"},{"c":"flax","n":"slide01_12_image12.png","w":76,"h":300,"k":52,"p":"IADVACAAMAAqANQAHQAaABcAIAAnAJgAMQA7AB8AswARALQALwCNABUAuAAwAKkAMAA0AC8ANwAqANsANQAkACwAsQATALIAFgDbAB4AdgAgAHcAHACNABkANAAWAL0ALQA8ABoAjgAxAI4AGgC+ABMAnQAsAIwANADSACUAcwAtAHUAHQC+ADYAsAA0AKwAHwDbACwAaQAgAKwANgCZADIAogAdAMAAJQCzABsAqAAUAKUAHgC4ABMAkwAlAJoAMgCvABcAsgAlAJ8AFwDRAA==","d":"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"},{"c":"flax","n":"slide01_13_image11.png","w":76,"h":300,"k":52,"p":"GgC8ACoA1QAVANcAIADbACAAMAAgANIAKwB2AC4AtgAdABoAFwAgADEAOwAYAK0AGQCnADAANAAvADcAMgCqADYAuQAXANoAHgB2ACAAeAA1ACQALAC9ACsAoQAcAKoANgDYADIAsAAZADQAHQCiACYAnwAeALAALQA8ACQAnQAgALUAOgCyADQA0gA0AJEAGwCuAB0AmQAjAIsAFACbAC4AjgATAJ0AEQDaABkA1AArANsANwCxACMA3gAwAI8ALgCoADkApQA1AJkAKQCnAA==","d":"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"},{"c":"flax","n":"slide01_14_image10.png","w":76,"h":300,"k":52,"p":"IAAwABYA2gAhANYAHQAaABcAIAAxADsALAB2ACsAigAZALwAMAA0AC8ANwAaAI8ANADSADUAJAAcAI4AHQCvACoA2wAZADQAHQB3ACoA1AAtADwAJACfADUA2wAiAJUAJgCyABEAtQAhAL8ANgDYACAAsQAWANEAEwCeADgAmgAqAL0AGADUADUAnwAuAIsAIgCQACEAowAjAM4ALQCzABsAtgAjANwAKwCwACsAnwARAJcALgCsACQAJwAWAD8AKgCmACQAugAiAIwAHgCtAA==","d":"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"},{"c":"sunflower","n":"slide04_01_image35.png","w":101,"h":300,"k":52,"p":"NAC4AEsA+ABTAKwAPwC3ACMA4QAoALoANgCuAEYA8gAsAMYAIwDmADEArwBDAMsANwDUAEUAGQBBAPcAQwDfAD8AxgAiANwAIwDaAC0A/QBRAPUAKgD6ADkArwBFAB4ANADTADkA+gAyAKwAHgDuACsArQAjALoATQDpACEAygAqAL8AOgDIAC8A7AAvANUAKwDkAEwASAAsANwAOADFADQAxQBLANQAIQBRACwAsQAfAPAAOgC7ACAAIwAbABQAGwAeAEYATgBKAPIAMgDtAA==","d":"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"},{"c":"sunflower","n":"slide04_02_image34.png","w":101,"h":300,"k":52,"p":"MwC2AFMAqwA/ALcAKwD6ACoA5AAkAN8AJgDKADwArQAoAL0APwDGAB4A8AAtAP0ARQAUAEoA7ABFAPIARQAeAC0AxgA7AN0ANADTACsArQBFABkAIQDKAE0A6QBAAPcAMgDtAEQA2wAhAN8AOQD6ACwA6QA+AOMAJQD5ACUA5QAhAPMAKADqAC4A4gAxAK8AOADmABwAGQBCAMsAKgDfAEMA3wBTAPwAUQD2ADIAsgBEAL8ATABJADkAsgAbABQAGwAeAE0A4wAjALoAJAC3AA==","d":"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"},{"c":"sunflower","n":"slide04_07_image36.png","w":135,"h":300,"k":52,"p":"VQB9AEMAkAA2AJEASgDuAGMAfAA6AMwAXADWAFEA7QBOAJAANQAeAE8AkwA6ANwASQDXAFEAHgA4ALQAOgCFACMA8QAsANoAQACCAEUAuQAsAL0AVQDHAEkAzgA9AMAAQgChAFsAsQBOAMsASwCGAFgAxgArAH8AXAB9AEYAvABYAMAAPQC4ADcApABBAM4AOwCvAEAAhwBbALkAKAB/ADIAxgBNALMAKABPAEkArQAtAHsAVQCXAEgAtAArALsAXgDuAFcAlgAsALEAWAAVAQ==","d":"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"},{"c":"sunflower","n":"slide10_04_image82.png","w":135,"h":300,"k":52,"p":"NgCBAFgAhgAzAI0ATgCGAFEAHgBXAOsAXgCnAFUA6wA/AOEANQAdAE0AzgAwAJMATwDRAFMA1gBAAKUAPgC6AC8ArQA6AMYAIwCVACMAfgA1ALkAMwDIAFYA3AA/AMUAQwCBAF4AqgA+AJgAPwCCADsAgQBRAKkAWACsAF8AjABXAHkAXwCGACcATwBfAOoARADIAGYAeABBAHgAVQC0AFsA6ABYAO8AXwD5AEEA2wBKAKcAYACwAE0A7ABXANcASQCrAD0AhQBmAIYAOgCqAA==","d":"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"},{"c":"sunflower","n":"slide04_03_image33.png","w":150,"h":300,"k":52,"p":"UQBQAFUAVQBfABoAQgBPAGsAvgBEAE4ALQC8ADoAGgBNAGMAVQCuAE0AYABYAFQATABLAEIArAAwAIgATABQAEUAcgBAAJMAYwCkAF0AqgBbAHMAUABWAFgATwBMAHMAagCyAFsAXABRAFgAXACXAFMATQBIAEwAQgBbAD8AdABEAFEAZABmAFIAcgBuAM8AYgC4AFUAWwBRAIIAXwBfAGIAigBCAIcAXQBPAC0AigBEAK4ATwCPAGwAmgBKAJwASACuAFcAjwBlAH0AWwCPAA==","d":"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"},{"c":"sunflower","n":"slide04_04_image32.png","w":150,"h":300,"k":52,"p":"WABPAF8AGgBPAFUAOgAaAFoAWwBQAGAAXACqAEQATQAwAIcALAC8ACwAvgBMAGIAYAB4AFQAWgBCAKsATwCXAEQAcgBUAK4AbAC8AFoAcgAtAIoASQBgAEgAnABRAHEAWgBRAEsATwBiAIkAbgDPAFQAVQBdAF8AZAB8AD0AVgBfAFoAUACQAFUAYgBqALAAPQBOAGMAZQBHAIMAPwB0AE0AWwBsAJoANACkAGMAkgBqAHwAQwBdAFoAYABiAKgAawDZAFAAUABDAK4ARwCuAA==","d":"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"},{"c":"sunflower","n":"slide10_05_image81.png","w":150,"h":300,"k":52,"p":"LgBoAEkAkQBGAFQALQB1AG0AUgBfABoARwBZAEIAxAA7ABoAZACNAEAAXgBkAI8AQABpADkAVgArAKQARAC3AGYAngBtAJMAWQCdAD4AnABdAFsAPgDEAGYAxQBFAF0AQABjAE4AXgAxAEoAbQBeAFsAigArALgALACOAFAAngBfAGEAawB0AEsAigAyAHwAbgBYAEYAYQBZAJAATAC1ACsAxAA+AKAARwCMAEMAlwBFAI0ANAB9AEcAigBtAL0ARAC9AFYAigBJAEoASgBsAA==","d":"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"},{"c":"sunflower","n":"slide04_08_image29.png","w":162,"h":300,"k":52,"p":"UAC+AGsAsgB4ALQAUAC8AEgAswA2ADQAYAAhAFQA5wBCAOEAXQDAAEMAvgBdAPoAKwBIAEIA0ABwAAEBRAAhADQANwBVAEQATwD+AEYA/QBWAAUBWwD+AGYA2wByALMARgDpAEkAzABcAMwAOQDyADYA4ABgAAMBWQC0ADgA7AB1ALEARgA/AEIA5ABlAAgBWQDcAE4A8ABhAAUBXQDmAFUAsgBhAAEBTQDZAGoA3wBXANsAWQATAWoA6AAdAKgAaAC3AEcAxgBgAMIAOADeAA==","d":"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"},{"c":"corn","n":"slide05_07_image39.png","w":101,"h":300,"k":52,"p":"NgCtACoArABNANQAPwC2AE0A6gBPAN8AKQDIADEArgA9APwAIwDJAEwA+QAiAPsARwDNAD4AyAAsAO4ARwDzADMAtwBEAMgAPACsAFAA2QBIANIAOwDVACwAqwA7ALAAPQC+AC0AxgAhAM4AQQC4ACoA1QBMAEgAIgDYACcAugBHAK8AKwDcAFAA5QBNAEoAIQBRAEsA8gAcAEoAIQC5AB8A9AA6AAABMADbADoAxQBIALwANADFADoAwQBGAE4AMADRADMA/gAsAAEBQADnAA==","d":"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"},{"c":"corn","n":"slide11_04_image88.png","w":135,"h":300,"k":52,"p":"OQCCAFcA0QBbAIcANQCNADMA8QA6AL0ARgCBAFgA2ABfANkAWgC9ADsA0ABRAB4AYgDyAD8AhQBiAIUAIgDbAEIAugA+AIEARgDRAEoAswBTAIYAJwDwAEQArwBGALgAIgDoAEAAmABCAHgASgDJACMAlgBLAPAANADHACcATwA9AJ4ANQAdADkA7gAlABMBQQCCAE0A1ABfAE8AIwB+ACMA2ABUANYAIgDlAFcAeQA7AK4ATwDHAFEA7QBCAOsAKwB4AEsA6wAzANoAQwC3AA==","d":"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"},{"c":"corn","n":"slide05_06_image40.png","w":150,"h":300,"k":52,"p":"XwAaAFgATwBNAGIARABNADsAGgBFAG0AQgBOAGQAZQBXAFMAVQBtAGQAugBuAM4ATQBbAEkAfQBJAKgAWwBbAEAAbwBKALgAVQCCAEAAtgBsAMEAUACoAGkAjQBRAFAAWgBvAG0AfABlAHcAMQCrAEkAYABkAK4AQACAAEwASgBSAE4AUAB9AF0AXwBMAE8AVABaADEAegBaAGAAUgBMACwAfQBjAIoAZgBkAGMAswBaALUAVQC4AEQAuABRAGAATACYAEIAUwBFAJgAPQBWAA==","d":"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"},{"c":"corn","n":"slide11_05_image87.png","w":150,"h":300,"k":52,"p":"LQBqAEEAxwBGAFoAXgAaAEQAXwA6AFgAVACmAEUAVQA6ABoAPwBkACsAoQArAKgAawCZAGwAUgBIALoAagCUAD8AawBFAGIAPQDCAGQAjwBcAFwATABbAFMAYQAnAMcASADGAF4AmwBXAEsATgBfADAASwBfAEoAPQCCAEEAWgBrAHgAWgCNAFMAlwA/AFcARwBLAFkAXQAsANgAMACdAFYAtQBqAKkAQgBsAGYApgA3AEsAYAC/AGoAjABqANkALQDuAC0AvAAtAAIBaQC6AA==","d":"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"},{"c":"corn","n":"slide11_03_image89.png","w":162,"h":300,"k":52,"p":"ZgDvAD8AxQBpALoANgA0AGAAIQBDACEAKwBIAFUARABcAO4AdgC8AEwAyABwALoASQDFAF8AvQBGAD8AXgAXAEQAvgBVAMAAeQDWADUANwArAAwBeAB9AE0AuAAxADwAYwBmAFUAvgCFAKgAYQAHATMA/QB2AGwAawD/AFQAOgBSALgAYgDAAEcAzwByAHsAUACRAEkAuAA7AD4ATgDCAEgA2QBRAD0ASwDSAE4AQgBKAMMAQAD+AHAAlAA7AMgAZwA6AFsAGwBQAMoAPAC9AA==","d":"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"},{"c":"corn","n":"slide05_01_image45.png","w":163,"h":300,"k":52,"p":"awCzAHoAtABgACEANgA0AGYA3QB3APIAZQDwAHIAtABhANUAPgDVAD4A9wBEACEAVgBEAEYAswBGANAAQgDAADUANwBaAL4AWQDQAFkA/QBGACAAKwBIAHgAfgBPAP8ATwC+AGYA1wBKABYBYAD3AEcAPwBRALQAHgCoAGkA5wBgAAcBYwBmADsAPgBfABgAVwC3AFwAwABzAN8AQAAXASQAsABVAAUBXABCAGUA9gBFAPwAXwDQADoA8AAxAD0APADAAGAAZgBKAAABTAC1AA==","d":"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"},{"c":"corn","n":"slide05_09_image50.png","w":168,"h":300,"k":52,"p":"XQCiAI8AKwB6ACsAEQAkAFAAKwCJAFMASgASAEEAowCRAC0ASQCRAEMAeAAxAFgAkQAqACoALACVAB8AQQDoAD0AkQA+AKIAZwCrAEEATQByAFgASQBQAE0AeABNABwANAARADIAJQAxABwAVAAtAGUAawBPAIwAkAC0AF8AiQBcAJcAegDUAEEA3gAeACcARwCLAIkAnQA2ABwAigA1AF8AiwBbAIkAEwBWACMAggAxAJ8ARAAaABIA2wAeAGwAIwCmAJAArwBmAJsAJAC0AA==","d":"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"},{"c":"corn","n":"slide05_08_image38.png","w":176,"h":300,"k":52,"p":"UABgADIA3ABgAGAAQgBfAHAA2QBdANwATAB3AEMAfgBZAOwAMAClAGMAEgBfAK8AOgByAF0ApAAvAJoAXAC6ACgAowB0AO0AQwCCADcAYwBYAF8AOQChAFUAwwBCAJIAdQDvAE8AfgBNAJQATQBzAFgA7gBYAIcAVgDaAFsAwABFANsAZwAXADcAyAAtAMEAmAAIASUArwA+AHAAVwChAGUAJAA3AIIAewDtAFMAlQBIAKgAQACDAEgAkQBWAJsAbQDqAGsAbAAzAH4ARwB7AA==","d":"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"},{"c":"peanut","n":"slide07_02_image64.png","w":130,"h":300,"k":52,"p":"QgCKAD4AkwBDAJAAZQDgAG0A4ABRACcAUwA4AEEAxABRACIAMwCXAFkAzgAuACYASgCPAEIAhwBHAM0AYQCCAC4AIQA8ALAATQAbACwAsABcAMcARgBQAD4A0gBHAJgALQA7AD0AigA8AJkAGQDxADcAjwBfAL8AUQAtACMA0gA0AMcAPwCcAC0AlwAvAJEAbQCDAD8AzQA0ANsALwAtAFEAkAA4AJgAXQA4AEEAnQBGAOkAPQBlAC4AOAAaAHMANgBqAEoAWgAXANsAOgBPAA==","d":"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"},{"c":"peanut","n":"slide06_01_image58.png","w":154,"h":300,"k":52,"p":"TwB8AEsAhABAAIcAHwB8AGkAeQAlABkBFADmAHkAegBcAOIAWQCBAE4AmAB1ABgBcgAZAUgAwABxAHkAOwCHAF0AwgAfABMBSgB8AEcAggCBANcAPAAWACEAeABsAMEAOQAyACIA4ABVAIMAgQD0AEcAiQAyAJUAUgCIAEwAoACAAPcAFQDHAE4AyACEAN8AgQC0AH0AAwExAK4ATwCBAF8AzAA7AH4ATACwAEMAMABHALYALwDhAHkAEwEvAJYARwC7AGgA0wA2AJYALwDAAA==","d":"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"},{"c":"peanut","n":"slide07_03_image63.png","w":154,"h":300,"k":52,"p":"SgCFACUAGQE7AIgAdQAYAUkAwABJAH0AdgDHAEwAgQAjABgBTgB9AEUAhwA8ABcAUACIACMA1AB6ABIBXgAXAHQAegBHAIkAFwChADsA0wAUAOcAPgDVAHAAGgFzALsAWwCDAIQAcACEAOcAVQCEAD4AggBgAMcAHwATAVgAjQBaAIYAYgDMAGsAwgCBAPUAKwDWAGwAeQBHALoAXADCAEAAiABAAI0AgQCzAF4AxwBfACsAOQAyABoAWwBJAOMATgC4AEwAuQBLAIwAhQB1AA==","d":"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"},{"c":"peanut","n":"slide06_02_image57.png","w":158,"h":300,"k":52,"p":"agCBAFEAhAB0ABIBTQCNACgAEQFcAIkARACRAF0AKQBhAC4AYQAzAEwAhQBAACkAPAAzAFAAnQBgAMEASgDCAHkACQEkAAkBTgC7AGoAwABMAIIAVACOAGEAOgAyAMkAUACRAHYAFQF9AOQAUQC0AHgAEwFJALkAZQBJAGQA3QBRAIkASgCPAFUAkQA5AEgASQCSAGIAygBMACkAPQCKACsAwgBeACUAcgCBAE4AswBGAEoATABnAGsA0QBTAFQAJwCAAHQAfwBNAKkALwDoAA==","d":"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"},{"c":"peanut","n":"slide06_03_image56.png","w":158,"h":300,"k":52,"p":"UQCKAHcAGAFNAJIAbQCHACYAhwAkABYBYABFAEsAigA9AEQAQwCWAF4AMAA8AJAAQgAqAFwAjwBRAI8ASQCXAE8ApQBGAI4AdQDaAEkAzQBCAI0AXQA1AG8AxwB9AA8BVACUAGgAHQB7ANIAXQA7AHYAhgA+ADEAPACVAH8AggApAIYAUACXAEQAkgBaACoAfgCHAB0AhQA+ADsAfAAYAUUAUABsAN8AXwCWADAAuwBrANoATwC+ACIAhgArAO4AYgDSAEsAjQAuAKQASwDPAA==","d":"GXs2ETq7tvXsyFbkzUCTJS4wxuuE9CxN8ENmx26Fr58CoOLV1KKoRxYBUxIIqDQIeS8TkZL7BMocDp7EhUzxgP6XeiKa5BnTNNzvuUP9RxoXs/2xLOPTBllvJd3hZuZDfnDkZglzWkhj9qWNSy9fn7vV7OKNd/1Yk1NBN+N3blZ8O/sm6siXtWDMvq1/7dNQNuflV9kjryB45SXY5bLneSJp4t5EgqxMFoBRAijIdEF46TPDwvqG4BQozqgVOzGIPo9EqbwjWroHPbnnyyuoQd/VjfA+AkmditGp9b6vHBNafd71t7u6l4XkWqcpvPcDr2+v1ALxIaBn2QWD5/zcf7nGVLstG8yt3TYTEs9IuqnbAawnbmRPl6Lz1lV+nNkMIb1pQ7F1UtEre+ttcj0POI2aVBaeuvl1D74Qc8BHwv8gKJLYzcf0R5WLcBgIuCQYybiCEBi/AsATFtYL0XjminRNhjaJIkSttYKiGGJgDRvp5GhyOOsTLLmmVxPhcfIKFGiruQSDq9gWglNCUct5SHloM/uD9Bky0IerRLW7caCTEAx4Ko9JUqccxjUeERAcZgH9HYsPE1DQmTjIOAAoc3jdFfRqKgY/kqq6/fNfYNvM96yibSPpNLHzLTAweY1YOGERq33BFnQHuIwLLBdBpNx/U15JClm8f92MOw8fGPPZtb94q34UzvrToBy+skG7oxN8ED9vknqZ21Z6yFCrG7xZdyk2I3GydRB65V8/IUA+sRdlqbARPcDiYES88WKRSQkLrE7WbG8EyNpCNZagYPitPvxXiySeNSyuqDEI8W1cxbzyi0AXmIeXjpvW92ta8dft0hpD+6L55s9fsHukc9isOm0qkBuyqIBOkJ2O8GNmdV3v+k2lL8jhq8gGgiGgQuySktegrOa/A8gCrOpxSOvrC4FiD4LrvRaeK4RYMYhhrKo6/Myxx+ofLDmjwUIbgSpKHRZv8jF+uFZr0ADXTkCgUplgCXjPLxFyEK4IAECjC04AAhmD1RQ0GgwQAIOJDm0IaPmPbt47mR3YygVQjD15231qSZsX6d8J7JoYq7Aj62IKVJeC6EZIfc9gyLekWKgCb8aqDL06DIXoX49ajE0z/mSrflsUqew+rZs3x/8GdfxuhUOgiEP5Ibrqt051Zo2UwN0v2qvbMbkajOl8C8kTSzMyaUrUDxrLf9Nt2YJNva2hufyTvj7dLgC/NMIig1f9HRNo8y/t9y/dwB2He51h0+uyimrYNgFXct/D6eQ2SBbaA5AJMqTNIsC6kymhpWXZs7AoZbl+sSjQ1+HRClJKChwDQM8y7JgnaIyqkaCPAWHr/hvbuU3xXc7dTd4kFpUX/5cwbdXuWa30v47R9R566jeqcP3eoN78p93vUws37fW33EOuYNpv/6nn9y/TOUd4bn7RHijshfzi7+nuUFtrBmpOmmxvZs0iNT7zzoEPdhK76f90ljXqbnqfl4P85fi8UBXeIaLn9TT7qv2HZwZBqozdpqpNFgFJAkDqOED4LROxErISxj00jkyUCrCCX0hrR2I777B54nfK+W/fPDbdd+6BkG1Kbk9thOf3Q/V6cvT8L3TYno3aljcsPx9Px9P9oaxlY8nTe96bh/11W00OkK4sMCqQogBfYP3j6e5XRyzeAwCO4MT9Koy+8ykhBAwGnpSiImOUgVMSaOIhSHkqIpAwmAL+KCaaQJRoMAAxxRHLX1nE7U95MTpWWLzl2AoWOXcwSZU9CDR3WwrQj8qQul4t/DADux1FEe78Dq+FM/kQNkmy5o/3WnuKRJ/fKZL9esu1Fc/+FxUwaPNO7GsLo5ASAypx28/+KJLBp+O2xeR32qo+7L+yYZJA4h1b9f176yD2Sn88Ckem9fHygHTweOE8CFuYQLC3DnNJWVJ5xF36TjDZBP7JpTUtu1QCr97sn/x3378bz130eXy+NZ96l6/99m6vbt/1ph799PXLquYQiXBYxuv3hJ1Irnav6ef5lJxPpsAbW93/giRuXrQ1fXW4T1H5pLymGNNXAVPI1E16eM95DvvrZRRgoEaieOfrJHTtS95q7WwNs+XSEBDsRW2LMuA59d0gqMDbVnhMPbXhtvI/B8rtniK9FtV/Z38IPWKJsKzgb681lFS1bbd9Z0XGv+50P6p76tu/hTR+/PfizNAt3nbu64Qls1KeXPWt5J1EV6iTtI8r1/1LQtXV7fNKQ+uC+efPfaR6FHI="},{"c":"peanut","n":"slide06_04_image55.png","w":158,"h":300,"k":52,"p":"UQCKAHcAGAFDAJQAagCHAE0AkQAjAIoAPQBEACQAFgFaAI4AWgArAEsAigB5AIcASgCUAD4ANQBeADAAXwBEAHIAhwBHAI4ALgDeAG4AyAA+ADAAXQA1AEoAywBQAKMASACTAH0ADwFPAJcAagDHAGAAyQBoAB0APgCUAHoA0gBdADsASQCWAFUAlQB0ANkARQBQAFQAkABUAJMAQwCNAFsAkQAtANcAWwBdAD8AOwBJAMIATgDFAFgAjAArAO4AaQAXADkAQgAxABoAJwCHAA==","d":"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"},{"c":"peanut","n":"slide06_05_image54.png","w":158,"h":300,"k":52,"p":"UQB/AE0AiABDAI0AbwB8ACoA1QCBAH0AFQBwAEsAyABjAMgAXACEAD0AFQAVAHYAQgCDACAAFwFSAIQATACAABUA7ABOAKQAiQDwAGAAFABeAIcAPACGAH8A0ABWAIcAcgDGADwAggAhAHwAcADgAB0AfwBXAIsAiQDjAIkA5QAzAJgARAAvABkAXAAtAEYAbgDFAIYA/AA6ADIAWACEAEsAigBAAIUASgC3AIkAdQAzAMIAgwAHAYgAcAB4AHwAYgAqAFAAnABZAFkAMwDMAA==","d":"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"},{"c":"peanut","n":"slide06_06_image53.png","w":158,"h":300,"k":52,"p":"UQB+ACEAgABNAIYAbAB8AFwAgwB8AHwAFQBwAEMAigBRAJ0AfwAYAT0AFQBMAH8ASwDHAEMAggBVAIsAPQCKAIUA3ACJAOwAbgDeABQAdwB0AHwAiAByABUA7ABgABQAcADGAEsAiQBKALwAYgAqAIYAvQB2ANgAKADmAIkAdwCJAOUARwCDAC0ARgAZAFwAdgDmAFEAvgBdAOgAPgCEAIgA9QBsANgAOACaADMAzwBLAM8AKADSAD4AgQA/AIwASQCMAGsAxgBSAM8APAAeAA==","d":"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"},{"c":"rapeseed","n":"slide17_03_image111.png","w":125,"h":300,"k":52,"p":"WABIAGUAkwAhAJIAEwCVACcASwAfAJUAFgCLAGIAiQAiAEMAQABDAGUAaQAuAFAAOwBCAGAA9QBbAD8AIwCIACMAfgBiAHMAEgBpAF8AfgBgAHkAVwCxABgAewAlALoAKQA/AFIATgBAANUAHQCPABUATAAhAFEAFABPAFEA+QAYAIMAGQB2AEUAswBiAEsASQDSACQAPwAcAIoAYACCABwAxwBNACEAGQDGACsAIgAyAL4ATAAvAEwA5gA/AJEAUgDhABcASABXAOcATQBTAA==","d":"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"},{"c":"rapeseed","n":"slide18_08_image115.png","w":125,"h":300,"k":52,"p":"KABKADwAswBBAKoAWABIAFkASgBBAK8AEwCUACoAsAAhAJIAHwCVADIAtwBMAK4AFgCLAGUAkwBAAEMAZQBpAGIAiQA7AEIAIgBDAC4AUQA+AEIAMwDPACMAhwAYAIMAOwCqAGIAcwBIAK4AGAB7ABIAaQBhAKIARQDDAFIATgAjAH4AKQA/ADgAuABHAOAASAC3AEIA9QA9AN4ATgDhAEMArgA/AM8AKADbAEMAtwAVAHMASgC1AEsA/QAWAEoAYAB5ABkAdgBdANoANwD2AA==","d":"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"},{"c":"rapeseed","n":"slide15_05_image98.png","w":126,"h":300,"k":52,"p":"QwBTAEoAeQBPAFUASgAhADUANwBqAKUAQQCyAD0AnQBbAKwATQDLAE4A1gBgAFQAOAAhAGkA3QBJAN0AZgCaADYAuwAgAFcAKgBGAFMArgAnAKwAMQDYACkAAQE5AFYANgBCAE4A0wBgAIIAFgCmAEkAtgAqAPYAOgBUABkAmQAvAFAAaAD2AGsABgFsAAIBVQBEAFoAbAAcAPYAMABOAGkA/wBHAOAASQAvACUATgBGANoAPgDUACYAlwBiAPQAawANARYA/wAlAA0BTwDZAA==","d":"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"},{"c":"rapeseed","n":"slide08_05_image68.png","w":127,"h":300,"k":52,"p":"QwBTADgALwA1ADcAZwCZAE8AVQBrAKUAKgBGAEoAeQA+ALUATgA4AGEAVQA9AJsAPQCdAGAAUwBGALcAOgBUADsAvAAxAOcATADrAEkALwBbAOsATwDFAGEAggBWAK8AFgCmAFQA3ABYAMsAXACwACUATgBLAMMANAC9ABQABgEtAPIANQDzAFsAgQBsAAUBWwDjACEAVwBsAAwBUQDUAEMA8gAaAJkAGwDVAB0A4AA2ANsAKgDZADoAuQBJAMoAQADbACoA5QBSAMoAWgCRAA==","d":"CrejP9fEvne8SVnV/u0YgP671YXTuJJnhXYagU1Gu7O3iWHb9qNrOhVhV9Z5Z7Rtdqo3/LuaLf9cCqvAt8vx9VxQtP0tLJye37oyMM9/TUu3Vf0jgHWLkNP/dpaC+QETPURoYTQ74390o/4aM2mQMHuKRjiotmUffs81EOfYQqAr/PBV87y/w2rjfAg4msa2r3zSGIK49GE3zRYiyXDDrYKEpJl0i7xHHhFTEqyqMEnnCxOB8thD1SQy2sAUTKGJRsVyxPQC/u3JoJmKzO49QP/lF/P4Owz+OByPrBX/sYBKv1dfahK+sKk/u+TsLo+2p1fs4sTJrW0m9v6WStMvHThJOs5V1V9twwTsCirdNiRYupFIWivwv/P9hDtzCvbuvWBs6yw7T9xHsLUCUyndKnrEXvqIJu26es2l9Pe7cCAGoJKa/IG6wI+xWYqszmQA3zlX0VJ7Cv0MHo/ulAtBgWishnZ7uDjWsx+muC3zirwn8/wIMk2it7r3GJvixYsNeLLYNHvRUXfz56U8LSPCvyOm7Jx3y7CO29dVe+LErl8GgXKafoG64I8wWYLszmRA3zkX08IzCt0cHIvuFA8hgQKlioHUz7tHDgVag7W+IEDyOxORFpgQQ2UFuoGESrWKfv+qKbO+H/KxT879TK6HlIdf7eX+2vInd3ct18p1jneTH2q2spK+dpRA2vc9rrbgZqufxemZBO+4B66ALYyh+XgnmO69alMBwaWvKkPzKFLQ9q1gCImCqPv1gBuCa/QqEdfe6ZYmbv7ECdpG0TM4QH7hHqy9mRGM6O+u1KjaqBhCXHSeb/i05J9/0qPs3C9Lpve7wWYXMPsXMlqTF1w1X721A8yVxkLq1wLeEjjRKOTZzhraW78Qv5P+mkYOCXiiJ3wWmXWHps5filhHrMg1hNlpAlXHvFv/LDYPApp8OYw+/mbMvXBe7sXU/Kdq7v+n+8iHNIxy/s272cdvt/583nm07+wfFk/sUuKhnnNjdKN7xHCuqU+/nvvv1Ty96HK48kBmzAwCzniFANODS809QH6lP+fIpwbZsmjKnDe+cEDnWlMoetlLGIXIcu1/xqPUHuF2fsUGLgou+CXafacAdVpM6t5F1N5jFUb+Ayi/NtT4q7eCTIsS6TN/2ot3/PxeVTfN7K4jT/4C8r3uWyXRMz/HfP7ZY43Y+stlPH36CRn+zWDntjru9FmivgJra71zf8cf6+i1Leuyz4eQZ//wCQLOBJ8x+6ruvU3I5exuP8TVY8uVJolH/6x2mtMUFQnNkUln1AaHb3TVwvJGOeK05WjgHu75qxbtsOrDAG+58LSSCGb1ZKD4Zj2A0hKtyjVJbrs/gKD4AsyW+NqIJYwxiZTPDpeUou7X3vJaUvHisUMzbirq9/kNb6gmr0Gs+/kAJI1P9uQv5t8follac/E5UV9PNyt5+ls2dI+tgJ362KireOMdIY9PFn5L8vU4npS436/fheucReNFL7CQT9TQeSZhYsv8g/rMDQH4AozqPUD+yxfwgrNI/z4cjqzVn3CJT35e/faIudKYEVbynd+paydZtzEjVIbF5KM6zqyZG6H+xWDj5jj+/FlCuZpLbt0if9MX4/o0beK23Y+09//QhQZ8kpvjp7zEvopbIMzeYUj/eTOSQJKK2A02X+6Qc6GD+jf/TS/X3ROf7v7vLk2XJJ419Q3t8nHbY3kpkmf0fvnsnbT6rfXUj96/lBnf/XNLyXL5M75v2rfr29d/0l3cwkKxFqopjBgUrxm7KM7eLFqmMf1AAgGa1ZH0Wv4AA6cTZrLymlvxksiLF6W/DP5ujs95gxE2b7rzH1Yff5NPrVcvquTZf5PqyE8R1PoISL6ub8CX3YYmb9MWXJHvl514hRSZl72i4DGiNhVKoZz3YECne62REpiT9cn0C0KUIKUzh8iutyRg/KacUtKT9W46a88rO4eulkbrxCv6wQTYOco7XW9EVIbvcVTA9scxDLZhfKAX7++aNO1zSa6AL5xw+AJIk1/RxKXG/wtmEIiXJWzJfkoYI42y8yU+kkqCFOfupf9kXt29zp9Xyn5eYmjepFnqAu//dn//bh7FSE//2FRdQfukRlG/yEbSVot93nsoetky8052LvDVya8sNXMkxis54lxnlLxm/cpWg6i8t6Tu77PFxL606zd8noNPNHvf0bM7fCDIFXfpS/V4tpOKMaITXABrL6JF8JgymkgAo2s="},{"c":"rapeseed","n":"slide15_04_image99.png","w":127,"h":300,"k":52,"p":"QwBTAE0ANwBPAFUANQA3AGsApgBKACEASgB5AFgAsABnAJoAQwC1AD0AnQA5AC8AOgBVAFEA2QA9AJsAKgBGAGAAUwA3AEIANgC+AEsA4ABRANYAFgCmADcAIgA9ANcASgAvAE8A2QApAAEBagCkAGAArgBgAIMAbAAFAVAAzQBAALwAaQD/AEkA4wAaAJkAVgBEACEAVwBeAPEAWwCBAGwADAEcAPYASADxACYATQA0AB8AUADxAEYAwAAoAKUAFAAFAScAlwBIAN0AMgC+AA==","d":"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"},{"c":"rapeseed","n":"slide18_05_image118.png","w":127,"h":300,"k":52,"p":"QwBTADUANwBNADcATwBVAGcAmgBrAKYAOAAhAFgA3wBDALUAKgBGAEoAeQBKACEAPQCdAFgAsQBkALAAPgC1ADoAVABWAEQASgAvAGoApAA3AC8AYACDAGEAgQBeAPEAYACuAGwABQEaAJkAOwC+ACUATgBgAFQAbAAMASEAVwA/ALsANwC/AFsAgQBIAPEANgDSACYA2wBQAPEASwC5ABcApgA6ALgAMgC+ADkA0wAuAEIAZgCrAC4ATwBbAGwAGgAQAUgAzAAlAN0ATgDeAA==","d":"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"},{"c":"rapeseed","n":"slide18_06_image117.png","w":127,"h":300,"k":52,"p":"QwBTADUANwBWANwATQA3AE8AVQBnAJoAawCmADgAIQAqAEYASgB5AEoAIQA9AJ0AOgBUAEEAswBWAEQAXQCvAEoALwBqAKQAWgCtAFoAsAA3AC8ANwC8AGAAgwBhAIEARADJAGwABQEaAJkAaQDdACUATgBgAFQAbAAMASEAVwBLAPIAWwCBADwAtABCAPEAFwCmAFkA8QA+ALkALgBCAC4ATwBbAGwAKADbAEkAtgAaABABOgC7ABQABQFDALYAOQDSAEcAywAoANkAMQDdAA==","d":"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"},{"c":"rapeseed","n":"slide13_01_image96.png","w":133,"h":300,"k":52,"p":"KACIACcAzwAeAKUAJgBMADcApAAbAK8AMgDGABkAoAAaALsAPQDRAC0A1QA+AL8AIgCKABcApQAtAMkAGgC0AC4AiwBNAJIAOwCxAFEAqAA2AL0AIAC7AC4AzwAyADsAVwDRADMArwA7AL0AGwCqAC0A4wAdAIkAFQDYAB8AvQAmAMoAUQAtAFAAjABNAMMAOQDbADQALwBAAMsAKwDLADkAogA0AJMANwAjADAAxQBKANEAKwDIAD0ANgAtAMsATgDSACUAFgBfAE0ASwC4AA==","d":"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"},{"c":"soybean","n":"slide09_01_image79.png","w":113,"h":300,"k":52,"p":"WQDMAD0AqAAvANcALQBTADoArwBXAKUARgDwACIAjQAoAE0AXgCPAE4AUAA7APAAHgCHAFQATAA1AM8AWwDjAFwA7wAZAJ8AOQCpADEAsgBZALwALADJABoAzQAxAPEAQADZAFsA7AAkAIQASQBUADQA8QAfAMAAUQDOAEYArABPAO8AOQDxAFgAhQA/APYAUQDBACwAFgAaAOQAQwD2ADgA9gA9AMIAHQCLAFQACgFbAJ8AGQCqADUAwQBBAO8ASAAEAVcA8QAwAO0ANAD2AA==","d":"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"},{"c":"soybean","n":"slide09_04_image76.png","w":114,"h":300,"k":52,"p":"PQCuAFUApgA5ALYARwCyAC4AUwAZAMQAHgCHACkATQBfAI8ALQDWADkA4wBUAEwAGQCeADcA1ABZANEAMgDWAE8A2QAuALkAWQDAACEAkABaAMMAKACzACwAFgBPAFEAGgDqAEAAuABYAIUAPQCzACgAUwA3AK4AXACeACMAjQA4AMsAWADDAEgABAFaAOsASQBUABkA3QA/AMwAMgCyAB4AiwA/ALIAOgCyAFwAqgA0ALQAVQAKAVsAogBDALUAPgBGACkA0QBcAOEAIgDVAA==","d":"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"},{"c":"soybean","n":"slide09_07_image73.png","w":127,"h":300,"k":52,"p":"QwBTAE0ANwBCALUAPgC8ADUANwBKAC8AawCmAE8AVQBnAJoAOAAvAEoAeQBUALAAVwDfADcANgBhAFUAKgBGAD0AnQBWAM8AFgCmADkA3wA3AEIASwC5ACkAAQE2AOUAVgBEAGoApAAwAE4ANQC/ABYA/wAhAFcAbAAFAUEA0QBhAIIAIgCyAFsAgQAkAOMAPQCyAD0AtQBqAP8AJQBOAFsAbAAwALoAXACtAGAAsABsAAEBGgCZAE8A1ABsAAwBPgDoAC8AvwBPAM8ALQDeAA==","d":"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"},{"c":"soybean","n":"slide09_02_image78.png","w":128,"h":300,"k":52,"p":"QgCFACQASQBkAIUAWgC9AE8A4gA+AI4AQACzAG0A3wAaAKkAOgC8ACwAjABAAMUAPACGAGYAvAARAOMATgCLAEEAqABmAKQAaQC8AEIAiwAqALAANgDiADEA3gBIAOIAUQA4AEUAxQBZAOIATAAfAE4A3gA9AIIAKwCyADcAvgBUAOMALwA4AGQA3wBcAEkAMADiAEEArwAyAJIAQQCTABEA3wA/AOEANwCzABMAtQBZAFcAWwCoAEwAkQA3AKYAJgDeAEUAWgAhAHAARgDMAA==","d":"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"},{"c":"soybean","n":"slide09_05_image75.png","w":128,"h":300,"k":52,"p":"QwCLACQASQA+AJQATgCQABUAuQBlAIQAUQA4AGcAwgA9AIgALACSADcAxwAwAMgATAAfAC8AOABXAMEASgCQADQAsQA4AKcAQgCQADUAHgBCAK4APADFAE8AkwAzAJgAWQBXAFsASQBFAFoAbQCEAFAAIwAgAHAATwAoAFEAmAAUANAANQCvAE8ALwBaANAAKgBSAFcAxAA+ANcAMADSAEAA1wAvAKgATQBIAEwAlgA6AJkAVABHABEAzwA8ALEARwCTAD0AiwAtAMIAVQDPAA==","d":"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"},{"c":"soybean","n":"slide09_06_image74.png","w":128,"h":300,"k":52,"p":"QgCWACQASQA+AJ8AYwCRAE0AmwBRADgAGwC9AEAAhgBMAB8ALQCcAEEA2QBsAJEAPgCuAEgAuAA6ALYALwA4ADQAygA9AJMANQAeADkAuAAaANMASAC1ADMAogBZAFcAWQDEAFsASQBFAFoAUAAjACAAcAAeAIMATwAoAD0AlwBmAMQAFQCRADQArwBPAC8APwDIABgAzwAqAFIAJACGAE4AngBNAEgAYwDFADoAgwBBAKMAVABHABQAgQAkAMUAZgDRAFwAgwBFAK8AXgDMAA==","d":"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"},{"c":"soybean","n":"slide24_04_image144.png","w":135,"h":300,"k":52,"p":"NgCBAFgAhQBXANYAQwDVACcATwBfAIUAMgCMADoA1ABTAL4ASwDWAEkAwwBnAPwASADOAD8A7QBgAFAANAC/AF8AjABVAA8BMACTAD0AwwA2AMAARQCQAE8AhQBOAK8APwASAVEAvwAvANUAQwCAAD4AgQA9AI8AQwDPAEgAswBIAKgAIwAFAUkAtQBOANYASgDtAEYA7ABSALIAPgC5ADsAjABOAMwAXwB+ADwA2wA7AIAAQwC9ADMAzgBaAAcBWQBVAE0AwQBgABIBPQCXAA==","d":"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"},{"c":"soybean","n":"slide24_03_image145.png","w":150,"h":300,"k":52,"p":"MgA7AE8ASgA7ALYAXgDoAHoApwBjALgAQQBGAFkAKgAoAE4AVgC7ABwApwA3AMMATgBCAD4AKgBWAHQAcgDpAEsARQAtAEQAbwBLAG8AfwBpAH0AcgC4AEgAmgA2AEUASABIABsACgFrALgAQQDCAFMA/ABKAJIANwD7AHYAmAB8AAkBYwA4AEoAiQAvAOAAVABIAEQAxQBFAAwBaQDpAGgAhgAfAPMAKwD7AFQA6ABeAEcAXADeAF8AQAB0AJQAYwDeAGcARABzAOYAOgD6AA==","d":"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"},{"c":"blend","n":"slide26_02_image153.png","w":101,"h":300,"k":52,"p":"PQD1ACsA4QApALsAMwDYADoA2ABEANIASQC1AB0AyAA6ANsAJACyAEwASABNAEoASwD1ADIAtAAmAMMAIQBRAEMA1ABAAC8ARgBOAC4AvQAXAIgALwD5ABEAigAVAJIAMwDbABkAvwBAAFIARQC1ABUAuQAaALYAEwC6ABUAUgATAL8AGwBLAB8AIgAXAH4AIgC8ADQAQwASAMgAKgDBAB0AwwAqAOcAEwCVABMAqgAjALAAGADHABYA/AA3ALIASgCqACMAvwA/ABUBQQAhAA==","d":"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"},{"c":"blend","n":"slide25_04_image148.png","w":135,"h":300,"k":52,"p":"NQCBAFYAhQBZAMUAOgCAADEAjABHAK4ANQAeACkAxgBRAB4ALwCTAEIAgABdAIUAMAC3AEIA1ABAANwAOAC9ADAAvgAnANwAJwBPAFAArgA5ANUAPgDQACUAEwFTAOUAPQCCADsAuQBaAOgAIwB+AFgArwAiAOMALgCbAE4AswBVAPcAOgD3ADwAsgAqAJoAUQCrAE4AhQBYAKsAJgDYAE8AiQAiAPYAPgC5ADcAtgA9ANQAZwD7AEcA+QA8AIQAOwCXAD4A7QAjAJQALwDVAA==","d":"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"},{"c":"blend","n":"slide29_04_image162.png","w":135,"h":300,"k":52,"p":"NQCBAFEApQA9ANkANQClAEEAgAAxAIwAOQCAAFUAhQBDAL0ARwDVADcA5gBGAKgALgCSAFgAtABDAOMAXACFAEIA1ABCANAATACrADUAHQBMAKYAIwB+AD0ApABCAKQATQDaAFYAvgArAJkAVgDCACwAhwAtAI0AJwBPAFMAuwA9AM8AJQATATsAlgA7AIQAOgCmAFEAHQBCAMgAOwCzADgAngAjAPAATgCIAD0AgQAyALsAMAC+AEwAyAA0AKEAOgCsAFMAwwBLAMwAZQCDAA==","d":"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"},{"c":"blend","n":"slide27_02_image157.png","w":138,"h":300,"k":52,"p":"NwChAGUAogBHACAAVAAgADoAIAAtALIAPQCuADwA2QA5AEAAPAA0AFUAOQA7ALwANwCvACsAJwAxAKkAVABAADUA6gBDAJ8AVQAUATsA5gA1ABQBNwBLACMA6AA/AKMANQC1AEgAoABuAKEAUAA1AEQApABYAKYAKwDYAHgA+wAwAMUANwCmADkAQgAlAO0AOAA5ABUAvQBDAKgALQCmAEEAswAzAMYAQwCrADUAxwAsAOkALAAlAHcABQE2AKsANgC5AEEAqAA4AF4AFgDHAA==","d":"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"},{"c":"blend","n":"slide27_03_image156.png","w":150,"h":300,"k":52,"p":"LABpAF8AGgA7ABoAPQBqAEQAWgA9AF8AawBQAC0AqwA3AFcAQgBeADwAxQBLAIkAQQBJAEMAVQBMAF4ANwCtAG4AzwBsAGAAOgCqAEQAYQA6AHMAPwBZAGsAXgAsAHQAQwCcAGsA2QBNAG0AKwCQAF0AYQA+AHIAPQBXAEEArQA8ALEALQBcADAAsQBZAGAAPgBjAGwAngAvAGEAagBYACsAQwAsAJ4AUQBgADAAOgA/AKQAKADNADYAYQBJADEAQABrADoAigBRAJoALQDtAA==","d":"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"},{"c":"blend","n":"slide28_03_image159.png","w":150,"h":300,"k":52,"p":"SgByAF8AGgBXAE8AQwBNADsAGgBGAIkAVgBTAFoAigBLAEoATABfACsAvQBcAF8AUACMACsAqwBiAIgAbgDPAGsA2QBaAF8AUwBaAF8AWgA9AIkALQBHAFAAVwBmALkAZQBjAEIAtgBpAKIAXgCGAGIAnABGAEwASwBPAFAAUABLAGIAUQCHAFAAiQA9AIEASABLACgAzgBWALYAUQBMAD8AbABnAKIAPgClAEcAsgBZALUATwBVAEEAWgAtANgATQBbAEQAYgBOAEsAUwBVAA==","d":"dVC/5LRPRxXA6iJMd3XZfpBEXH7JhTEK+a6lMIi70DiGELKdx2awAx7DQhKMumVo9X+zkTTck8INNloDkG2lxqIk51D1+qEH/gdiOKi4NmyhI1oBM7w0ywUemgOETNVsA7NjBWIHuVg7fFHvSa6+FTbdl+fD05zRFCjrpD2GI/U8AWrg3CPL2Abwv4pTjflofdwX/pgzLZBazaH0tbtwsGH9byVgDm8yaOZqzZMIlhMmZUxuxfj1DSYrZZRo8ULMo7eMuO6NmJse2pJ/tNhKS9+pP4Wn5FPbjlN/lk2MGBV9tXZGqz4fOeFWr6xrdo63NlbMLtVBPa3z+0ATJueOdWuVd2o7fZm6i18dLV79Pl2Hk/WFswt61UN7WN/fhkd7ZFpT0kOdZiTdrSJOBoJl3bAsAmpR+7j8F4pRPvibRK09RWrsVALrekTA/gJTyb1geqgX6MizJY5y7aKAd6pwoCRj3mXKLVfI4+etCEPgTzhZQGhiFqP/MW+HRTfo897G/HVlZc9Cz+gwooDuUSzRO3j00eNpdt0u8UPFPG20drCCkLKZ0eW4Rx4bUROMnmBJ9TuTkTLcEtcNFprjkAyl02JbFo7sEJR1iR6z726or9fO965jxGOC6DAybptNfq0f8qFkgdQC6ONJsJICCApVQ2uFX7H480HUvAiD9CUIcIC8AXTrrBNeHc1DdxLPC7xtSoE/+vi0Ydfi2/KEd5nwAT1x/C7NX9bM4vWtCGvoCpqZw8Bj3LJeMOPXRTXCX96C7vesvPyJNI2TF4C5oNVpG50T22NyRZqxodHNvxRZlvJUu5y7qgoEra458GTGcwGbB1dsEBh4WzCu43XGiPKiqY2l9QHyeipQevF/+t0H2r83BVZ+t5CtwE7pJ8Wu54v1grCim1fnu0UeT1G3rNxuDN05k5EylDrzDRSaw5QOtf9p1Pw9TyZUrtGetDljGE5bSeTqI25nzg1X+9UfdXx6zxl5ekhz1zd0IUh85zkfo/Q2+Jfuxbo0r2NtIMJvhmb/FhZ2BTKCu3C4rFPnTa6twDZ9h+ekkYxOMCYrhmW3J8Uw6ThuG83TyOYk7Ak32SoQGLhDWk4jGjvzjQF5cStnwiqd9Hy9nZwXj/l+tY699kbHc7cRlnhiwm/fNMLWzIXb8gXuZJ1CX0ThjL4LY703Muj2dePo47Dqc/nEj2fyfg55RgalTRbgdSGU/4ZNBirGaKSirE2zNcyW49IHO7741GtW6E56upsWL01erL1snvYWebdMh5hnwSY9KIj/xgl1+VnZpD5EGziPwAdHlNdg5kZMOH5DAfuBmbmLfh4qUX/LMLVES1Zpa2vbMjgMNtS2oRX0hBNts1GbOhGOIgQn/7gPKWz0U8tORuR8DSMi88HI7obsKLplvXjJoylxPXRqQXObKBwFg8jkDYgthtQiAJiB6kFNK5IAuKUrOlECL/QZMS8MqJKXWIbI7OVQ1eJiVHzwzgPBqnHQJyMLioeq8TUUX+QWJutQdGD7RnEasWl+5T7ribU17JCu6gC9+3AhaxvnfnkdGRgpTVft6r2//MaztwWTOnaDBn4Qit6uGnVyIMKGTCDoSAmzsRoIKlwKaIU/gQhnw8CUKNK0pSpygG3rVkEMnWgQ5ADjSJOBlPBopE5IyCDHAFfpIFxjikKgUxPphHICa5wq6BzuVTaaMjbFVO/RkvxY9C2vpCWyg/EBEZn/mYV5fYdTQFS182hrxTsTALtc+pfP3tpqOAmhuyr9plC9/JLWz31eNSq9ZibNe7dQt3my4ytdlNPCDPRfFEw6+UzhscbeBVQThM9kSek5A5ASvvL0zbDaa5UJNeJK+5qyudEQhq+VjimuumbawXPpUF5L2qCb1V57gh69DmhrhkMNjWKQ5IivSLPDAfRo4EpISCvKKN+oIDgiikKo4y+VX82+xhXJg2tYamoVv8DiYAu85PLuhX7SK8JVyqyUSTxP6EtP8OAUrghXU5k6KtB+ykiPZ2HXo2ARYfMGKiqQcOw9lNhTD0nUJSwdNkTOuZeVjgpgxUPdmvoXjLRf8bifNgMeULC7+KNN1pRNttVV7FTN/dggmdJVVkgiShlB2Sn2VdVPPV/pfU09/3oxkKoGzPN6PP1n2KEoeoLkfg84bGEiWVmYZ9pU8Zlf1j2nGdV+31w31Mtb8a6+lALVheqMo8RTzsR/c5Ja16hSKovPMs+1+03gvBpXdY1y2ww="},{"c":"blend","n":"slide26_03_image152.png","w":157,"h":300,"k":52,"p":"SgCmAE8A4QCEAJ0ARwCfAE8AoQBwAJ0AYAAlAIAAnABDAB4AYAArAFkA2QBKAMEARADDABMAjQA5AK8AQQC6AEsAnwBfAKUAaQA2AEEAowA9ALAAHQDUADgAoQAvALsAeAD5AHAA+ABMAMAAIwDVAD4AJQA7AKAAOQCsAH0AAQFRAKUAPQC/AC4AEQA/ACsAWQDVAIUA+ABfAKcAYwA6AD8AqwBbACAAhwCMAGEA2QBSALoANwCwADsA/wBhANYATgC/ADEApQApAM4AVwDhAA==","d":"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"},{"c":"blend","n":"slide25_03_image149.png","w":163,"h":300,"k":52,"p":"MgB5AD8AVgAlAJIAWgDIAEYArgAxAIoAKwC4AD0AhgArAMAAQAB8AGIAEwBHANgAIwDdADgAugBPAFcARACzAC0A2AAoAN0AYAAaADkAGgAhAOQAPQCBAIwAtQAnAIwAWQCGAEIA1ABJAOMATgCzADkAsgA3ALYANAC/AC0A0wAoAJgARQDgAFYAfwA+ANkALwCjADIApABvAAABPAC7AFEAqwBHAFoAUQCNAEoA3QBGAFQALwC+ADoAfABCANgAUwBWAFkAqwA7AFUALADcAA==","d":"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"},{"c":"olive","n":"slide38_06_image186.jpeg","w":65,"h":300,"k":52,"p":"IQB7ABkArAAgAHUAEQAaAB0AhAAgAG8AEQAgACEAHwAbAH0ALwClACQAhAAmAH0AIABrACIA/AAiAM4AKgCFABcAhQAoANEAGgA2AB4AygAcAGsAEgD6ACQAbAAZAD4AEQC5AC4AQQAXAPsAJgAEARIANAAnADYAKgC1ACkApgAuADMAJwDNACAAjwAnALQAGwARASUAjwATAJEAJQBFABwAjgAXAPYAFACOABcAfgAWAIAAJwAOAS8AOAAbAOUAFQBBABEA2AAYAIoAFwBHAA==","d":"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"},{"c":"olive","n":"slide38_03_image189.jpeg","w":67,"h":300,"k":52,"p":"IQB7ACEAdQAhAG8AGQCtACQAhAAdAIQAGwB9ACYAfQAhAGsAJQBrABEAIAAbADYAMQClABwAawAqAIUAIwDOACgANgASALkAEQA/AB0ABQEmAEUAKADRABIADwEhABQAFgBBABoAPgAvAEEAEgAbABwAjgAqAH4AMQCgACsAgAAbABABMQCOACkApwAqAAQBIAAoADEAPwAWALgAIQAPASsADwEkAI4AIgCzACYAAgEcAHsAHQCQABoABgEcAHAAEwCQABEAjgAgAI8AGADHAA==","d":"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"},{"c":"olive","n":"slide38_05_image187.jpeg","w":67,"h":300,"k":52,"p":"HACCABgArQAlAIIAIQCBABEAIQAhAHwAEgAcACIAIQAtAKYAIQB3ADEA4wAVAPUAGQD5ABwAfAAlAM8AGwA3ACAAywATADUAGgCHABoAQAAnAIcAJwCnAC8ANQAvAEMAHQCPABEAkAAnADcALADcABsA6AAjAHUAIwD4ABgASAAxAJAAJwBGABgAhAAVALcAGgDyAB8A4gAtAKEAJAC0ABEAQQAgACoAJgDNAB4ACwEhABUAMACgACEAswAeAIkAEQDUABMACwEpAIQAEQC2AA==","d":"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"},{"c":"olive","n":"slide36_02_image180.png","w":76,"h":300,"k":52,"p":"HQByACkAYwAaAHsAGACBACUAcgA2AGMAEgCsACgAcgAjAIQALwB+ADMAdwAoAMQAJwCDACUAFwAaAEMAGwAeACsAeAAwAB0AHADpACAA8gAbAIwANwCtACEAjgAfADMAKQCMACcAygAjAHUAEQBeADQAtwA6AFsANACKAB4AdwA5AGUAFgDvACUAZQAoAPEAKgBGACEArQAvAK0AFwC2ADQAGAEsAOgAIQByAB4ALQAYAIsALwB2ADkAjwAnAJoAMgBCADkAhQAwAGMAKgC2AA==","d":"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"},{"c":"olive","n":"slide39_01_image197.png","w":89,"h":300,"k":52,"p":"LQDaAB4AGwAfABcAFgDdADIA2gAzADUAGgDiAB4AFQA+ABsAJQByAD0AFwA+ALsAMgDhAD4AywA/AH0ALwDkADUAcwBHANoAQgC7ACEAkwBHAF8AMgDRADUAsgAaADkAGAC7ACwA/AA/ALEAGwC7AC0AuwBGAFsAGQDbABoA5QApAOUANwDeAEMAnwAbAJ8ALQDVACgAuAArAHAAJgC6ADgAywAoANwAHgDkABcAsQA8ANAAHwDfACkA1gAyAB4AEQDgAD0AzgAkALIANwDOAA==","d":"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"},{"c":"olive","n":"slide38_02_image190.jpeg","w":110,"h":300,"k":52,"p":"OwBBADIAtQA6ALUANgC0ACwAHABUAOsAHQAyACMA1wA2AK8AKQAYADIAywASAEYALAA9ACAA2ABIABwARwAYADYAqwBDAMYASQBDAEMAbQAoABwAOgA5AFwAeQAjAD0AVgBeABwA3wBAAA0BLgCoAEoAAAFQAOQAPQC7AE8ALgAbAKgAPQCoACkA+gBXAHYAIwDEADcA5QAYADsALwC7ACYAxABPANgAPgC3AEUAYgBKAM8AUwD0AFwAQQBVAIAANAA/ADEAFgBJACQAIgAsAA==","d":"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"},{"c":"olive","n":"slide38_04_image188.jpeg","w":114,"h":300,"k":52,"p":"PAC8AD0AQwA4ALsAMwC8AEsARQArANYAIADgADgAsQA4ALUASgAZABEA/gA/AMIAYAB8AFEA9AAmAAUBQQD/AEsAHgBfAAEBJAA/AB0A5wBJAO8ARQDoAFoAegA8ALUAWQBhADEA7AAcAK0ANgCZADwA+gBgAEMARQBwAEgA9gAeADMAEwBHAFMACAElAMsAQwDfAFMA5ABTADAALgA/ACgAygAwAK4AVQDtAFgAgwBZAHEATQDjADMAtgA8ADsANQDQACwAHgBEAO8AHAAMAQ==","d":"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"},{"c":"olive","n":"slide36_06_image176.png","w":123,"h":300,"k":52,"p":"MQD7AFkAGQFIAB0AJgBiAEwAswArAH4AKwCNAEgAuQAxAPkAPwBYACUAGQFGAFUAMACWAEoALABYAGMALgBfAE8AXwBQAHkANwBVAEcA5gAtAKIAOACzADMAlwBQAAEBQQCTADcAHgAvAFYAQwDyAC0AAQFLAIUASwAxAEcAUABHAJsANwBQAEYAlQAyAKkAUQCjAD4AvwAyAOwAUgAFAUAAuwAjAAsBUQCbAEYAWAA9AJ0AKwCjAE4AWgBMAF4ATwBWAEgA3wBBAI0AWwALAQ==","d":"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"}]};
     const FLM_LOCAL_OIL_REFERENCES = [
         ['peanut_488', 'peanut', '福临门压榨一级花生油', '1901740890456211456'],
         ['peanut_491', 'peanut', '福临门南派花生油', '1901740989332733952'],
@@ -5899,6 +8791,7 @@
         if (flmLocalOilFastReferenceFeatures) return flmLocalOilFastReferenceFeatures;
         const groups = new Map();
         references.forEach((reference) => {
+            if (!FLM_LOCAL_OIL_TARGET_CATEGORY_SET.has(reference.category)) return;
             if (!groups.has(reference.category)) groups.set(reference.category, []);
             groups.get(reference.category).push(reference);
         });
@@ -5919,6 +8812,486 @@
             if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
             else setTimeout(resolve, 0);
         });
+    }
+
+    let flmOrbDecodedReferences = null;
+    const FLM_ORB_U_MAX = new Int32Array([15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3, 0]);
+
+    function flmOrbDecodeBytes(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    }
+
+    function flmOrbPrepareReferences() {
+        if (flmOrbDecodedReferences) return flmOrbDecodedReferences;
+        const grouped = new Map();
+        FLM_ORB_REFERENCE_DATA.refs.forEach((reference) => {
+            if (!FLM_LOCAL_OIL_TARGET_CATEGORY_SET.has(reference.c)) return;
+            const pointBytes = flmOrbDecodeBytes(reference.p);
+            const descriptorBytes = flmOrbDecodeBytes(reference.d);
+            const points = new Array(reference.k);
+            const view = new DataView(pointBytes.buffer, pointBytes.byteOffset, pointBytes.byteLength);
+            for (let i = 0; i < reference.k; i++) {
+                points[i] = { x: view.getUint16(i * 4, true), y: view.getUint16(i * 4 + 2, true) };
+            }
+            const decoded = {
+                ...reference,
+                points,
+                descriptors32: new Uint32Array(descriptorBytes.buffer, descriptorBytes.byteOffset, descriptorBytes.byteLength / 4)
+            };
+            if (!grouped.has(reference.c)) grouped.set(reference.c, []);
+            grouped.get(reference.c).push(decoded);
+        });
+        // 交错排列，达到时间预算时也能公平检查主要七类，而不是只扫前几个品类。
+        const categories = FLM_LOCAL_OIL_TARGET_CATEGORIES;
+        const ordered = [];
+        const maxLength = Math.max(...categories.map((category) => grouped.get(category)?.length || 0));
+        for (let index = 0; index < maxLength; index++) {
+            categories.forEach((category) => {
+                const reference = grouped.get(category)?.[index];
+                if (reference) ordered.push(reference);
+            });
+        }
+        flmOrbDecodedReferences = ordered;
+        return ordered;
+    }
+
+    function flmOrbIcAngle(img, px, py) {
+        let m01 = 0;
+        let m10 = 0;
+        const src = img.data;
+        const step = img.cols;
+        const center = py * step + px;
+        for (let u = -15; u <= 15; u++) m10 += u * src[center + u];
+        for (let v = 1; v <= 15; v++) {
+            let vSum = 0;
+            const d = FLM_ORB_U_MAX[v];
+            for (let u = -d; u <= d; u++) {
+                const plus = src[center + u + v * step];
+                const minus = src[center + u - v * step];
+                vSum += plus - minus;
+                m10 += u * (plus + minus);
+            }
+            m01 += v * vSum;
+        }
+        return Math.atan2(m01, m10);
+    }
+
+    function flmOrbExtractScene(canvas, maxCorners = 560) {
+        const width = canvas.width;
+        const height = canvas.height;
+        const imageData = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, height);
+        const gray = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
+        const smooth = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
+        jsfeat.imgproc.grayscale(imageData.data, width, height, gray);
+        jsfeat.imgproc.gaussian_blur(gray, smooth, 3, 0);
+        jsfeat.yape06.laplacian_threshold = 24;
+        jsfeat.yape06.min_eigen_value_threshold = 18;
+        const capacity = Math.max(1200, width * height >> 5);
+        const corners = Array.from({ length: capacity }, () => new jsfeat.keypoint_t(0, 0, 0, 0));
+        let count = jsfeat.yape06.detect(smooth, corners, 17);
+        corners.length = count;
+        corners.sort((a, b) => b.score - a.score);
+        count = Math.min(count, maxCorners);
+        corners.length = count;
+        for (let i = 0; i < count; i++) corners[i].angle = flmOrbIcAngle(smooth, corners[i].x, corners[i].y);
+        const descriptors = new jsfeat.matrix_t(32, count, jsfeat.U8_t | jsfeat.C1_t);
+        jsfeat.orb.describe(smooth, corners, count, descriptors);
+        return { corners, descriptors32: descriptors.buffer.i32, count, width, height };
+    }
+
+    function flmOrbPopcnt32(value) {
+        value -= (value >> 1) & 0x55555555;
+        value = (value & 0x33333333) + ((value >> 2) & 0x33333333);
+        return (((value + (value >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+    }
+
+    function flmOrbProject(h, x, y) {
+        const z = h[6] * x + h[7] * y + h[8];
+        if (!Number.isFinite(z) || Math.abs(z) < 1e-6) return null;
+        return { x: (h[0] * x + h[1] * y + h[2]) / z, y: (h[3] * x + h[4] * y + h[5]) / z };
+    }
+
+    function flmOrbPolygonArea(points) {
+        let area = 0;
+        for (let i = 0; i < points.length; i++) {
+            const next = points[(i + 1) % points.length];
+            area += points[i].x * next.y - next.x * points[i].y;
+        }
+        return Math.abs(area) / 2;
+    }
+
+    function flmOrbMatchReference(scene, reference) {
+        const matches = [];
+        const pattern32 = reference.descriptors32;
+        const scene32 = scene.descriptors32;
+        for (let patternIndex = 0; patternIndex < reference.k; patternIndex++) {
+            const patternOffset = patternIndex * 8;
+            let bestDistance = 257;
+            let secondDistance = 257;
+            let bestSceneIndex = -1;
+            for (let sceneIndex = 0; sceneIndex < scene.count; sceneIndex++) {
+                const sceneOffset = sceneIndex * 8;
+                let distance = 0;
+                for (let word = 0; word < 8; word++) distance += flmOrbPopcnt32(pattern32[patternOffset + word] ^ scene32[sceneOffset + word]);
+                if (distance < bestDistance) {
+                    secondDistance = bestDistance;
+                    bestDistance = distance;
+                    bestSceneIndex = sceneIndex;
+                } else if (distance < secondDistance) secondDistance = distance;
+            }
+            if (bestSceneIndex >= 0 && bestDistance <= 72 && bestDistance < secondDistance * 0.82) {
+                matches.push({ patternIndex, sceneIndex: bestSceneIndex, distance: bestDistance });
+            }
+        }
+        matches.sort((a, b) => a.distance - b.distance);
+        const usedScene = new Set();
+        const uniqueMatches = matches.filter((match) => {
+            if (usedScene.has(match.sceneIndex)) return false;
+            usedScene.add(match.sceneIndex);
+            return true;
+        });
+        if (uniqueMatches.length < 7) return null;
+
+        const patternPoints = uniqueMatches.map((match) => reference.points[match.patternIndex]);
+        const scenePoints = uniqueMatches.map((match) => ({ x: scene.corners[match.sceneIndex].x, y: scene.corners[match.sceneIndex].y }));
+        const homography = new jsfeat.matrix_t(3, 3, jsfeat.F32_t | jsfeat.C1_t);
+        const mask = new jsfeat.matrix_t(uniqueMatches.length, 1, jsfeat.U8_t | jsfeat.C1_t);
+        const kernel = new jsfeat.motion_model.homography2d();
+        const params = new jsfeat.ransac_params_t(4, 3.5, 0.5, 0.995);
+        const ok = jsfeat.motion_estimator.ransac(params, kernel, patternPoints, scenePoints, uniqueMatches.length, homography, mask, 450);
+        if (!ok) return null;
+        const inlierPattern = [];
+        const inlierScene = [];
+        let distanceSum = 0;
+        for (let i = 0; i < uniqueMatches.length; i++) {
+            if (!mask.data[i]) continue;
+            inlierPattern.push(patternPoints[i]);
+            inlierScene.push(scenePoints[i]);
+            distanceSum += uniqueMatches[i].distance;
+        }
+        const inliers = inlierPattern.length;
+        if (inliers < 6) return null;
+        kernel.run(inlierPattern, inlierScene, homography, inliers);
+        const px = inlierPattern.map((point) => point.x);
+        const py = inlierPattern.map((point) => point.y);
+        const coverageX = (Math.max(...px) - Math.min(...px)) / reference.w;
+        const coverageY = (Math.max(...py) - Math.min(...py)) / reference.h;
+        const coverage = coverageX * coverageY;
+        if (coverageX < 0.22 || coverageY < 0.18 || coverage < 0.055) return null;
+
+        const h = homography.data;
+        const quad = [
+            flmOrbProject(h, 0, 0), flmOrbProject(h, reference.w, 0),
+            flmOrbProject(h, reference.w, reference.h), flmOrbProject(h, 0, reference.h)
+        ];
+        if (quad.some((point) => !point || !Number.isFinite(point.x) || !Number.isFinite(point.y))) return null;
+        const xs = quad.map((point) => point.x);
+        const ys = quad.map((point) => point.y);
+        const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+        const boxWidth = maxX - minX;
+        const boxHeight = maxY - minY;
+        const polygonArea = flmOrbPolygonArea(quad);
+        const imageArea = scene.width * scene.height;
+        if (boxWidth < 22 || boxHeight < 38 || boxWidth > scene.width * 0.65 || boxHeight > scene.height * 0.8) return null;
+        if (polygonArea < imageArea * 0.0012 || polygonArea > imageArea * 0.42) return null;
+        if (polygonArea / Math.max(1, boxWidth * boxHeight) < 0.42) return null;
+        if (minX < -scene.width * 0.08 || minY < -scene.height * 0.08 || maxX > scene.width * 1.08 || maxY > scene.height * 1.08) return null;
+        const inlierRatio = inliers / uniqueMatches.length;
+        const averageDistance = distanceSum / inliers;
+        const confidence = Math.max(0, Math.min(99,
+            24 + inliers * 4.2 + inlierRatio * 22 + Math.min(1, coverage * 2.8) * 16 - averageDistance * 0.22));
+        return {
+            category: reference.c,
+            referenceName: reference.n,
+            confidence,
+            inliers,
+            inlierRatio,
+            averageDistance,
+            coverage,
+            quad,
+            bbox: { x: minX, y: minY, width: boxWidth, height: boxHeight }
+        };
+    }
+
+    function flmOrbBoxIou(a, b) {
+        const left = Math.max(a.x, b.x), top = Math.max(a.y, b.y);
+        const right = Math.min(a.x + a.width, b.x + b.width), bottom = Math.min(a.y + a.height, b.y + b.height);
+        const intersection = Math.max(0, right - left) * Math.max(0, bottom - top);
+        return intersection / Math.max(1, a.width * a.height + b.width * b.height - intersection);
+    }
+
+    async function flmOrbAnalyzeCanvas(canvas, deadline = Infinity) {
+        const scene = flmOrbExtractScene(canvas);
+        const references = flmOrbPrepareReferences();
+        const candidates = [];
+        for (let index = 0; index < references.length; index++) {
+            const match = flmOrbMatchReference(scene, references[index]);
+            if (match) candidates.push(match);
+            if (index % 4 === 3) {
+                await flmLocalOilYieldToBrowser();
+                if (performance.now() >= deadline) break;
+            }
+        }
+        candidates.sort((a, b) => b.confidence - a.confidence);
+        const accepted = [];
+        const seenCategories = new Set();
+        for (const candidate of candidates) {
+            if (seenCategories.has(candidate.category)) continue;
+            if (accepted.some((other) => flmOrbBoxIou(candidate.bbox, other.bbox) > 0.5)) continue;
+            accepted.push(candidate);
+            seenCategories.add(candidate.category);
+        }
+        return accepted;
+    }
+
+    function flmOrbMergeImageDetections(imageResults) {
+        return FLM_LOCAL_OIL_TARGET_CATEGORIES.map((category) => {
+            const detections = [];
+            imageResults.forEach((entry) => {
+                entry.detections.filter((item) => item.category === category).forEach((item) => detections.push({
+                    ...item,
+                    source: entry.source,
+                    canvasWidth: entry.canvasWidth,
+                    canvasHeight: entry.canvasHeight
+                }));
+            });
+            detections.sort((a, b) => b.confidence - a.confidence);
+            const best = detections[0] || null;
+            const supportImages = detections.filter((item) => item.confidence >= 64).length;
+            const score = best ? Math.round(Math.min(99, best.confidence + Math.min(5, Math.max(0, supportImages - 1) * 2))) / 100 : 0;
+            const level = best && score >= 0.78 && best.inliers >= 8 ? 'high' : best && score >= 0.6 && best.inliers >= 6 ? 'maybe' : 'absent';
+            return {
+                category,
+                label: FLM_LOCAL_OIL_CATEGORY_META[category].label,
+                score,
+                supportImages,
+                bestReferenceName: best?.referenceName || '',
+                detection: best ? {
+                    source: best.source,
+                    quad: best.quad,
+                    bbox: best.bbox,
+                    canvasWidth: best.canvasWidth,
+                    canvasHeight: best.canvasHeight,
+                    inliers: best.inliers
+                } : null,
+                level
+            };
+        }).sort((a, b) => b.score - a.score);
+    }
+
+    let flmPaddleOcrServicePromise = null;
+    let flmPaddleOcrResourcePromise = null;
+
+    function flmLocalOilEditDistance(left, right) {
+        const a = Array.from(left || '');
+        const b = Array.from(right || '');
+        const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+        for (let i = 0; i < a.length; i++) {
+            const current = [i + 1];
+            for (let j = 0; j < b.length; j++) {
+                current[j + 1] = Math.min(
+                    current[j] + 1,
+                    previous[j + 1] + 1,
+                    previous[j] + (a[i] === b[j] ? 0 : 1)
+                );
+            }
+            for (let j = 0; j < current.length; j++) previous[j] = current[j];
+        }
+        return previous[b.length];
+    }
+
+    function flmPaddleNormalizeText(text) {
+        return String(text || '').replace(/[\s|｜丨:：,，.。;；'"“”‘’()（）\[\]【】_-]+/g, '');
+    }
+
+    const FLM_PADDLE_OIL_TERMS = {
+        sunflower: ['葵花籽油', '葵花油', '葵花籽', '葵花'],
+        corn: ['玉米胚芽油', '玉米油', '玉米'],
+        peanut: ['花生油', '花生'],
+        soybean: ['大豆油', '老豆油', '豆油', '大豆'],
+        rapeseed: ['菜籽油', '菜籽'],
+        flax: ['亚麻籽油', '胡麻油', '亚麻籽', '胡麻'],
+        olive: ['橄榄油', '安达露西', '橄榄']
+    };
+
+    function flmPaddleMatchOilText(rawText) {
+        const text = flmPaddleNormalizeText(rawText);
+        if (!text) return null;
+        let best = null;
+        Object.entries(FLM_PADDLE_OIL_TERMS).forEach(([category, terms]) => {
+            terms.forEach((term, termIndex) => {
+                let distance = Infinity;
+                let matched = '';
+                if (text.includes(term)) {
+                    distance = 0;
+                    matched = term;
+                } else if (term.length >= 3) {
+                    const minLength = Math.max(2, term.length - 1);
+                    const maxLength = Math.min(text.length, term.length + 1);
+                    for (let length = minLength; length <= maxLength; length++) {
+                        for (let start = 0; start + length <= text.length; start++) {
+                            const candidate = text.slice(start, start + length);
+                            const candidateDistance = flmLocalOilEditDistance(candidate, term);
+                            if (candidateDistance < distance) {
+                                distance = candidateDistance;
+                                matched = candidate;
+                            }
+                        }
+                    }
+                }
+                if (distance > 1) return;
+                if (distance === 1 && term === '菜籽油' && !/^[菜莱采京]籽油$/.test(matched)) return;
+                const exact = distance === 0;
+                const fullOilTerm = term.endsWith('油') && term.length >= 3;
+                const confidence = exact ? (fullOilTerm ? 0.94 : term.length >= 3 ? 0.87 : 0.82) : (fullOilTerm ? 0.78 : 0.72);
+                const candidate = { category, confidence, exact, term, matched, rawText: String(rawText || ''), termIndex };
+                if (!best || candidate.confidence > best.confidence ||
+                    (candidate.confidence === best.confidence && candidate.term.length > best.term.length)) best = candidate;
+            });
+        });
+        return best;
+    }
+
+    async function flmPaddleGetService() {
+        if (flmPaddleOcrServicePromise) return flmPaddleOcrServicePromise;
+        flmPaddleOcrServicePromise = (async () => {
+            const runtime = globalThis.FlmPaddleOcr;
+            if (!runtime?.PaddleOcrService || !runtime?.model) throw new Error('PaddleOCR 浏览器运行时未加载');
+            if (typeof GM_getResourceURL !== 'function' || typeof GM_getResourceText !== 'function') {
+                throw new Error('油猴未提供本地 OCR 资源接口，请更新 Tampermonkey 后重新安装脚本');
+            }
+            if (!flmPaddleOcrResourcePromise) {
+                flmPaddleOcrResourcePromise = (async () => {
+                    const [detection, recognition] = await Promise.all([
+                        fetch(GM_getResourceURL('FLM_OCR_DET')).then((response) => {
+                            if (!response.ok) throw new Error(`检测模型读取失败：HTTP ${response.status}`);
+                            return response.arrayBuffer();
+                        }),
+                        fetch(GM_getResourceURL('FLM_OCR_REC')).then((response) => {
+                            if (!response.ok) throw new Error(`识别模型读取失败：HTTP ${response.status}`);
+                            return response.arrayBuffer();
+                        })
+                    ]);
+                    const charactersDictionary = new TextEncoder().encode(GM_getResourceText('FLM_OCR_DICT')).buffer;
+                    if (detection.byteLength < 1000000 || recognition.byteLength < 1000000 || charactersDictionary.byteLength < 1000) {
+                        throw new Error('OCR 本地资源不完整，请在油猴中重新检查更新');
+                    }
+                    return { detection, recognition, charactersDictionary };
+                })().catch((error) => {
+                    flmPaddleOcrResourcePromise = null;
+                    throw error;
+                });
+            }
+            const model = await flmPaddleOcrResourcePromise;
+            const service = new runtime.PaddleOcrService({
+                model: { ...model },
+                processing: { engine: 'canvas-native' },
+                session: {
+                    executionProviders: navigator.gpu ? ['webgpu', 'wasm'] : ['wasm'],
+                    graphOptimizationLevel: 'all',
+                    executionMode: 'sequential'
+                },
+                detection: {
+                    maxSideLength: 1280,
+                    minimumAreaThreshold: 12,
+                    paddingVertical: 0.35,
+                    paddingHorizontal: 0.5
+                },
+                recognition: {
+                    strategy: 'cross-line',
+                    minimumConfidence: 0.18,
+                    imageHeight: 48
+                },
+                debugging: { debug: false, verbose: false }
+            });
+            await service.initialize();
+            return service;
+        })().catch((error) => {
+            flmPaddleOcrServicePromise = null;
+            throw error;
+        });
+        return flmPaddleOcrServicePromise;
+    }
+
+    function flmPaddleTextBoxToBottle(box, canvasWidth, canvasHeight) {
+        const textWidth = Math.max(12, Number(box?.width) || 0);
+        const textHeight = Math.max(8, Number(box?.height) || 0);
+        const width = Math.max(48, Math.min(canvasWidth * 0.24, Math.max(textWidth * 2.05, textHeight * 3.6)));
+        const height = Math.max(88, Math.min(canvasHeight * 0.46, width * 2.12));
+        const centerX = (Number(box?.x) || 0) + textWidth / 2;
+        const centerY = (Number(box?.y) || 0) + textHeight / 2;
+        const x = Math.max(0, Math.min(canvasWidth - width, centerX - width / 2));
+        const y = Math.max(0, Math.min(canvasHeight - height, centerY - height * 0.6));
+        return { x, y, width, height };
+    }
+
+    async function flmPaddleAnalyzeCanvas(canvas) {
+        const service = await flmPaddleGetService();
+        const result = await service.recognize(canvas, { noCache: true, flatten: true, strategy: 'cross-line' });
+        const bestByCategory = new Map();
+        (Array.isArray(result?.results) ? result.results : []).forEach((entry) => {
+            const match = flmPaddleMatchOilText(entry?.text);
+            if (!match || !entry?.box) return;
+            const ocrConfidence = Math.max(0, Math.min(1, Number(entry.confidence) || 0));
+            const confidence = Math.min(0.97, match.confidence + Math.max(0, ocrConfidence - 0.35) * 0.08);
+            const bbox = flmPaddleTextBoxToBottle(entry.box, canvas.width, canvas.height);
+            const candidate = {
+                category: match.category,
+                confidence,
+                exact: match.exact,
+                evidenceText: String(entry.text || ''),
+                ocrConfidence,
+                bbox,
+                quad: [
+                    { x: bbox.x, y: bbox.y },
+                    { x: bbox.x + bbox.width, y: bbox.y },
+                    { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+                    { x: bbox.x, y: bbox.y + bbox.height }
+                ]
+            };
+            const previous = bestByCategory.get(candidate.category);
+            if (!previous || candidate.confidence > previous.confidence) bestByCategory.set(candidate.category, candidate);
+        });
+        return Array.from(bestByCategory.values());
+    }
+
+    function flmPaddleMergeImageDetections(imageResults) {
+        return FLM_LOCAL_OIL_TARGET_CATEGORIES.map((category) => {
+            const detections = [];
+            imageResults.forEach((entry) => {
+                entry.detections.filter((item) => item.category === category).forEach((item) => detections.push({
+                    ...item,
+                    source: entry.source,
+                    canvasWidth: entry.canvasWidth,
+                    canvasHeight: entry.canvasHeight
+                }));
+            });
+            detections.sort((a, b) => b.confidence - a.confidence);
+            const best = detections[0] || null;
+            const supportImages = detections.filter((item) => item.confidence >= 0.72).length;
+            const score = best ? Math.min(0.99, best.confidence + Math.max(0, supportImages - 1) * 0.02) : 0;
+            const level = best && best.exact && score >= 0.86 ? 'high' : best && score >= 0.72 ? 'maybe' : 'absent';
+            return {
+                category,
+                label: FLM_LOCAL_OIL_CATEGORY_META[category].label,
+                score: Math.round(score * 100) / 100,
+                supportImages,
+                bestReferenceName: best ? `OCR：${best.evidenceText}` : '',
+                evidenceText: best?.evidenceText || '',
+                detection: best ? {
+                    source: best.source,
+                    quad: best.quad,
+                    bbox: best.bbox,
+                    canvasWidth: best.canvasWidth,
+                    canvasHeight: best.canvasHeight,
+                    evidenceText: best.evidenceText
+                } : null,
+                level
+            };
+        }).sort((a, b) => b.score - a.score);
     }
 
     async function flmLocalOilAnalyzeCanvas(sceneCanvas, allReferences, deadline = Infinity) {
@@ -6124,18 +9497,14 @@
         };
 
         try {
-            setProgress('正在准备本地包装特征…');
-            const references = await flmLocalOilPrepareReferenceFeatures((done, total) => {
-                if (typeof done === 'string') setProgress(done);
-                else setProgress(`首次准备官方包装图 ${done}/${total}，以后无需重复下载…`);
-            });
-            const analysisSources = flmLocalOilPickAnalysisSources(sources, 6);
+            setProgress('正在准备本地 PaddleOCR（首次约下载 6MB，之后走浏览器缓存）…');
+            const analysisSources = flmLocalOilPickAnalysisSources(sources, 3);
             const imageErrors = [];
             setProgress(`正在并行读取 ${qNum} 的 ${analysisSources.length} 张分析图${sources.length > analysisSources.length ? `（从 ${sources.length} 张均匀抽取）` : ''}…`);
             const loadedResults = await Promise.allSettled(analysisSources.map(async (source) => {
                 const blob = await flmLocalOilRequestBlob(source);
                 const img = await flmLocalOilLoadImage(blob);
-                return flmLocalOilImageCanvas(img, 560);
+                return flmLocalOilImageCanvas(img, 1280);
             }));
             const loadedCanvases = [];
             loadedResults.forEach((loaded, index) => {
@@ -6151,17 +9520,32 @@
             }
 
             const perImageScores = [];
-            const perImageBudget = Math.max(550, Math.floor(7600 / loadedCanvases.length));
+            let paddleAvailable = true;
             for (let i = 0; i < loadedCanvases.length; i++) {
                 const loaded = loadedCanvases[i];
-                setProgress(`正在极速扫描 ${qNum} 照片 ${i + 1}/${loadedCanvases.length}…`);
+                setProgress(`正在识别 ${qNum} 照片 ${i + 1}/${loadedCanvases.length} 的油品文字…`);
                 try {
-                    const scores = await flmLocalOilAnalyzeCanvas(loaded.canvas, references, performance.now() + perImageBudget);
+                    let detections = [];
+                    let analysisCanvas = loaded.canvas;
+                    if (paddleAvailable) {
+                        try {
+                            detections = await flmPaddleAnalyzeCanvas(loaded.canvas);
+                        } catch (paddleError) {
+                            paddleAvailable = false;
+                            imageErrors.push('PaddleOCR：' + (paddleError?.message || String(paddleError)));
+                            console.warn('[福临门本地识油] PaddleOCR 不可用，切换 ORB 严格回退:', paddleError);
+                        }
+                    }
+                    // OCR 初始化/模型下载失败时才运行 ORB；严格几何不成立就保持“未确认”，不再用颜色滑窗乱框。
+                    if (!paddleAvailable) {
+                        analysisCanvas = Math.max(loaded.canvas.width, loaded.canvas.height) > 760 ? flmLocalOilImageCanvas(loaded.canvas, 760) : loaded.canvas;
+                        detections = await flmOrbAnalyzeCanvas(analysisCanvas, performance.now() + 2200);
+                    }
                     perImageScores.push({
-                        scores,
+                        detections,
                         source: loaded.source,
-                        canvasWidth: loaded.canvas.width,
-                        canvasHeight: loaded.canvas.height
+                        canvasWidth: analysisCanvas.width,
+                        canvasHeight: analysisCanvas.height
                     });
                     await flmLocalOilYieldToBrowser();
                 } catch (error) {
@@ -6173,7 +9557,7 @@
                 const firstError = imageErrors.find(Boolean) || '未知原因';
                 throw new Error(`本题 ${sources.length} 张照片均无法读取：${firstError}`);
             }
-            const categories = flmLocalOilMergeImageScores(perImageScores);
+            const categories = paddleAvailable ? flmPaddleMergeImageDetections(perImageScores) : flmOrbMergeImageDetections(perImageScores);
             categories.forEach((item) => {
                 if (item.detection?.source) item.detection.imageNumber = sources.indexOf(item.detection.source) + 1;
             });
@@ -6185,11 +9569,12 @@
                 createdAt: Date.now(),
                 analyzedImages: perImageScores.length,
                 totalEvidenceImages: sources.length,
+                engine: paddleAvailable ? 'PaddleOCR V6 Tiny' : 'ORB 严格回退',
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10,
                 categories
             };
             flmLocalOilStoreResult(result);
-            autoReviewToast(`${qNum} 本地识油完成：${result.elapsedSeconds} 秒，分析 ${perImageScores.length}/${sources.length} 张。`);
+            autoReviewToast(`${qNum} 本地识油完成：${result.elapsedSeconds} 秒，${result.engine}，分析 ${perImageScores.length}/${sources.length} 张。`);
         } catch (error) {
             flmLocalOilRuntimeResults.set(key, {
                 key,
@@ -6260,7 +9645,7 @@
         }
         const currentUrls = new Set(flmLocalOilGetImageUrls(mainImg));
         const detections = result.categories.filter((item) =>
-            (item.level === 'high' || item.level === 'maybe') && item.detection?.crop &&
+            (item.level === 'high' || item.level === 'maybe') && Array.isArray(item.detection?.quad) && item.detection.quad.length === 4 &&
             item.detection.canvasWidth > 0 && item.detection.canvasHeight > 0 && currentUrls.has(flmLocalOilNormalizeImageUrl(item.detection.source))
         );
         if (detections.length === 0) return;
@@ -6272,31 +9657,86 @@
             left: `${imageRect.left}px`, top: `${imageRect.top}px`,
             width: `${imageRect.width}px`, height: `${imageRect.height}px`
         });
+        const namespace = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(namespace, 'svg');
+        const canvasWidth = detections[0].detection.canvasWidth;
+        const canvasHeight = detections[0].detection.canvasHeight;
+        svg.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        const defs = document.createElementNS(namespace, 'defs');
+        const marker = document.createElementNS(namespace, 'marker');
+        marker.setAttribute('id', 'sj-local-oil-arrow');
+        marker.setAttribute('viewBox', '0 0 10 10');
+        marker.setAttribute('refX', '9');
+        marker.setAttribute('refY', '5');
+        marker.setAttribute('markerWidth', '7');
+        marker.setAttribute('markerHeight', '7');
+        marker.setAttribute('orient', 'auto-start-reverse');
+        const arrowPath = document.createElementNS(namespace, 'path');
+        arrowPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+        arrowPath.setAttribute('fill', '#ff4d4f');
+        marker.appendChild(arrowPath);
+        defs.appendChild(marker);
+        svg.appendChild(defs);
         detections.forEach((item) => {
             const detection = item.detection;
-            const crop = detection.crop;
-            const box = document.createElement('div');
-            box.className = `sj-local-oil-box ${item.level}`;
-            const left = Math.max(0, Math.min(1, crop.x / detection.canvasWidth));
-            const top = Math.max(0, Math.min(1, crop.y / detection.canvasHeight));
-            const width = Math.max(0.035, Math.min(1 - left, crop.width / detection.canvasWidth));
-            const height = Math.max(0.05, Math.min(1 - top, crop.height / detection.canvasHeight));
-            Object.assign(box.style, {
-                left: `${left * 100}%`, top: `${top * 100}%`,
-                width: `${width * 100}%`, height: `${height * 100}%`
-            });
-            const label = document.createElement('span');
-            label.className = 'sj-local-oil-box-label';
-            label.textContent = `${FLM_LOCAL_OIL_SHORT_LABELS[item.category] || item.label} ${Math.round(item.score * 100)}`;
-            box.appendChild(label);
-            overlay.appendChild(box);
+            if (detection.canvasWidth !== canvasWidth || detection.canvasHeight !== canvasHeight) return;
+            const color = item.level === 'high' ? '#ff4d4f' : '#ff9f0a';
+            const polygon = document.createElementNS(namespace, 'polygon');
+            polygon.setAttribute('points', detection.quad.map((point) => `${point.x},${point.y}`).join(' '));
+            polygon.setAttribute('fill', 'rgba(255,77,79,0.05)');
+            polygon.setAttribute('stroke', color);
+            polygon.setAttribute('stroke-width', '4');
+            polygon.setAttribute('stroke-linejoin', 'round');
+            polygon.setAttribute('vector-effect', 'non-scaling-stroke');
+            svg.appendChild(polygon);
+
+            const bbox = detection.bbox || {
+                x: Math.min(...detection.quad.map((point) => point.x)),
+                y: Math.min(...detection.quad.map((point) => point.y)),
+                width: Math.max(...detection.quad.map((point) => point.x)) - Math.min(...detection.quad.map((point) => point.x)),
+                height: Math.max(...detection.quad.map((point) => point.y)) - Math.min(...detection.quad.map((point) => point.y))
+            };
+            const targetX = bbox.x + bbox.width * 0.52;
+            const targetY = bbox.y + bbox.height * 0.52;
+            const putRight = bbox.x + bbox.width + 115 < canvasWidth;
+            const labelX = putRight ? bbox.x + bbox.width + 18 : Math.max(12, bbox.x - 18);
+            const labelY = Math.max(24, Math.min(canvasHeight - 18, bbox.y + bbox.height * 0.42));
+            const line = document.createElementNS(namespace, 'line');
+            line.setAttribute('x1', String(labelX));
+            line.setAttribute('y1', String(labelY));
+            line.setAttribute('x2', String(targetX));
+            line.setAttribute('y2', String(targetY));
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '4');
+            line.setAttribute('marker-end', 'url(#sj-local-oil-arrow)');
+            line.setAttribute('vector-effect', 'non-scaling-stroke');
+            svg.appendChild(line);
+
+            const text = document.createElementNS(namespace, 'text');
+            text.setAttribute('x', String(labelX + (putRight ? 5 : -5)));
+            text.setAttribute('y', String(labelY - 7));
+            text.setAttribute('text-anchor', putRight ? 'start' : 'end');
+            text.setAttribute('fill', color);
+            text.setAttribute('font-size', '18');
+            text.setAttribute('font-weight', '900');
+            text.setAttribute('paint-order', 'stroke');
+            text.setAttribute('stroke', 'rgba(0,0,0,.92)');
+            text.setAttribute('stroke-width', '4');
+            text.setAttribute('stroke-linejoin', 'round');
+            text.textContent = `${FLM_LOCAL_OIL_SHORT_LABELS[item.category] || item.label} ${Math.round(item.score * 100)}`;
+            svg.appendChild(text);
         });
+        overlay.appendChild(svg);
         document.body.appendChild(overlay);
     }
 
     function flmLocalOilFindCategoryForOption(optionText) {
         const text = String(optionText || '').replace(/<[^>]+>/g, '');
-        for (const [category, meta] of Object.entries(FLM_LOCAL_OIL_CATEGORY_META)) {
+        for (const category of FLM_LOCAL_OIL_TARGET_CATEGORIES) {
+            const meta = FLM_LOCAL_OIL_CATEGORY_META[category];
             if (meta.words.some((word) => text.includes(word))) return category;
         }
         return null;
@@ -6409,7 +9849,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.5.0)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.7.1)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
         requestAnimationFrame(() => flmLocalOilRenderImageOverlay(activeDialog, qNum));
@@ -6537,10 +9977,10 @@
                     const imageHint = (oilMatch.level === 'high' || oilMatch.level === 'maybe') && oilMatch.detection?.imageNumber > 0 ? `·图${oilMatch.detection.imageNumber}` : '';
                     const status = document.createElement('span');
                     status.className = `sj-local-oil-inline ${possibleMissing ? 'missing' : selectedWeak ? 'weak' : oilMatch.level}`;
-                    status.textContent = possibleMissing ? `漏选? ${score}${imageHint}` : selectedWeak ? `图中未确认 ${score}` :
-                        isChecked ? `匹配 ${score}${imageHint}` : oilMatch.level === 'high' ? `明显 ${score}${imageHint}` : oilMatch.level === 'maybe' ? `疑似 ${score}${imageHint}` :
-                            oilMatch.level === 'absent' ? `未发现 ${score}` : `低 ${score}`;
-                    status.title = `包装匹配分 ${score}，不是准确率。${oilMatch.detection?.imageNumber > 0 ? `最佳候选在第 ${oilMatch.detection.imageNumber} 张。` : ''}${oilMatch.bestReferenceName ? ` 最接近：${oilMatch.bestReferenceName}` : ''}`;
+                    status.textContent = possibleMissing ? `漏选? ${score}${imageHint}` : selectedWeak ? `未见可靠证据` :
+                        isChecked ? `已识别 ${score}${imageHint}` : oilMatch.level === 'high' ? `文字命中 ${score}${imageHint}` : oilMatch.level === 'maybe' ? `近似命中 ${score}${imageHint}` :
+                            oilMatch.level === 'absent' ? `未见可靠证据` : `证据弱 ${score}`;
+                    status.title = `本地 OCR/几何证据分 ${score}，不是准确率。${oilMatch.detection?.imageNumber > 0 ? `最佳证据在第 ${oilMatch.detection.imageNumber} 张。` : ''}${oilMatch.bestReferenceName ? ` ${oilMatch.bestReferenceName}` : ''} “未见可靠证据”不等于照片里百分百不存在。`;
                     rowActions.appendChild(status);
                 }
             }
