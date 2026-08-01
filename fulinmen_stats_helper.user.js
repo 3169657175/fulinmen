@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.4.0
+// @version      1.4.1
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -10,6 +10,7 @@
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @connect      productandservice.cofco.com
+// @connect      sjimgpub.slicejobs.com
 // @connect      *.slicejobs.com
 // @connect      *.aliyuncs.com
 // @run-at       document-start
@@ -5494,37 +5495,70 @@
             if (!evidence.contains(img)) return;
             const referenceBlock = img.closest('[class*="reference"], [class*="ref-content"]');
             if (referenceBlock || img.closest('.sj-cloned-q5-evidence')) return;
-            const src = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
-            if (!/^https?:|^data:image\//i.test(src)) return;
-            if (/icon|avatar|logo|placeholder/i.test(src)) return;
-            sources.push(src);
+            const candidates = [
+                img.getAttribute('data-original'),
+                img.getAttribute('data-src'),
+                img.getAttribute('alt'),
+                img.currentSrc,
+                img.getAttribute('src')
+            ];
+            const normalized = candidates
+                .map(flmLocalOilNormalizeImageUrl)
+                .filter(Boolean)
+                .filter((src) => !/icon|avatar|logo|placeholder/i.test(src));
+            if (normalized[0]) sources.push(normalized[0]);
         });
         return Array.from(new Set(sources));
     }
 
-    function flmLocalOilRequestBlob(url) {
-        if (String(url).startsWith('data:image/')) {
-            return fetch(url).then((response) => response.blob());
+    function flmLocalOilNormalizeImageUrl(value) {
+        const text = String(value || '').trim().replace(/&amp;/g, '&');
+        if (!text) return '';
+        if (/^data:image\//i.test(text)) return text;
+        if (!/^(?:https?:)?\/\//i.test(text)) return '';
+        try {
+            const url = new URL(text, location.href);
+            // 页面缩略图通常附带 x-oss-process，而 alt/data-original 保存的是原图。
+            // 删除转换参数既能取得清晰图，也避开部分浏览器对 OSS 缩略响应的兼容问题。
+            url.searchParams.delete('x-oss-process');
+            if (location.protocol === 'https:' && url.protocol === 'http:') url.protocol = 'https:';
+            return url.href;
+        } catch (error) {
+            return '';
         }
+    }
+
+    function flmLocalOilRequestBlob(url) {
+        const normalizedUrl = flmLocalOilNormalizeImageUrl(url) || String(url || '');
+        if (normalizedUrl.startsWith('data:image/')) return fetch(normalizedUrl).then((response) => response.blob());
+
+        const fetchFallback = () => fetch(normalizedUrl, { credentials: 'include', cache: 'force-cache' }).then((response) => {
+            if (!response.ok) throw new Error(`站内读取失败 HTTP ${response.status}`);
+            return response.blob();
+        });
+        if (typeof GM_xmlhttpRequest !== 'function') return fetchFallback();
+
         return new Promise((resolve, reject) => {
-            if (typeof GM_xmlhttpRequest !== 'function') {
-                fetch(url, { credentials: 'include' }).then((response) => {
-                    if (!response.ok) throw new Error(`图片请求失败 ${response.status}`);
-                    return response.blob();
-                }).then(resolve, reject);
-                return;
-            }
             GM_xmlhttpRequest({
                 method: 'GET',
-                url,
-                responseType: 'blob',
-                timeout: 20000,
+                url: normalizedUrl,
+                responseType: 'arraybuffer',
+                timeout: 25000,
+                headers: { Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' },
                 onload: (response) => {
-                    if (response.status >= 200 && response.status < 300 && response.response) resolve(response.response);
-                    else reject(new Error(`图片请求失败 ${response.status}`));
+                    const status = Number(response.status || 0);
+                    const buffer = response.response;
+                    if (status >= 200 && status < 300 && buffer && buffer.byteLength > 0) {
+                        const contentType = String(response.responseHeaders || '').match(/content-type:\s*([^;\r\n]+)/i)?.[1] || 'image/jpeg';
+                        resolve(new Blob([buffer], { type: contentType }));
+                        return;
+                    }
+                    fetchFallback().then(resolve, (fallbackError) => {
+                        reject(new Error(`图片请求失败 HTTP ${status || '未知'}；${fallbackError.message}`));
+                    });
                 },
-                ontimeout: () => reject(new Error('图片请求超时')),
-                onerror: () => reject(new Error('图片请求失败'))
+                ontimeout: () => fetchFallback().then(resolve, () => reject(new Error('图片请求超时'))),
+                onerror: () => fetchFallback().then(resolve, (error) => reject(new Error(`图片请求失败：${error.message}`)))
             });
         });
     }
@@ -5932,6 +5966,7 @@
                 else setProgress(`首次准备官方包装图 ${done}/${total}，以后无需重复下载…`);
             });
             const perImageScores = [];
+            const imageErrors = [];
             for (let i = 0; i < sources.length; i++) {
                 setProgress(`正在本地扫描 ${qNum} 照片 ${i + 1}/${sources.length}…`);
                 try {
@@ -5941,10 +5976,14 @@
                     perImageScores.push(flmLocalOilAnalyzeCanvas(canvas, references));
                     await new Promise((resolve) => setTimeout(resolve, 0));
                 } catch (error) {
+                    imageErrors.push(error?.message || String(error));
                     console.warn('[福临门本地识油] 现场照片分析失败:', sources[i], error);
                 }
             }
-            if (perImageScores.length === 0) throw new Error('本题照片均无法读取');
+            if (perImageScores.length === 0) {
+                const firstError = imageErrors.find(Boolean) || '未知原因';
+                throw new Error(`本题 ${sources.length} 张照片均无法读取：${firstError}`);
+            }
             const result = {
                 key,
                 qNum,
