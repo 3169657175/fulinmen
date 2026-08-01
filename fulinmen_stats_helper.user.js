@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.4.1
+// @version      1.4.4
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -5379,7 +5379,7 @@
     // Q7/Q10 福临门本地识油助手（无大模型、无训练、无图片上传）
     // 只读取当前题目卡左侧“照片证据”，绝不读取右侧“审核参考”或说明示例图。
     // ==========================================
-    const FLM_LOCAL_OIL_REF_VERSION = 'company-ppt-20260801-v1';
+    const FLM_LOCAL_OIL_REF_VERSION = 'company-ppt-20260801-fast-v3';
     const FLM_LOCAL_OIL_REF_CACHE_KEY = 'flm_local_oil_reference_cache_' + FLM_LOCAL_OIL_REF_VERSION;
     const FLM_LOCAL_OIL_RESULT_PREFIX = 'flm_local_oil_result_v1_';
     const FLM_LOCAL_OIL_FEATURE_WIDTH = 8;
@@ -5443,6 +5443,7 @@
         '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';
 
     let flmLocalOilReferenceFeatures = null;
+    let flmLocalOilFastReferenceFeatures = null;
     let flmLocalOilRunningKey = '';
     const flmLocalOilRuntimeResults = new Map();
 
@@ -5518,9 +5519,12 @@
         if (!/^(?:https?:)?\/\//i.test(text)) return '';
         try {
             const url = new URL(text, location.href);
-            // 页面缩略图通常附带 x-oss-process，而 alt/data-original 保存的是原图。
-            // 删除转换参数既能取得清晰图，也避开部分浏览器对 OSS 缩略响应的兼容问题。
-            url.searchParams.delete('x-oss-process');
+            // 不下载几 MB 原图，也不使用只有 75px 的页面缩略图；让 OSS 返回足够识别的中等尺寸图。
+            if (/sjimgpub\.slicejobs\.com$/i.test(url.hostname)) {
+                url.searchParams.set('x-oss-process', 'image/resize,m_lfit,w_640,h_640/quality,q_82');
+            } else {
+                url.searchParams.delete('x-oss-process');
+            }
             if (location.protocol === 'https:' && url.protocol === 'http:') url.protocol = 'https:';
             return url.href;
         } catch (error) {
@@ -5842,23 +5846,83 @@
         return features;
     }
 
-    function flmLocalOilAnalyzeCanvas(sceneCanvas, references) {
+    function flmLocalOilAverageReference(items, category, index) {
+        const first = items[0];
+        const averageFeature = (key) => {
+            const length = first[key].chroma.length;
+            const chroma = new Array(length).fill(0);
+            const luma = new Array(first[key].luma.length).fill(0);
+            const hueHist = new Array(first[key].hueHist.length).fill(0);
+            let saturation = 0;
+            let texture = 0;
+            items.forEach((item) => {
+                for (let i = 0; i < chroma.length; i++) chroma[i] += item[key].chroma[i];
+                for (let i = 0; i < luma.length; i++) luma[i] += item[key].luma[i];
+                for (let i = 0; i < hueHist.length; i++) hueHist[i] += item[key].hueHist[i];
+                saturation += item[key].saturation;
+                texture += item[key].texture;
+            });
+            const count = items.length;
+            for (let i = 0; i < chroma.length; i++) chroma[i] /= count;
+            for (let i = 0; i < luma.length; i++) luma[i] /= count;
+            for (let i = 0; i < hueHist.length; i++) hueHist[i] /= count;
+            return { chroma, luma, hueHist, saturation: saturation / count, texture: texture / count };
+        };
+        return {
+            id: `fast_${category}_${index}`,
+            category,
+            name: `${FLM_LOCAL_OIL_CATEGORY_META[category]?.label || category} 综合包装 ${index + 1}`,
+            feature: averageFeature('feature'),
+            labelFeature: averageFeature('labelFeature'),
+            aspect: items.reduce((sum, item) => sum + item.aspect, 0) / items.length
+        };
+    }
+
+    function flmLocalOilPickFastReferences(references) {
+        if (flmLocalOilFastReferenceFeatures) return flmLocalOilFastReferenceFeatures;
+        const groups = new Map();
+        references.forEach((reference) => {
+            if (!groups.has(reference.category)) groups.set(reference.category, []);
+            groups.get(reference.category).push(reference);
+        });
+        const selected = [];
+        groups.forEach((items, category) => {
+            // 每类合并成两个综合包装特征：仍利用全部公司资料，但单个窗口只需比较 16 次。
+            const clusters = [items.filter((_, index) => index % 2 === 0), items.filter((_, index) => index % 2 === 1)];
+            clusters.filter((cluster) => cluster.length > 0).forEach((cluster, index) => {
+                selected.push(flmLocalOilAverageReference(cluster, category, index));
+            });
+        });
+        flmLocalOilFastReferenceFeatures = selected;
+        return selected;
+    }
+
+    function flmLocalOilYieldToBrowser() {
+        return new Promise((resolve) => {
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
+            else setTimeout(resolve, 0);
+        });
+    }
+
+    async function flmLocalOilAnalyzeCanvas(sceneCanvas, allReferences, deadline = Infinity) {
         const width = sceneCanvas.width;
         const height = sceneCanvas.height;
+        const references = flmLocalOilPickFastReferences(allReferences);
         const scratchCanvas = document.createElement('canvas');
         scratchCanvas.width = 18;
         scratchCanvas.height = 24;
         const scratch = { canvas: scratchCanvas, ctx: scratchCanvas.getContext('2d', { willReadFrequently: true }) };
         const bestByReference = new Map(references.map((reference) => [reference.id, { score: 0, crop: null }]));
-        const widthRatios = [0.055, 0.075, 0.1, 0.135];
-        const aspects = [1.45, 1.85, 2.25];
+        const widthRatios = [0.09, 0.145];
+        const aspects = [1.6, 2.05];
+        let processedCrops = 0;
 
-        for (const widthRatio of widthRatios) {
+        scanPasses: for (const widthRatio of widthRatios) {
             const cropWidth = Math.max(28, Math.min(190, Math.round(width * widthRatio)));
             for (const aspect of aspects) {
                 const cropHeight = Math.max(44, Math.min(Math.round(cropWidth * aspect), Math.round(height * 0.48)));
-                const stepX = Math.max(18, Math.round(cropWidth * 0.72));
-                const stepY = Math.max(22, Math.round(cropHeight * 0.62));
+                const stepX = Math.max(24, Math.round(cropWidth));
+                const stepY = Math.max(28, Math.round(cropHeight * 0.9));
                 for (let y = 0; y + cropHeight <= height; y += stepY) {
                     for (let x = 0; x + cropWidth <= width; x += stepX) {
                         const crop = { x, y, width: cropWidth, height: cropHeight };
@@ -5878,6 +5942,12 @@
                             const current = bestByReference.get(reference.id);
                             if (similarity > current.score) bestByReference.set(reference.id, { score: similarity, crop });
                         });
+                        processedCrops++;
+                        // 把控制权定期还给浏览器，识别期间仍可滚动、切图或关闭工作台。
+                        if (processedCrops % 36 === 0) {
+                            await flmLocalOilYieldToBrowser();
+                            if (performance.now() >= deadline) break scanPasses;
+                        }
                     }
                 }
             }
@@ -5922,6 +5992,16 @@
         return `${flmGetCurrentOrderId() || 'unknown'}:${qNum}:${flmLocalOilHash(sources.join('|'))}:${FLM_LOCAL_OIL_REF_VERSION}`;
     }
 
+    function flmLocalOilPickAnalysisSources(sources, limit = 6) {
+        if (sources.length <= limit) return sources.slice();
+        const selected = [];
+        for (let i = 0; i < limit; i++) {
+            const index = Math.round(i * (sources.length - 1) / (limit - 1));
+            selected.push(sources[index]);
+        }
+        return Array.from(new Set(selected));
+    }
+
     function flmLocalOilReadCachedResult(key) {
         if (flmLocalOilRuntimeResults.has(key)) return flmLocalOilRuntimeResults.get(key);
         try {
@@ -5954,6 +6034,7 @@
         }
         if (flmLocalOilRunningKey) return;
         flmLocalOilRunningKey = key;
+        const startedAt = performance.now();
         const setProgress = (message) => {
             flmLocalOilRuntimeResults.set(key, { key, qNum, sources, status: 'running', message, createdAt: Date.now() });
             auditHelperUpdateWorkspace();
@@ -5965,19 +6046,38 @@
                 if (typeof done === 'string') setProgress(done);
                 else setProgress(`首次准备官方包装图 ${done}/${total}，以后无需重复下载…`);
             });
-            const perImageScores = [];
+            const analysisSources = flmLocalOilPickAnalysisSources(sources, 6);
             const imageErrors = [];
-            for (let i = 0; i < sources.length; i++) {
-                setProgress(`正在本地扫描 ${qNum} 照片 ${i + 1}/${sources.length}…`);
+            setProgress(`正在并行读取 ${qNum} 的 ${analysisSources.length} 张分析图${sources.length > analysisSources.length ? `（从 ${sources.length} 张均匀抽取）` : ''}…`);
+            const loadedResults = await Promise.allSettled(analysisSources.map(async (source) => {
+                const blob = await flmLocalOilRequestBlob(source);
+                const img = await flmLocalOilLoadImage(blob);
+                return flmLocalOilImageCanvas(img, 560);
+            }));
+            const loadedCanvases = [];
+            loadedResults.forEach((loaded, index) => {
+                if (loaded.status === 'fulfilled') loadedCanvases.push({ canvas: loaded.value, source: analysisSources[index] });
+                else {
+                    imageErrors.push(loaded.reason?.message || String(loaded.reason));
+                    console.warn('[福临门本地识油] 现场照片读取失败:', analysisSources[index], loaded.reason);
+                }
+            });
+            if (loadedCanvases.length === 0) {
+                const firstError = imageErrors.find(Boolean) || '未知原因';
+                throw new Error(`本题 ${sources.length} 张照片均无法读取：${firstError}`);
+            }
+
+            const perImageScores = [];
+            const perImageBudget = Math.max(550, Math.floor(7600 / loadedCanvases.length));
+            for (let i = 0; i < loadedCanvases.length; i++) {
+                const loaded = loadedCanvases[i];
+                setProgress(`正在极速扫描 ${qNum} 照片 ${i + 1}/${loadedCanvases.length}…`);
                 try {
-                    const blob = await flmLocalOilRequestBlob(sources[i]);
-                    const img = await flmLocalOilLoadImage(blob);
-                    const canvas = flmLocalOilImageCanvas(img, 1100);
-                    perImageScores.push(flmLocalOilAnalyzeCanvas(canvas, references));
-                    await new Promise((resolve) => setTimeout(resolve, 0));
+                    perImageScores.push(await flmLocalOilAnalyzeCanvas(loaded.canvas, references, performance.now() + perImageBudget));
+                    await flmLocalOilYieldToBrowser();
                 } catch (error) {
                     imageErrors.push(error?.message || String(error));
-                    console.warn('[福临门本地识油] 现场照片分析失败:', sources[i], error);
+                    console.warn('[福临门本地识油] 现场照片分析失败:', loaded.source, error);
                 }
             }
             if (perImageScores.length === 0) {
@@ -5991,10 +6091,12 @@
                 status: 'ready',
                 createdAt: Date.now(),
                 analyzedImages: perImageScores.length,
+                totalEvidenceImages: sources.length,
+                elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10,
                 categories: flmLocalOilMergeImageScores(perImageScores)
             };
             flmLocalOilStoreResult(result);
-            autoReviewToast(`${qNum} 本地识油完成：已分析 ${perImageScores.length} 张本题照片。`);
+            autoReviewToast(`${qNum} 本地识油完成：${result.elapsedSeconds} 秒，分析 ${perImageScores.length}/${sources.length} 张。`);
         } catch (error) {
             flmLocalOilRuntimeResults.set(key, {
                 key,
@@ -6064,7 +6166,7 @@
                 };
             });
         }
-        panel.innerHTML = `<div class="sj-local-oil-head"><strong>${qNum} 本地包装匹配</strong><span>${result.analyzedImages} 张本题照片</span></div><div class="sj-local-oil-note">只作快速候选提示；绿色为较明显，黄色为疑似。右侧审核参考没有参与。</div>`;
+        panel.innerHTML = `<div class="sj-local-oil-head"><strong>${qNum} 本地包装匹配</strong><span>${result.elapsedSeconds ? `${result.elapsedSeconds}秒 · ` : ''}${result.analyzedImages}/${result.totalEvidenceImages || result.analyzedImages} 张</span></div><div class="sj-local-oil-note">极速模式均匀抽样，结果只作候选提示；右侧审核参考没有参与。</div>`;
         const grid = document.createElement('div');
         grid.className = 'sj-local-oil-grid';
         result.categories.forEach((item) => {
@@ -6184,7 +6286,7 @@
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.2.1)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.4.4)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
 
