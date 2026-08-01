@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
+// @version      1.3.2
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -1586,6 +1586,122 @@
     }
 
     // ==========================================
+    // 页面与图片加载优化：复用脉动插件的 OSS 缩图思路
+    // ==========================================
+    let flmImageOptimizerInitialized = false;
+
+    function flmOptimizeImageUrlForPreview(url, width = 1000) {
+        if (!url || typeof url !== 'string' || url.startsWith('data:') || url.startsWith('blob:')) return url;
+        if (!url.includes('slicejobs.com') && !url.includes('aliyuncs.com')) return url;
+        // 网站自身已经生成的小缩略图无需再次处理。
+        if (/\b(?:w|h)_(?:75|90)\b/.test(url)) return url;
+        try {
+            const parsed = new URL(url, location.href);
+            const oldProcess = parsed.searchParams.get('x-oss-process') || '';
+            let nextProcess = oldProcess;
+            if (oldProcess.includes('image/resize')) {
+                nextProcess = oldProcess
+                    .replace(/w_\d+/g, `w_${width}`)
+                    .replace(/h_\d+/g, '')
+                    .replace(/l_\d+/g, `w_${width}`)
+                    .replace(/,+/g, ',')
+                    .replace(/,$/, '')
+                    .replace(/m_pad/g, 'm_lfit');
+                if (!nextProcess.includes('/format,webp')) nextProcess += '/format,webp';
+                if (!nextProcess.includes('/quality,q_80')) nextProcess += '/quality,q_80';
+            } else {
+                nextProcess = `image/resize,w_${width}/format,webp/quality,q_80`;
+            }
+            parsed.searchParams.set('x-oss-process', nextProcess);
+            return parsed.toString();
+        } catch (error) {
+            return url;
+        }
+    }
+
+    function flmTuneImageElement(img) {
+        if (!img || img.nodeType !== Node.ELEMENT_NODE || img.tagName !== 'IMG') return;
+        try {
+            img.decoding = 'async';
+            const rect = img.getBoundingClientRect();
+            const nearViewport = rect.top < window.innerHeight * 1.5 && rect.bottom > -200;
+            if (nearViewport) {
+                img.loading = 'eager';
+                if ('fetchPriority' in img) img.fetchPriority = 'high';
+            }
+            const currentSrc = img.getAttribute('src');
+            const optimizedSrc = flmOptimizeImageUrlForPreview(currentSrc, 1000);
+            if (optimizedSrc && optimizedSrc !== currentSrc) img.setAttribute('src', optimizedSrc);
+        } catch (error) {}
+    }
+
+    function flmInjectResourceHints() {
+        if (!document.head) return;
+        ['https://sjimgpub.slicejobs.com', 'https://sjaudiopub.slicejobs.com'].forEach((href) => {
+            if (document.querySelector(`link[rel="preconnect"][href="${href}"]`)) return;
+            const link = document.createElement('link');
+            link.rel = 'preconnect';
+            link.href = href;
+            link.crossOrigin = 'anonymous';
+            document.head.appendChild(link);
+        });
+    }
+
+    function flmInitImageOptimizer() {
+        if (flmImageOptimizerInitialized) return;
+        flmImageOptimizerInitialized = true;
+        flmInjectResourceHints();
+
+        const srcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        if (srcDescriptor && srcDescriptor.get && srcDescriptor.set && !srcDescriptor.set.__flmOptimized) {
+            const originalSetter = srcDescriptor.set;
+            const optimizedSetter = function(value) {
+                return originalSetter.call(this, flmOptimizeImageUrlForPreview(value, 1000));
+            };
+            optimizedSetter.__flmOptimized = true;
+            Object.defineProperty(HTMLImageElement.prototype, 'src', {
+                configurable: srcDescriptor.configurable,
+                enumerable: srcDescriptor.enumerable,
+                get: srcDescriptor.get,
+                set: optimizedSetter
+            });
+        }
+
+        const originalSetAttribute = Element.prototype.setAttribute;
+        if (!originalSetAttribute.__flmOptimized) {
+            const optimizedSetAttribute = function(name, value) {
+                const nextValue = name === 'src' && this.tagName === 'IMG'
+                    ? flmOptimizeImageUrlForPreview(value, 1000)
+                    : value;
+                return originalSetAttribute.call(this, name, nextValue);
+            };
+            optimizedSetAttribute.__flmOptimized = true;
+            Element.prototype.setAttribute = optimizedSetAttribute;
+        }
+
+        document.querySelectorAll('img').forEach(flmTuneImageElement);
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes') {
+                    flmTuneImageElement(mutation.target);
+                    return;
+                }
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType !== Node.ELEMENT_NODE) return;
+                    if (node.tagName === 'IMG') flmTuneImageElement(node);
+                    node.querySelectorAll && node.querySelectorAll('img').forEach(flmTuneImageElement);
+                });
+            });
+        });
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['src']
+        });
+    }
+
+    // ==========================================
     // 福临门单槽预取：仿照脉动插件，直接调用网站“开始审单”背后的原生请求。
     // 固定从 projectId=7703 的批次列表第一行领取，任何时刻最多暂存一张下一单。
     // ==========================================
@@ -1598,10 +1714,13 @@
     const FLM_PREFETCH_SLOT_TTL_MS = 25 * 60 * 1000;
     const FLM_PREFETCH_ATTEMPT_TTL_MS = 10 * 60 * 1000;
     const FLM_PREFETCH_RETRY_DELAY_MS = 2000;
+    const FLM_AUDIT_JUMP_ARM_TTL_MS = 2 * 60 * 1000;
     let flmPrefetchInFlight = false;
     let flmPrefetchJumping = false;
     let flmSkipRunning = false;
     let flmPrefetchRetryTimer = null;
+    let flmAuditJumpArm = null;
+    let flmAuditInterceptorInitialized = false;
 
     function flmGetCurrentOrderId() {
         const match = location.pathname.match(/\/order\/review\/(\d+)/);
@@ -1630,6 +1749,68 @@
 
     function flmWritePrefetchSlot(slot) {
         localStorage.setItem(FLM_PREFETCH_SLOT_KEY, JSON.stringify(slot));
+        if (slot && slot.state === 'ready' && /^\d+$/.test(String(slot.nextOrderId || ''))) {
+            flmWarmNextOrderRoute(slot.nextOrderId);
+        }
+    }
+
+    function flmWarmNextOrderRoute(orderId) {
+        if (!document.head || !/^\d+$/.test(String(orderId || ''))) return;
+        const target = '/order/review/' + orderId;
+        let link = document.getElementById('flm-next-order-prefetch');
+        if (!link) {
+            link = document.createElement('link');
+            link.id = 'flm-next-order-prefetch';
+            link.rel = 'prefetch';
+            link.as = 'document';
+            document.head.appendChild(link);
+        }
+        if (link.getAttribute('href') !== target) link.setAttribute('href', target);
+    }
+
+    function flmFindVueRouter() {
+        try {
+            const pageWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+            const pageDocument = pageWindow.document || document;
+            const candidates = [
+                pageDocument.querySelector('#app'),
+                pageDocument.querySelector('.answer--review'),
+                pageDocument.querySelector('.order-review')
+            ].filter(Boolean);
+            for (const element of candidates) {
+                const vm = element.__vue__;
+                const router = vm && (vm.$router || vm.$root && vm.$root.$router);
+                if (router && typeof router.replace === 'function') return router;
+            }
+        } catch (error) {}
+        return null;
+    }
+
+    function flmNavigateToOrder(orderId) {
+        orderId = String(orderId || '');
+        if (!/^\d+$/.test(orderId)) return false;
+        const target = '/order/review/' + orderId;
+        try {
+            const router = flmFindVueRouter();
+            if (router) {
+                const result = router.replace(target);
+                if (result && typeof result.catch === 'function') {
+                    result.catch((error) => {
+                        if (!error || error.name !== 'NavigationDuplicated') location.replace(target);
+                    });
+                }
+                // Vue Router 正常情况下会立即改地址；若路由未响应则快速回退整页导航。
+                setTimeout(() => {
+                    if (location.pathname !== target) location.replace(target);
+                }, 500);
+                return true;
+            }
+            location.replace(target);
+            return true;
+        } catch (error) {
+            location.replace(target);
+            return true;
+        }
     }
 
     function flmFinalizePrefetchSlot(currentOrderId) {
@@ -1737,6 +1918,99 @@
             if (flmGetCurrentOrderId() !== currentOrderId || flmReadPrefetchSlot()) return;
             flmStartPrefetchForCurrentOrder();
         }, delayMs);
+    }
+
+    function flmIsAuditSubmitRequest(url, method) {
+        if (String(method || '').toUpperCase() !== 'POST') return false;
+        const value = String(url || '');
+        return (value.includes('/admin/order/audit/') || value.includes('/admin/audit_task/')) &&
+            !['/acquire', '/create', '/get', '/detail', '/history', '/info', '/query']
+                .some((part) => value.includes(part));
+    }
+
+    function flmAuditResponseIsSuccessful(status, responseText) {
+        if (Number(status) < 200 || Number(status) >= 300) return false;
+        const text = typeof responseText === 'string' ? responseText.trim() : '';
+        if (!text) return true;
+        try {
+            const data = JSON.parse(text);
+            if (data && data.success === false) return false;
+            if (data && data.code !== undefined && ![0, 200].includes(Number(data.code))) return false;
+            if (data && data.status !== undefined && ![0, 200].includes(Number(data.status))) return false;
+        } catch (error) {
+            // 某些成功接口返回纯文本，HTTP 2xx 即可视为提交成功。
+        }
+        return true;
+    }
+
+    function flmArmAuditPrefetchJump() {
+        const currentOrderId = flmGetCurrentOrderId();
+        const slot = flmReadPrefetchSlot();
+        if (!currentOrderId || !slot || slot.state !== 'ready' ||
+            slot.sourceOrderId !== currentOrderId || slot.nextOrderId === currentOrderId) {
+            flmAuditJumpArm = null;
+            return false;
+        }
+        flmAuditJumpArm = { currentOrderId, armedAt: Date.now() };
+        return true;
+    }
+
+    function flmHandleAuditSubmitResponse(meta) {
+        const arm = flmAuditJumpArm;
+        if (!arm || Date.now() - arm.armedAt > FLM_AUDIT_JUMP_ARM_TTL_MS) {
+            flmAuditJumpArm = null;
+            return false;
+        }
+        if (flmGetCurrentOrderId() !== arm.currentOrderId) return false;
+        if (!flmAuditResponseIsSuccessful(meta && meta.status, meta && meta.responseText)) {
+            flmAuditJumpArm = null;
+            return false;
+        }
+        flmAuditJumpArm = null;
+        return flmConsumeReadySlot(arm.currentOrderId, '审核接口已确认成功');
+    }
+
+    function flmInitFastAuditInterceptor() {
+        if (flmAuditInterceptorInitialized) return;
+        flmAuditInterceptorInitialized = true;
+
+        const originalOpen = XMLHttpRequest.prototype.open;
+        const originalSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+            this._flmAuditUrl = url;
+            this._flmAuditMethod = method;
+            return originalOpen.call(this, method, url, ...rest);
+        };
+        XMLHttpRequest.prototype.send = function(...args) {
+            this.addEventListener('load', function() {
+                if (!flmIsAuditSubmitRequest(this._flmAuditUrl, this._flmAuditMethod)) return;
+                const responseText = typeof this.responseText === 'string' ? this.responseText : '';
+                flmHandleAuditSubmitResponse({
+                    url: this._flmAuditUrl,
+                    status: this.status,
+                    responseText
+                });
+            }, { once: true });
+            return originalSend.call(this, ...args);
+        };
+
+        const originalFetch = window.fetch;
+        if (originalFetch) {
+            window.fetch = function(input, initOptions, ...args) {
+                const url = typeof input === 'string' ? input : input && input.url || '';
+                const method = initOptions && initOptions.method || input && input.method || 'GET';
+                return originalFetch.call(this, input, initOptions, ...args).then((response) => {
+                    if (flmIsAuditSubmitRequest(url, method)) {
+                        try {
+                            response.clone().text().then((responseText) => {
+                                flmHandleAuditSubmitResponse({ url, status: response.status, responseText });
+                            }).catch(() => {});
+                        } catch (error) {}
+                    }
+                    return response;
+                });
+            };
+        }
     }
 
     function flmPrefetchNextOrder(currentOrderId) {
@@ -1858,8 +2132,7 @@
         flmWritePrefetchSlot({ ...slot, state: 'consuming', consumedAt: Date.now() });
         autoReviewToast(`${reason}，正在进入已预取订单 ${slot.nextOrderId}...`);
         try {
-            location.assign('/order/review/' + slot.nextOrderId);
-            return true;
+            return flmNavigateToOrder(slot.nextOrderId);
         } catch (error) {
             flmWritePrefetchSlot({ ...slot, state: 'ready' });
             flmPrefetchJumping = false;
@@ -2134,28 +2407,34 @@
                 autoReviewToast('未找到确认按钮', true);
                 return;
             }
+            const submittedOrderId = flmGetCurrentOrderId();
+            const fastJumpArmed = flmArmAuditPrefetchJump();
             autoReviewClickEl(confirmBtn);
 
-            // 等待跳转下一单按钮出现
-            let nextBtn = null;
-            for (let i = 0; i < 40; i++) { // 40 * 150ms = 6s
-                nextBtn = autoReviewGetNextOrderButton();
-                if (nextBtn) break;
-                await autoReviewSleep(150);
+            if (fastJumpArmed) {
+                autoReviewToast('确认已点击，审核接口成功后立即进入预存下一单...');
             }
 
-            // ③ 去掉固定 400ms，检测到按钮存在直接跳转
+            // 快速路径由审核接口响应直接触发；这里只监听网站成功弹窗作为安全兜底。
+            let nextBtn = null;
+            for (let i = 0; i < 120; i++) { // 最长兜底 12 秒，但正常会由接口响应提前跳走
+                if (flmGetCurrentOrderId() !== submittedOrderId || flmPrefetchJumping) return;
+                nextBtn = autoReviewGetNextOrderButton();
+                if (nextBtn) break;
+                await autoReviewSleep(100);
+            }
+
             nextBtn = autoReviewGetNextOrderButton();
             if (nextBtn) {
-                // 保留福临门原有审核流程，只替换最后的“审核下一单”动作。
-                // 缓存有效时直接进入预取订单；缓存不可用时完整保留网站原按钮回退。
-                const currentOrderId = flmGetCurrentOrderId();
-                if (!flmConsumeReadySlot(currentOrderId, '审核已提交')) {
+                flmAuditJumpArm = null;
+                // 若接口拦截因浏览器隔离未命中，成功弹窗出现后立即消费预存槽。
+                if (!flmConsumeReadySlot(submittedOrderId, '审核成功弹窗已出现')) {
                     autoReviewToast('审核已提交，缓存订单不可用，改走网站原生下一单...');
                     autoReviewClickEl(nextBtn);
                 }
             } else {
-                autoReviewToast('审核可能已提交，但未找到"审核下一单"按钮，请手动确认', true);
+                flmAuditJumpArm = null;
+                autoReviewToast('12秒内未确认审核成功，插件没有盲目跳转，请检查网络或手动确认', true);
             }
         } catch (err) {
             console.error(err);
@@ -5121,7 +5400,13 @@
         }
     }
 
+    let flmHelperStarted = false;
     const startHelper = () => {
+        if (flmHelperStarted || !document.body) return;
+        flmHelperStarted = true;
+        // 不再等待所有图片触发 window.load；DOM 可用后立即启动预取、审核拦截和图片优化。
+        flmInitFastAuditInterceptor();
+        flmInitImageOptimizer();
         init();
         startBackgroundRefresh();
         setInterval(init, 2000);
@@ -5185,9 +5470,9 @@
         });
     };
 
-    if (document.readyState === 'complete') {
-        startHelper();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startHelper, { once: true });
     } else {
-        window.addEventListener('load', startHelper);
+        startHelper();
     }
 })();
