@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.8.8
+// @version      1.8.9
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8360,9 +8360,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     const flmVisualResultHistory = new Map();
     let flmVisualOverlayTrackerFrame = 0;
     let flmVisualOverlayTrackerState = null;
+    let flmVisualOverlayRefreshFrame = 0;
     const FLM_VISUAL_CACHE_DB = 'flm_visual_reference_cache';
     const FLM_VISUAL_CACHE_STORE = 'reference_vectors';
-    const FLM_VISUAL_CACHE_KEY = 'mobilenet-v3-small-f32-packages-v2-detail-vote';
+    const FLM_VISUAL_CACHE_KEY = 'mobilenet-v3-small-f32-packages-v3-visual-signature';
+    const FLM_VISUAL_PREVIOUS_CACHE_KEYS = Object.freeze(['mobilenet-v3-small-f32-packages-v2-detail-vote']);
     const flmVisualResourceObjectUrls = new Map();
 
     GM_addStyle(`
@@ -9779,6 +9781,141 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return canvas;
     }
 
+    function flmVisualDescribeCanvas(canvas) {
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const { width, height } = canvas;
+        const pixels = ctx.getImageData(0, 0, width, height).data;
+        const hueBins = new Array(18).fill(0);
+        const ratios = { red: 0, orange: 0, yellow: 0, green: 0, blue: 0, purple: 0, dark: 0, pale: 0 };
+        const step = Math.max(1, Math.floor(Math.max(width, height) / 112));
+        let colored = 0;
+        let sampled = 0;
+        let saturationTotal = 0;
+        let edgeTotal = 0;
+        let edgeCount = 0;
+        const luminanceAt = (x, y) => {
+            const index = (y * width + x) * 4;
+            return pixels[index] * 0.299 + pixels[index + 1] * 0.587 + pixels[index + 2] * 0.114;
+        };
+        for (let y = 0; y < height; y += step) {
+            for (let x = 0; x < width; x += step) {
+                const index = (y * width + x) * 4;
+                const r = pixels[index] / 255;
+                const g = pixels[index + 1] / 255;
+                const b = pixels[index + 2] / 255;
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const delta = max - min;
+                const saturation = max <= 1e-6 ? 0 : delta / max;
+                sampled++;
+                saturationTotal += saturation;
+                if (max < 0.24) ratios.dark++;
+                if (max > 0.82 && saturation < 0.2) ratios.pale++;
+                // 参考包装是白底图。忽略近白背景，避免背景面积压过真正的标签配色。
+                if (!(max > 0.93 && saturation < 0.14) && saturation >= 0.12 && max >= 0.12) {
+                    let hue = 0;
+                    if (delta > 1e-6) {
+                        if (max === r) hue = 60 * (((g - b) / delta) % 6);
+                        else if (max === g) hue = 60 * ((b - r) / delta + 2);
+                        else hue = 60 * ((r - g) / delta + 4);
+                        if (hue < 0) hue += 360;
+                    }
+                    hueBins[Math.min(hueBins.length - 1, Math.floor(hue / 20))]++;
+                    colored++;
+                    if (hue < 18 || hue >= 345) ratios.red++;
+                    else if (hue < 42) ratios.orange++;
+                    else if (hue < 78) ratios.yellow++;
+                    else if (hue < 170) ratios.green++;
+                    else if (hue < 255) ratios.blue++;
+                    else if (hue < 345) ratios.purple++;
+                }
+                if (x + step < width) {
+                    edgeTotal += Math.min(1, Math.abs(luminanceAt(x, y) - luminanceAt(x + step, y)) / 72);
+                    edgeCount++;
+                }
+                if (y + step < height) {
+                    edgeTotal += Math.min(1, Math.abs(luminanceAt(x, y) - luminanceAt(x, y + step)) / 72);
+                    edgeCount++;
+                }
+            }
+        }
+        const colorBase = Math.max(1, colored);
+        Object.keys(ratios).forEach((key) => {
+            const base = key === 'dark' || key === 'pale' ? Math.max(1, sampled) : colorBase;
+            ratios[key] /= base;
+        });
+        return {
+            hue: hueBins.map((value) => value / colorBase),
+            ratios,
+            colorCoverage: colored / Math.max(1, sampled),
+            saturation: saturationTotal / Math.max(1, sampled),
+            edgeDensity: edgeTotal / Math.max(1, edgeCount)
+        };
+    }
+
+    function flmVisualDescriptorSimilarity(a, b) {
+        if (!a?.hue || !b?.hue) return 0;
+        let histogramIntersection = 0;
+        for (let i = 0; i < Math.min(a.hue.length, b.hue.length); i++) {
+            histogramIntersection += Math.min(a.hue[i] || 0, b.hue[i] || 0);
+        }
+        const scalarKeys = ['colorCoverage', 'saturation', 'edgeDensity'];
+        const ratioKeys = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'dark', 'pale'];
+        let scalarSimilarity = 0;
+        scalarKeys.forEach((key) => { scalarSimilarity += 1 - Math.min(1, Math.abs((a[key] || 0) - (b[key] || 0)) * 2.2); });
+        ratioKeys.forEach((key) => { scalarSimilarity += 1 - Math.min(1, Math.abs((a.ratios?.[key] || 0) - (b.ratios?.[key] || 0)) * 2.4); });
+        scalarSimilarity /= scalarKeys.length + ratioKeys.length;
+        return histogramIntersection * 0.62 + scalarSimilarity * 0.38;
+    }
+
+    const FLM_VISUAL_UNIQUE_FEATURE_LABELS = Object.freeze({
+        corn: '中央三角标识与玉米色块组合',
+        blend: '高文字密度与复合配色',
+        soybean: '黄色豆形主视觉与绿黄配色',
+        peanut: '花生图案与暖色标签',
+        flax: '通体紫色包装',
+        sunflower: '大幅葵花主视觉',
+        rapeseed: '菜籽油系列包装（含家乡味）',
+        olive: '橄榄绿与橄榄果图案'
+    });
+
+    function flmVisualApplyUniqueFeatureEvidence(categoryRanking, descriptor) {
+        if (!Array.isArray(categoryRanking) || categoryRanking.length === 0) return null;
+        let evidence = null;
+        const combinedFirst = categoryRanking[0];
+        const addEvidence = (category, boost, label, direct = false) => {
+            const target = categoryRanking.find((item) => item.category === category);
+            if (!target) return;
+            target.score += boost;
+            if (!evidence || boost > evidence.boost) evidence = { category, boost, label, direct };
+        };
+        const purple = descriptor?.ratios?.purple || 0;
+        const nextWarm = Math.max(descriptor?.ratios?.yellow || 0, descriptor?.ratios?.green || 0, descriptor?.ratios?.red || 0);
+        if (purple >= 0.22 && purple >= nextWarm + 0.08) {
+            const flaxItem = categoryRanking.find((item) => item.category === 'flax');
+            const agrees = combinedFirst?.category === 'flax' ||
+                (flaxItem && combinedFirst && combinedFirst.score - flaxItem.score <= 0.04);
+            addEvidence('flax', agrees ? 0.2 : 0.07, FLM_VISUAL_UNIQUE_FEATURE_LABELS.flax, agrees);
+        }
+        const descriptorRanking = categoryRanking.slice().sort((a, b) => (b.descriptorScore || 0) - (a.descriptorScore || 0));
+        const descriptorFirst = descriptorRanking[0];
+        const descriptorSecond = descriptorRanking[1];
+        const descriptorMargin = (descriptorFirst?.descriptorScore || 0) - (descriptorSecond?.descriptorScore || 0);
+        if (descriptorFirst && descriptorFirst.descriptorScore >= 0.72 && descriptorMargin >= 0.045 && descriptorFirst.support >= 3) {
+            // “直接确认”必须同时得到深度外观相似度和手工视觉描述两条独立证据支持。
+            const strong = descriptorFirst.category === combinedFirst?.category &&
+                descriptorFirst.descriptorScore >= 0.79 && descriptorMargin >= 0.08;
+            addEvidence(
+                descriptorFirst.category,
+                strong ? 0.13 : 0.07,
+                FLM_VISUAL_UNIQUE_FEATURE_LABELS[descriptorFirst.category] || '独特包装配色与图案',
+                strong
+            );
+        }
+        categoryRanking.sort((a, b) => b.score - a.score);
+        return evidence;
+    }
+
     function flmVisualCropCanvasForOcr(image, crop, maxDimension = 900) {
         // OCR 只读取框内中央瓶身，略去边缘，避免把左右相邻商品的“葵花/玉米”等文字带进来。
         const insetX = crop.width * 0.045;
@@ -9919,12 +10056,16 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         let db = null;
         try {
             db = await flmVisualOpenReferenceCacheDb();
-            const cached = await new Promise((resolve, reject) => {
-                const transaction = db.transaction(FLM_VISUAL_CACHE_STORE, 'readonly');
-                const request = transaction.objectStore(FLM_VISUAL_CACHE_STORE).get(FLM_VISUAL_CACHE_KEY);
-                request.onsuccess = () => resolve(request.result || null);
-                request.onerror = () => reject(request.error || new Error('读取包装特征缓存失败'));
-            });
+            let cached = null;
+            for (const cacheKey of [FLM_VISUAL_CACHE_KEY, ...FLM_VISUAL_PREVIOUS_CACHE_KEYS]) {
+                cached = await new Promise((resolve, reject) => {
+                    const transaction = db.transaction(FLM_VISUAL_CACHE_STORE, 'readonly');
+                    const request = transaction.objectStore(FLM_VISUAL_CACHE_STORE).get(cacheKey);
+                    request.onsuccess = () => resolve(request.result || null);
+                    request.onerror = () => reject(request.error || new Error('读取包装特征缓存失败'));
+                });
+                if (cached) break;
+            }
             if (!cached || cached.libraryLength !== sourceLibrary.length ||
                 cached.librarySignature !== flmVisualReferenceLibrarySignature(sourceLibrary) ||
                 !Array.isArray(cached.items) || cached.items.length !== sourceLibrary.length) {
@@ -9938,8 +10079,10 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 const fullVector = saved.fullVector instanceof Float32Array ? saved.fullVector : Float32Array.from(saved.fullVector || []);
                 const labelVector = saved.labelVector instanceof Float32Array ? saved.labelVector : Float32Array.from(saved.labelVector || []);
                 const detailVector = saved.detailVector instanceof Float32Array ? saved.detailVector : Float32Array.from(saved.detailVector || []);
+                const visualDescriptor = saved.visualDescriptor || null;
                 if (fullVector.length === 0 || labelVector.length === 0 || detailVector.length === 0) return null;
-                references.push({ ...source, fullVector, labelVector, detailVector });
+                if (cached.key === FLM_VISUAL_CACHE_KEY && !visualDescriptor?.hue) return null;
+                references.push({ ...source, fullVector, labelVector, detailVector, visualDescriptor });
             }
             return references;
         } catch (error) {
@@ -9964,7 +10107,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     name: item.name,
                     fullVector: Float32Array.from(item.fullVector || []),
                     labelVector: Float32Array.from(item.labelVector || []),
-                    detailVector: Float32Array.from(item.detailVector || [])
+                    detailVector: Float32Array.from(item.detailVector || []),
+                    visualDescriptor: item.visualDescriptor || null
                 }))
             };
             await new Promise((resolve, reject) => {
@@ -9989,7 +10133,30 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const sourceLibrary = Array.isArray(FLM_VISUAL_REFERENCE_LIBRARY) ? FLM_VISUAL_REFERENCE_LIBRARY : [];
             if (sourceLibrary.length < 20) throw new Error('内置包装参考库不完整');
             const cachedReferences = await flmVisualReadReferenceCache(sourceLibrary);
-            if (cachedReferences) return cachedReferences;
+            if (cachedReferences) {
+                if (cachedReferences.every((item) => item.visualDescriptor?.hue)) return cachedReferences;
+                // 1.8.8 的向量仍然有效；只补算轻量颜色/布局描述，避免重新执行 176×3 次模型嵌入。
+                for (let i = 0; i < cachedReferences.length; i++) {
+                    const item = cachedReferences[i];
+                    if (item.visualDescriptor?.hue) continue;
+                    const image = await flmLocalOilLoadImage(item.image);
+                    const width = image.naturalWidth || image.width;
+                    const height = image.naturalHeight || image.height;
+                    const labelCanvas = flmVisualWhiteCanvas(image, {
+                        x: width * 0.08,
+                        y: height * 0.24,
+                        width: width * 0.84,
+                        height: height * 0.5
+                    }, false);
+                    item.visualDescriptor = flmVisualDescribeCanvas(labelCanvas);
+                    if ((i + 1) % 12 === 0) {
+                        if (onProgress) onProgress(`正在升级包装视觉特征 ${i + 1}/${cachedReferences.length}…`);
+                        await flmLocalOilYieldToBrowser();
+                    }
+                }
+                await flmVisualWriteReferenceCache(cachedReferences);
+                return cachedReferences;
+            }
 
             const embedder = await flmVisualGetEmbedder();
             const references = [];
@@ -10015,7 +10182,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     ...item,
                     fullVector: flmVisualVectorOf(embedder.embed(fullCanvas)),
                     labelVector: flmVisualVectorOf(embedder.embed(labelCanvas)),
-                    detailVector: flmVisualVectorOf(embedder.embed(detailCanvas))
+                    detailVector: flmVisualVectorOf(embedder.embed(detailCanvas)),
+                    visualDescriptor: flmVisualDescribeCanvas(labelCanvas)
                 });
                 if ((i + 1) % 4 === 0) {
                     // 建库时经常让出主线程，保证大图仍可拖动、切换；降低侧栏重绘频率。
@@ -10416,14 +10584,21 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 flmVisualVectorOf(embedder.embed(detailCanvas)),
                 flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(detailCanvas, { contrast: 1.24, saturation: 1.1 })))
             ];
-            const ranked = references.map((reference) => ({
-                category: reference.category,
-                name: reference.name,
-                image: reference.image,
-                score: flmVisualCosine(fullVector, reference.fullVector) * 0.2 +
-                    flmVisualRobustSimilarity(labelVectors, reference.labelVector) * 0.47 +
-                    flmVisualRobustSimilarity(detailVectors, reference.detailVector) * 0.33
-            })).sort((a, b) => b.score - a.score);
+            const visualDescriptor = flmVisualDescribeCanvas(labelCanvas);
+            const ranked = references.map((reference) => {
+                const embeddingScore = flmVisualCosine(fullVector, reference.fullVector) * 0.18 +
+                    flmVisualRobustSimilarity(labelVectors, reference.labelVector) * 0.42 +
+                    flmVisualRobustSimilarity(detailVectors, reference.detailVector) * 0.28;
+                const descriptorScore = flmVisualDescriptorSimilarity(visualDescriptor, reference.visualDescriptor);
+                return {
+                    category: reference.category,
+                    name: reference.name,
+                    image: reference.image,
+                    embeddingScore,
+                    descriptorScore,
+                    score: embeddingScore + descriptorScore * 0.12
+                };
+            }).sort((a, b) => b.score - a.score);
             if (ranked.length === 0) throw new Error('没有得到包装候选');
 
             const categoryGroups = new Map();
@@ -10435,9 +10610,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const categoryRanking = Array.from(categoryGroups.entries()).map(([category, items]) => {
                 const topItems = items.slice(0, 3);
                 let score = 0;
+                let descriptorScore = 0;
                 let weightTotal = 0;
                 topItems.forEach((item, index) => {
                     score += item.score * voteWeights[index];
+                    descriptorScore += item.descriptorScore * voteWeights[index];
                     weightTotal += voteWeights[index];
                 });
                 const best = topItems[0];
@@ -10445,10 +10622,12 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     ...best,
                     category,
                     score: score / Math.max(1e-8, weightTotal),
+                    descriptorScore: descriptorScore / Math.max(1e-8, weightTotal),
                     bestScore: best.score,
                     support: topItems.length
                 };
             }).sort((a, b) => b.score - a.score);
+            const uniqueEvidence = flmVisualApplyUniqueFeatureEvidence(categoryRanking, visualDescriptor);
             let first = categoryRanking[0];
             let second = categoryRanking[1];
             let margin = first.score - (second?.score || 0);
@@ -10472,8 +10651,10 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     console.warn('[福临门包装检索] 单瓶文字辅助识别失败，继续使用外观结果：', ocrError);
                 }
             }
+            const uniqueConfirmed = uniqueEvidence?.category === first.category && uniqueEvidence.direct;
             const confidence = first.category !== 'blend' &&
-                ((ocrEvidence?.category === first.category && ocrEvidence.exact) || (first.score >= 0.48 && margin >= 0.03)) ? 'likely' : 'candidate';
+                ((ocrEvidence?.category === first.category && ocrEvidence.exact) || uniqueConfirmed ||
+                    (first.score >= 0.48 && margin >= 0.03)) ? 'likely' : 'candidate';
             const cards = categoryRanking.slice(0, 3);
             const result = {
                 qNum,
@@ -10494,6 +10675,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     confidence: ocrEvidence.confidence,
                     text: ocrEvidence.evidenceText || ''
                 } : null,
+                uniqueEvidence: uniqueEvidence?.category === first.category ? uniqueEvidence : null,
                 confidence,
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10
             };
@@ -10502,6 +10684,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[result.topCategory] || result.topCategory;
             if (ui.status?.isConnected) {
                 ui.status.textContent = result.ocrEvidence?.exact && result.ocrEvidence.category === result.topCategory ? `文字确认：${topLabel}` :
+                    result.uniqueEvidence?.direct ? `独特特征确认：${topLabel}` :
                     result.topCategory === 'blend' ? '候选：调和油' :
                     result.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
             }
@@ -10563,9 +10746,12 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const summaryText = document.createElement('div');
         summaryText.className = 'sj-visual-summary-text';
         const conclusion = isBlend ? '最像调和油（本题可忽略）' :
+            result.ocrEvidence?.exact && result.ocrEvidence.category === result.topCategory ? `文字确认：${topLabel}` :
+            result.uniqueEvidence?.direct ? `独特特征确认：${topLabel}` :
             result.confidence === 'likely' ? `较可能：${topLabel}` : `包装候选：${topLabel}`;
+        const evidenceNote = result.uniqueEvidence?.label ? ` 视觉依据：${result.uniqueEvidence.label}。` : '';
         summaryText.innerHTML = `<div class="sj-visual-summary-title">${conclusion}</div>` +
-            `<div class="sj-visual-summary-note">相似分 ${Math.round(result.topScore * 100)}，品类分差 ${Math.round(result.margin * 1000) / 10}；不是准确率，请对照下方标准包装后手工勾选。${result.elapsedSeconds ? ` 用时 ${result.elapsedSeconds}s。` : ''}</div>`;
+            `<div class="sj-visual-summary-note">相似分 ${Math.round(result.topScore * 100)}，品类分差 ${Math.round(result.margin * 1000) / 10}；不是准确率。${evidenceNote} 请对照下方标准包装后手工勾选。${result.elapsedSeconds ? ` 用时 ${result.elapsedSeconds}s。` : ''}</div>`;
         summary.append(queryImage, summaryText);
         panel.appendChild(summary);
 
@@ -10610,15 +10796,55 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         document.getElementById('sj-local-oil-image-overlay')?.remove();
     }
 
+    function flmVisualScheduleOverlayRefresh() {
+        if (flmVisualOverlayRefreshFrame) return;
+        flmVisualOverlayRefreshFrame = requestAnimationFrame(() => {
+            flmVisualOverlayRefreshFrame = 0;
+            const dialog = findTargetZoomDialog();
+            const qNum = getActiveDialogQuestionNumber(dialog);
+            if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) {
+                flmLocalOilRemoveImageOverlay();
+                return;
+            }
+            flmVisualEnsureAlwaysOnPick(qNum, dialog);
+            flmLocalOilRenderImageOverlay(dialog, qNum);
+        });
+    }
+
     function flmVisualStartOverlayTracker(dialog, image, overlay) {
         if (!dialog || !image || !overlay) return;
         if (flmVisualOverlayTrackerFrame) cancelAnimationFrame(flmVisualOverlayTrackerFrame);
-        const state = { dialog, image, overlay, last: '' };
+        const state = {
+            dialog,
+            image,
+            overlay,
+            last: '',
+            sourceSignature: flmLocalOilGetImageUrls(image).join('|')
+        };
         flmVisualOverlayTrackerState = state;
         const update = () => {
             if (flmVisualOverlayTrackerState !== state || !dialog.isConnected || !image.isConnected || !overlay.isConnected) {
                 if (flmVisualOverlayTrackerState === state) flmVisualOverlayTrackerState = null;
                 flmVisualOverlayTrackerFrame = 0;
+                if (dialog.isConnected) flmVisualScheduleOverlayRefresh();
+                return;
+            }
+            const sourceSignature = flmLocalOilGetImageUrls(image).join('|');
+            if (sourceSignature !== state.sourceSignature) {
+                state.sourceSignature = sourceSignature;
+                // src/currentSrc 一变化就撤下旧框并在下一帧按新图片历史重建，不再等待 2 秒轮询。
+                overlay.remove();
+                flmVisualOverlayTrackerFrame = 0;
+                flmVisualOverlayTrackerState = null;
+                flmVisualScheduleOverlayRefresh();
+                return;
+            }
+            if (!flmVisualGetVisibleRect(image, dialog)) {
+                // 部分轮播不换 src，而是把旧 img 隐藏、显示另一个 img。
+                overlay.remove();
+                flmVisualOverlayTrackerFrame = 0;
+                flmVisualOverlayTrackerState = null;
+                flmVisualScheduleOverlayRefresh();
                 return;
             }
             const rect = flmLocalOilGetRenderedImageRect(image);
@@ -10776,6 +11002,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 label.className = 'sj-local-oil-box-label';
                 const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[visualResult.topCategory] || visualResult.topCategory;
                 label.textContent = visualResult.ocrEvidence?.exact && visualResult.ocrEvidence.category === visualResult.topCategory ? `文字确认：${topLabel}` :
+                    visualResult.uniqueEvidence?.direct ? `特征确认：${topLabel}` :
                     visualResult.topCategory === 'blend' ? '候选：调和油' :
                     visualResult.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
                 box.appendChild(label);
@@ -11010,7 +11237,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.8)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.9)</span>`;
         ws.appendChild(title);
         requestAnimationFrame(() => {
             flmLocalOilRenderImageOverlay(activeDialog, qNum);
@@ -11251,6 +11478,14 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             setTimeout(auditHelperUpdateWorkspace, 300);
         }, true);
 
+        // 图片切换完成时浏览器会冒泡捕获 load；直接恢复该图片已有的框，不经过 2 秒 init 轮询。
+        document.addEventListener('load', (event) => {
+            const image = event.target;
+            if (!(image instanceof HTMLImageElement) || image.closest('#sj-zoom-workspace, .sj-visual-candidate-popover')) return;
+            const dialog = findTargetZoomDialog();
+            if (dialog?.contains(image)) flmVisualScheduleOverlayRefresh();
+        }, true);
+
         // Q7/Q10 主图上的右键固定用于圈画；独立于一次圈画的生命周期，避免 mouseup 后浏览器菜单漏出。
         document.addEventListener('contextmenu', (event) => {
             const dialog = findTargetZoomDialog();
@@ -11267,7 +11502,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         }, true);
 
         // 监听DOM变化，使图片编辑快捷按钮秒开秒关以及复制Q5照片证据到Q6
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver((mutations) => {
             if (typeof photoEditEnsureShortcutButton === 'function') {
                 photoEditEnsureShortcutButton();
             }
@@ -11277,12 +11512,30 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             if (typeof ensureQ6QuickFailButton === 'function') {
                 ensureQ6QuickFailButton();
             }
+            const dialog = findTargetZoomDialog();
+            if (dialog && mutations.some((mutation) => {
+                const target = mutation.target instanceof Element ? mutation.target : mutation.target?.parentElement;
+                if (!target || target.closest?.('#sj-zoom-workspace, .sj-visual-candidate-popover, #sj-local-oil-image-overlay')) return false;
+                if (mutation.type === 'attributes') {
+                    return target instanceof HTMLImageElement && dialog.contains(target) &&
+                        ['src', 'srcset', 'data-src', 'data-original'].includes(mutation.attributeName);
+                }
+                const changedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
+                return changedNodes.some((node) => {
+                    const element = node instanceof Element ? node : node.parentElement;
+                    if (!element || element.closest?.('#sj-zoom-workspace, .sj-visual-candidate-popover, #sj-local-oil-image-overlay')) return false;
+                    if (element instanceof HTMLImageElement) return dialog.contains(element) || dialog.contains(mutation.target);
+                    return Boolean(element.querySelector?.('img')) && (dialog.contains(element) || dialog.contains(mutation.target));
+                });
+            })) {
+                flmVisualScheduleOverlayRefresh();
+            }
         });
         observer.observe(document.body, {
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ['style', 'class']
+            attributeFilter: ['style', 'class', 'src', 'srcset', 'data-src', 'data-original']
         });
     };
 
