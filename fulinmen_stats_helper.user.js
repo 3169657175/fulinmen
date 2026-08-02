@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.1
+// @version      1.9.2
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -9357,15 +9357,18 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return intersection / Math.max(1, a.width * a.height + b.width * b.height - intersection);
     }
 
-    function flmVisualYellowRatio(canvas, box) {
-        if (!canvas || !box) return 0;
-        const x = Math.max(0, Math.floor(box.x - box.width * 0.18));
-        const y = Math.max(0, Math.floor(box.y - box.height * 0.45));
-        const width = Math.max(1, Math.min(canvas.width - x, Math.ceil(box.width * 1.36)));
-        const height = Math.max(1, Math.min(canvas.height - y, Math.ceil(box.height * 1.9)));
+    function flmVisualRegionColorStats(canvas, box) {
+        if (!canvas || !box) return { yellowRatio: 0, colorfulRatio: 0, brightNeutralRatio: 0 };
+        // 不只取文字笔画本身，而是向四周扩展到标签底色；彩色瓶贴和白/灰货架价签由此能明显分开。
+        const x = Math.max(0, Math.floor(box.x - box.width * 0.45));
+        const y = Math.max(0, Math.floor(box.y - box.height * 1.35));
+        const width = Math.max(1, Math.min(canvas.width - x, Math.ceil(box.width * 1.9)));
+        const height = Math.max(1, Math.min(canvas.height - y, Math.ceil(box.height * 3.7)));
         try {
             const data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(x, y, width, height).data;
             let yellow = 0;
+            let colorful = 0;
+            let brightNeutral = 0;
             let sampled = 0;
             const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 900)));
             for (let py = 0; py < height; py += step) {
@@ -9374,13 +9377,21 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     const r = data[offset];
                     const g = data[offset + 1];
                     const b = data[offset + 2];
+                    const max = Math.max(r, g, b);
+                    const min = Math.min(r, g, b);
                     if (r >= 175 && g >= 125 && b <= 95 && r + g >= b * 3.5) yellow++;
+                    if (max >= 95 && max - min >= 48) colorful++;
+                    if (min >= 170 && max - min <= 24) brightNeutral++;
                     sampled++;
                 }
             }
-            return yellow / Math.max(1, sampled);
+            return {
+                yellowRatio: yellow / Math.max(1, sampled),
+                colorfulRatio: colorful / Math.max(1, sampled),
+                brightNeutralRatio: brightNeutral / Math.max(1, sampled)
+            };
         } catch (error) {
-            return 0;
+            return { yellowRatio: 0, colorfulRatio: 0, brightNeutralRatio: 0 };
         }
     }
 
@@ -9393,14 +9404,20 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         if (widthRatio < 0.012 || widthRatio > 0.28 || heightRatio < 0.007 || heightRatio > 0.09) return null;
         const compactText = String(entry.text || '').replace(/\s+/g, '');
         const priceLikeText = /(?:元|价|特价|零售|\d+[.,，。]?\d*)/.test(compactText);
+        const numericDominant = /\d/.test(compactText) && compactText.replace(/[\d.,，。元￥¥折斤升Ll毫mlML]/g, '').length <= 1;
+        if (numericDominant) return null;
         const wideText = box.width / Math.max(1, box.height) >= 1.45;
-        // 只有疑似价格文字或宽横条才读取像素，避免对整图几十个普通文字框反复 getImageData。
-        const yellowRatio = (priceLikeText || wideText) ? flmVisualYellowRatio(canvas, box) : 0;
-        if (yellowRatio >= 0.3 && (priceLikeText || wideText)) return null;
+        const colorStats = flmVisualRegionColorStats(canvas, box);
+        const yellowRatio = colorStats.yellowRatio;
+        if ((priceLikeText || wideText) && (yellowRatio >= 0.22 || colorStats.brightNeutralRatio >= 0.46)) return null;
+        // 墙纸、白色货架条和灰色价签即使 OCR 置信度很高，也不能优先于彩色瓶贴。
+        if (colorStats.colorfulRatio < 0.045 && colorStats.brightNeutralRatio >= 0.52) return null;
         return {
-            score: 0.2 + entry.confidence * 0.18 + Math.min(0.08, compactText.length * 0.012),
+            score: 0.18 + entry.confidence * 0.16 + Math.min(0.07, compactText.length * 0.011) + Math.min(0.2, colorStats.colorfulRatio * 0.38),
             text: entry.text,
-            yellowRatio
+            yellowRatio,
+            colorfulRatio: colorStats.colorfulRatio,
+            brightNeutralRatio: colorStats.brightNeutralRatio
         };
     }
 
@@ -9445,12 +9462,18 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             }
             if ((seed.brandEvidence?.score || 0) > (existing.brandEvidence?.score || 0)) existing.brandEvidence = seed.brandEvidence;
             if ((seed.oilEvidence?.confidence || 0) > (existing.oilEvidence?.confidence || 0)) existing.oilEvidence = seed.oilEvidence;
+            if ((seed.labelEvidence?.score || 0) > (existing.labelEvidence?.score || 0)) existing.labelEvidence = seed.labelEvidence;
             existing.textSupport = (existing.textSupport || 1) + 1;
             existing.score = Math.max(existing.score, seed.score) + 0.08;
         });
         return merged
             .filter((item) => item.brandEvidence || (item.oilEvidence?.exact && item.score >= 0.68) || item.textSupport >= 2 || item.labelEvidence?.score >= 0.34)
-            .sort((a, b) => b.score - a.score)
+            .sort((a, b) => {
+                const priority = (item) => (item.brandEvidence?.score || 0) * 2 +
+                    (item.oilEvidence?.exact ? 0.8 : 0) + Math.min(0.45, (item.labelEvidence?.colorfulRatio || 0) * 0.9) +
+                    Math.min(0.24, Math.max(0, (item.textSupport || 1) - 1) * 0.08) + item.score;
+                return priority(b) - priority(a);
+            })
             .slice(0, 7)
             .map((item) => ({
                 ...item,
@@ -9502,6 +9525,13 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 if (candidates.filter((item) => item.brandEvidence).length >= 2 && candidates.length >= 4) break;
             }
         }
+        console.info('[福临门全自动识别] 候选发现完成', {
+            ocrEntries: entries.length,
+            candidates: candidates.length,
+            brandCandidates: candidates.filter((item) => item.brandEvidence).length,
+            oilTextCandidates: candidates.filter((item) => item.oilEvidence?.exact).length,
+            colorfulCandidates: candidates.filter((item) => (item.labelEvidence?.colorfulRatio || 0) >= 0.12).length
+        });
         return { candidates, image, width, height, canvasWidth: canvas.width, canvasHeight: canvas.height };
     }
 
@@ -11026,6 +11056,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 confidence,
                 fastMode: Boolean(ui.fastMode),
                 labelClusterSupport: Number(ui.labelClusterSupport) || 0,
+                labelColorfulRatio: Number(ui.labelColorfulRatio) || 0,
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10
             };
             if (!ui.deferRemember) flmVisualRememberResult(result);
@@ -11118,17 +11149,28 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     brandEvidence: candidate.brandEvidence || null,
                     ocrEvidence: candidate.oilEvidence || null,
                     labelClusterSupport: candidate.textSupport || 0,
+                    labelColorfulRatio: candidate.labelEvidence?.colorfulRatio || 0,
                     context: { image, references, embedder }
                 });
                 if (result) {
                     const hasBrand = (candidate.brandEvidence?.score || 0) >= 0.48;
                     const oilAligned = candidate.oilEvidence?.exact && candidate.oilEvidence.category === result.topCategory;
                     const uniqueAligned = result.uniqueEvidence?.direct || result.cornPyramidEvidence?.direct;
-                    const strongVisual = (candidate.textSupport || 0) >= 2 && result.confidence === 'likely' &&
-                        result.topScore >= 0.5 && result.margin >= 0.025;
+                    const colorfulLabel = (candidate.labelEvidence?.colorfulRatio || 0) >= 0.12;
+                    const strongVisual = result.confidence === 'likely' && result.topScore >= 0.47 && result.margin >= 0.02 &&
+                        ((candidate.textSupport || 0) >= 2 || colorfulLabel);
                     if (hasBrand || oilAligned || uniqueAligned || strongVisual) {
                         flmVisualRememberResult(result);
                         results.push(result);
+                    } else {
+                        console.debug('[福临门全自动识别] 候选未保留', {
+                            text: candidate.labelEvidence?.text || candidate.brandEvidence?.text || candidate.oilEvidence?.evidenceText || '',
+                            textSupport: candidate.textSupport || 0,
+                            colorfulRatio: Math.round((candidate.labelEvidence?.colorfulRatio || 0) * 100) / 100,
+                            topCategory: result.topCategory,
+                            topScore: Math.round(result.topScore * 100),
+                            margin: Math.round(result.margin * 1000) / 10
+                        });
                     }
                 }
                 state.completed = index + 1;
@@ -11772,7 +11814,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 智能识别工作台 (v1.9.1)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 智能识别工作台 (v1.9.2)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
         flmVisualScheduleAutoScan(qNum, activeDialog);
