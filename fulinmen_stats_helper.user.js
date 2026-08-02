@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.8.4
+// @version      1.8.5
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8357,6 +8357,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     let flmVisualPickMode = null;
     let flmVisualWarmupScheduled = false;
     const flmVisualResults = new Map();
+    const flmVisualResourceObjectUrls = new Map();
 
     GM_addStyle(`
         .sj-ws-title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -9764,6 +9765,40 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return canvas;
     }
 
+    async function flmVisualGetBinaryResourceObjectUrl(resourceName, mimeType) {
+        const cached = flmVisualResourceObjectUrls.get(resourceName);
+        if (cached) return cached;
+        const resourceUrl = GM_getResourceURL(resourceName);
+        let bytes;
+        if (/^data:/i.test(resourceUrl)) {
+            const commaIndex = resourceUrl.indexOf(',');
+            if (commaIndex < 0) throw new Error(`${resourceName} 资源格式错误`);
+            const header = resourceUrl.slice(0, commaIndex);
+            const payload = resourceUrl.slice(commaIndex + 1);
+            if (/;base64/i.test(header)) {
+                const binary = atob(payload);
+                bytes = new Uint8Array(binary.length);
+                // 分段填充，避免几 MB 数据一次性展开造成页面长时间卡死。
+                for (let offset = 0; offset < binary.length; offset += 65536) {
+                    const end = Math.min(binary.length, offset + 65536);
+                    for (let i = offset; i < end; i++) bytes[i] = binary.charCodeAt(i);
+                    if (offset > 0 && offset % (65536 * 16) === 0) await flmLocalOilYieldToBrowser();
+                }
+            } else {
+                bytes = new TextEncoder().encode(decodeURIComponent(payload));
+            }
+        } else {
+            // blob: URL 很短，不会再被网站监控拼成十几 MB 的错误上报地址。
+            bytes = new Uint8Array(await fetch(resourceUrl).then((response) => {
+                if (!response.ok) throw new Error(`${resourceName} 读取失败 HTTP ${response.status}`);
+                return response.arrayBuffer();
+            }));
+        }
+        const objectUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+        flmVisualResourceObjectUrls.set(resourceName, objectUrl);
+        return objectUrl;
+    }
+
     function flmVisualGetEmbedder() {
         if (flmVisualEmbedderPromise) return flmVisualEmbedderPromise;
         flmVisualEmbedderPromise = (async () => {
@@ -9776,8 +9811,10 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const moduleFactory = new Function(`${loaderSource}\nreturn typeof ModuleFactory !== 'undefined' ? ModuleFactory : null;`)();
             if (typeof moduleFactory !== 'function') throw new Error('MediaPipe WASM 工厂初始化失败');
             self.ModuleFactory = moduleFactory;
-            const wasmBinaryPath = GM_getResourceURL('FLM_VISION_WASM');
-            const modelAssetPath = GM_getResourceURL('FLM_VISUAL_MODEL');
+            const [wasmBinaryPath, modelAssetPath] = await Promise.all([
+                flmVisualGetBinaryResourceObjectUrl('FLM_VISION_WASM', 'application/wasm'),
+                flmVisualGetBinaryResourceObjectUrl('FLM_VISUAL_MODEL', 'application/octet-stream')
+            ]);
             return Vision.ImageEmbedder.createFromOptions({ wasmLoaderPath: '', wasmBinaryPath }, {
                 baseOptions: { modelAssetPath },
                 runningMode: 'IMAGE',
@@ -9816,7 +9853,10 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     labelVector: flmVisualVectorOf(embedder.embed(labelCanvas))
                 });
                 if ((i + 1) % 4 === 0) {
-                    if (onProgress) onProgress(`首次整理标准包装 ${i + 1}/${sourceLibrary.length}…`);
+                    // 建库时经常让出主线程，保证大图仍可拖动、切换；降低侧栏重绘频率。
+                    if (onProgress && ((i + 1) % 20 === 0 || i + 1 === sourceLibrary.length)) {
+                        onProgress(`首次整理标准包装 ${i + 1}/${sourceLibrary.length}…`);
+                    }
                     await flmLocalOilYieldToBrowser();
                 }
             }
@@ -10035,10 +10075,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         window.addEventListener('auxclick', auxclick, { capture: true, passive: false });
         window.addEventListener('contextmenu', contextmenu, { capture: true, passive: false });
         window.addEventListener('keydown', keydown, true);
-        flmVisualEnsureReferences((message) => {
-            flmVisualResults.set(qNum, { qNum, source, status: 'running', message });
-            auditHelperUpdateWorkspace();
-        }).catch(() => {});
         autoReviewToast('左键仍可正常拖图。请按住鼠标右键圈住完整瓶身，松开右键后立即识别。');
     }
 
@@ -10229,13 +10265,78 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         ].map(flmLocalOilNormalizeImageUrl).filter(Boolean)));
     }
 
+    function flmVisualIntersectRect(a, b) {
+        if (!a || !b) return null;
+        const left = Math.max(a.left, b.left);
+        const top = Math.max(a.top, b.top);
+        const right = Math.min(a.left + a.width, b.left + b.width);
+        const bottom = Math.min(a.top + a.height, b.top + b.height);
+        if (right <= left || bottom <= top) return null;
+        return { left, top, width: right - left, height: bottom - top };
+    }
+
+    function flmVisualGetVisibleRect(element, stopAt = null) {
+        if (!element || !element.isConnected) return null;
+        const style = getComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null;
+
+        let visible = flmVisualIntersectRect(element.getBoundingClientRect(), {
+            left: 0,
+            top: 0,
+            width: window.innerWidth,
+            height: window.innerHeight
+        });
+        if (!visible) return null;
+
+        let parent = element.parentElement;
+        while (parent) {
+            const parentStyle = getComputedStyle(parent);
+            if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') return null;
+            const clipsX = ['hidden', 'clip', 'auto', 'scroll'].includes(parentStyle.overflowX);
+            const clipsY = ['hidden', 'clip', 'auto', 'scroll'].includes(parentStyle.overflowY);
+            if (clipsX || clipsY) {
+                const parentRect = parent.getBoundingClientRect();
+                const clipRect = {
+                    left: clipsX ? parentRect.left : -100000,
+                    top: clipsY ? parentRect.top : -100000,
+                    width: clipsX ? parentRect.width : 200000,
+                    height: clipsY ? parentRect.height : 200000
+                };
+                visible = flmVisualIntersectRect(visible, clipRect);
+                if (!visible) return null;
+            }
+            if (parent === stopAt) break;
+            parent = parent.parentElement;
+        }
+        return visible;
+    }
+
     function flmLocalOilFindMainViewerImage(dialog) {
         if (!dialog) return null;
         return Array.from(dialog.querySelectorAll('img'))
             .filter((img) => !img.closest('#sj-zoom-workspace'))
-            .map((img) => ({ img, rect: img.getBoundingClientRect() }))
-            .filter(({ img, rect }) => img.complete && img.naturalWidth > 0 && rect.width > 180 && rect.height > 180 && getComputedStyle(img).visibility !== 'hidden')
-            .sort((a, b) => b.rect.width * b.rect.height - a.rect.width * a.rect.height)[0]?.img || null;
+            .map((img) => {
+                const visible = flmVisualGetVisibleRect(img, dialog);
+                if (!visible) return null;
+                const ancestry = (() => {
+                    let text = '';
+                    let node = img;
+                    while (node && node !== dialog) {
+                        text += ` ${node.id || ''} ${typeof node.className === 'string' ? node.className : ''}`;
+                        node = node.parentElement;
+                    }
+                    return text.toLowerCase();
+                })();
+                let score = visible.width * visible.height;
+                if (/(thumb|thumbnail|preview-list|image-list|footer)/.test(ancestry)) score *= 0.06;
+                if (visible.top > window.innerHeight * 0.78) score *= 0.08;
+                const centerX = visible.left + visible.width / 2;
+                const horizontalDistance = Math.abs(centerX - window.innerWidth / 2) / Math.max(1, window.innerWidth);
+                score *= Math.max(0.6, 1 - horizontalDistance * 0.5);
+                return { img, visible, score };
+            })
+            .filter((item) => item && item.img.complete && item.img.naturalWidth > 0 && item.visible.width > 180 && item.visible.height > 180)
+            .sort((a, b) => b.score - a.score)[0]?.img || null;
     }
 
     function flmLocalOilGetRenderedImageRect(img) {
@@ -10243,11 +10344,19 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const naturalWidth = img.naturalWidth || rect.width;
         const naturalHeight = img.naturalHeight || rect.height;
         const style = getComputedStyle(img);
-        if (style.objectFit !== 'contain') return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-        const scale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
-        const width = naturalWidth * scale;
-        const height = naturalHeight * scale;
-        return { left: rect.left + (rect.width - width) / 2, top: rect.top + (rect.height - height) / 2, width, height };
+        let contentRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        if (style.objectFit === 'contain') {
+            const scale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
+            const width = naturalWidth * scale;
+            const height = naturalHeight * scale;
+            contentRect = {
+                left: rect.left + (rect.width - width) / 2,
+                top: rect.top + (rect.height - height) / 2,
+                width,
+                height
+            };
+        }
+        return flmVisualIntersectRect(contentRect, flmVisualGetVisibleRect(img)) || contentRect;
     }
 
     function flmLocalOilRenderImageOverlay(dialog, qNum) {
@@ -10416,7 +10525,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             auditHelperUpdateWorkspace();
         });
         title.appendChild(button);
-        flmVisualScheduleWarmup();
     }
 
     function auditHelperUpdateWorkspace() {
@@ -10441,9 +10549,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         }
 
         // 如果在输入框处于焦点状态，且没有切换大图和 Tab，则跳过重绘，避免失去焦点
-        if (document.activeElement && 
-            document.activeElement.classList.contains('sj-ws-fill-input') && 
-            activeWSDialogQNum === qNum && 
+        if (document.activeElement &&
+            document.activeElement.classList.contains('sj-ws-fill-input') &&
+            activeWSDialogQNum === qNum &&
             activeWSTab) {
             return;
         }
@@ -10507,7 +10615,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.4)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.5)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
         requestAnimationFrame(() => flmLocalOilRenderImageOverlay(activeDialog, qNum));
@@ -10548,7 +10656,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         if (fillInputs.length > 0 && (activeWSTab === 'Q8' || targetCard.querySelectorAll('.question--option, .question-option, .question.option, .option').length === 0)) {
             auditHelperRenderFillInputs(targetCard, listContainer, activeDialog);
             ws.appendChild(listContainer);
-            
+
             if (oldScrollTop > 0) {
                 listContainer.scrollTop = oldScrollTop;
                 requestAnimationFrame(() => {
