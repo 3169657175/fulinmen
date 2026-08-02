@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.8.9
+// @version      1.8.10
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -9868,6 +9868,114 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return histogramIntersection * 0.62 + scalarSimilarity * 0.38;
     }
 
+    function flmVisualDetectCornPyramid(image, crop) {
+        if (!image || !crop || crop.width < 20 || crop.height < 30) return 0;
+        const canvas = document.createElement('canvas');
+        canvas.width = 96;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, 96, 128);
+        const pixels = ctx.getImageData(0, 0, 96, 128).data;
+        const yellow = new Uint8Array(96 * 128);
+        const green = new Uint8Array(96 * 128);
+        const red = new Uint8Array(96 * 128);
+        const blue = new Uint8Array(96 * 128);
+        for (let i = 0, p = 0; i < pixels.length; i += 4, p++) {
+            const r = pixels[i] / 255;
+            const g = pixels[i + 1] / 255;
+            const b = pixels[i + 2] / 255;
+            red[p] = pixels[i];
+            blue[p] = pixels[i + 2];
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const delta = max - min;
+            const saturation = max <= 1e-6 ? 0 : delta / max;
+            let hue = 0;
+            if (delta > 1e-6) {
+                if (max === r) hue = 60 * (((g - b) / delta) % 6);
+                else if (max === g) hue = 60 * ((b - r) / delta + 2);
+                else hue = 60 * ((r - g) / delta + 4);
+                if (hue < 0) hue += 360;
+            }
+            yellow[p] = hue >= 25 && hue <= 82 && saturation >= 0.16 && max >= 0.38 && r > b * 1.15 && g > b * 1.08 ? 1 : 0;
+            green[p] = hue >= 72 && hue <= 175 && saturation >= 0.18 && max >= 0.25 && g >= r * 0.72 && g > b * 1.08 ? 1 : 0;
+        }
+        const indexOf = (x, y) => Math.max(0, Math.min(127, Math.round(y))) * 96 + Math.max(0, Math.min(95, Math.round(x)));
+        let best = 0;
+        // 搜索“上窄下宽”的中央黄色区域，并要求三角形外侧/上方仍以绿色为主。
+        for (const apexY of [55, 60, 65, 70, 75, 80]) {
+            for (const baseY of [100, 108, 116, 124]) {
+                if (baseY - apexY < 30) continue;
+                for (const halfWidth of [18, 22, 26, 30, 34, 38]) {
+                    let insideYellow = 0;
+                    let insideGreen = 0;
+                    let outsideYellow = 0;
+                    let outsideGreen = 0;
+                    let insideCount = 0;
+                    let outsideCount = 0;
+                    let edgeContrast = 0;
+                    for (let y = apexY + 3; y < baseY; y += 3) {
+                        const half = Math.max(2, halfWidth * (y - apexY) / (baseY - apexY));
+                        for (const ratio of [-0.7, -0.35, 0, 0.35, 0.7]) {
+                            const index = indexOf(48 + half * ratio, y);
+                            insideYellow += yellow[index];
+                            insideGreen += green[index];
+                            insideCount++;
+                        }
+                        for (const side of [-1, 1]) {
+                            const outsideIndex = indexOf(48 + side * (half + 4), y);
+                            outsideYellow += yellow[outsideIndex];
+                            outsideGreen += green[outsideIndex];
+                            outsideCount++;
+                            const innerIndex = indexOf(48 + side * (half - 2), y);
+                            const outerIndex = indexOf(48 + side * (half + 3), y);
+                            edgeContrast += (Math.abs(red[innerIndex] - red[outerIndex]) +
+                                Math.abs(blue[innerIndex] - blue[outerIndex])) / 510;
+                        }
+                    }
+                    let upperGreen = 0;
+                    let upperCount = 0;
+                    for (let x = 32; x <= 64; x += 5) {
+                        upperGreen += green[indexOf(x, apexY - 7)];
+                        upperCount++;
+                    }
+                    const score = insideYellow / Math.max(1, insideCount) * 0.43 +
+                        outsideGreen / Math.max(1, outsideCount) * 0.24 +
+                        upperGreen / Math.max(1, upperCount) * 0.15 +
+                        edgeContrast / Math.max(1, outsideCount) * 0.3 -
+                        insideGreen / Math.max(1, insideCount) * 0.12 -
+                        outsideYellow / Math.max(1, outsideCount) * 0.12;
+                    best = Math.max(best, score);
+                }
+            }
+        }
+        return Math.max(0, Math.min(1, best));
+    }
+
+    function flmVisualApplyCornPyramidEvidence(categoryRanking, pyramidScore) {
+        if (!Array.isArray(categoryRanking) || pyramidScore < 0.36) return null;
+        const corn = categoryRanking.find((item) => item.category === 'corn');
+        const rapeseed = categoryRanking.find((item) => item.category === 'rapeseed');
+        if (!corn || !rapeseed) return null;
+        const originalTop = categoryRanking[0];
+        const cornRank = categoryRanking.indexOf(corn);
+        const rapeseedRank = categoryRanking.indexOf(rapeseed);
+        const relevantPair = cornRank <= 2 && rapeseedRank <= 2;
+        const cornStillPlausible = originalTop.score - corn.score <= 0.075;
+        if (!relevantPair || !cornStillPlausible) return null;
+        const boost = Math.min(0.14, 0.06 + Math.max(0, pyramidScore - 0.36) * 0.4);
+        corn.score += boost;
+        rapeseed.score -= Math.min(0.025, boost * 0.16);
+        categoryRanking.sort((a, b) => b.score - a.score);
+        return {
+            category: 'corn',
+            boost,
+            score: pyramidScore,
+            label: '瓶身下半部中央黄色金字塔标识',
+            direct: pyramidScore >= 0.46 && categoryRanking[0]?.category === 'corn'
+        };
+    }
+
     const FLM_VISUAL_UNIQUE_FEATURE_LABELS = Object.freeze({
         corn: '中央三角标识与玉米色块组合',
         blend: '高文字密度与复合配色',
@@ -10627,7 +10735,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     support: topItems.length
                 };
             }).sort((a, b) => b.score - a.score);
-            const uniqueEvidence = flmVisualApplyUniqueFeatureEvidence(categoryRanking, visualDescriptor);
+            const cornPyramidScore = flmVisualDetectCornPyramid(image, crop);
+            const cornPyramidEvidence = flmVisualApplyCornPyramidEvidence(categoryRanking, cornPyramidScore);
+            const genericUniqueEvidence = flmVisualApplyUniqueFeatureEvidence(categoryRanking, visualDescriptor);
+            const uniqueEvidence = cornPyramidEvidence?.direct ? cornPyramidEvidence :
+                (genericUniqueEvidence || cornPyramidEvidence);
             let first = categoryRanking[0];
             let second = categoryRanking[1];
             let margin = first.score - (second?.score || 0);
@@ -10652,7 +10764,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 }
             }
             const uniqueConfirmed = uniqueEvidence?.category === first.category && uniqueEvidence.direct;
-            const confidence = first.category !== 'blend' &&
+            const cornRapeseedPair = new Set([first?.category, second?.category]);
+            const cornRapeseedAmbiguous = cornRapeseedPair.has('corn') && cornRapeseedPair.has('rapeseed') &&
+                !(ocrEvidence?.category === first.category && ocrEvidence.exact) &&
+                !(cornPyramidEvidence?.direct && first.category === 'corn') && margin < 0.06;
+            const confidence = first.category !== 'blend' && !cornRapeseedAmbiguous &&
                 ((ocrEvidence?.category === first.category && ocrEvidence.exact) || uniqueConfirmed ||
                     (first.score >= 0.48 && margin >= 0.03)) ? 'likely' : 'candidate';
             const cards = categoryRanking.slice(0, 3);
@@ -10676,6 +10792,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     text: ocrEvidence.evidenceText || ''
                 } : null,
                 uniqueEvidence: uniqueEvidence?.category === first.category ? uniqueEvidence : null,
+                cornPyramidScore,
+                cornPyramidEvidence: cornPyramidEvidence?.category === first.category ? cornPyramidEvidence : null,
+                ambiguousPair: cornRapeseedAmbiguous ? 'corn-rapeseed' : '',
                 confidence,
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10
             };
@@ -10684,6 +10803,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[result.topCategory] || result.topCategory;
             if (ui.status?.isConnected) {
                 ui.status.textContent = result.ocrEvidence?.exact && result.ocrEvidence.category === result.topCategory ? `文字确认：${topLabel}` :
+                    result.cornPyramidEvidence?.direct ? '金字塔确认：玉米油' :
+                    result.ambiguousPair === 'corn-rapeseed' ? '难区分：玉米油 / 菜籽油' :
                     result.uniqueEvidence?.direct ? `独特特征确认：${topLabel}` :
                     result.topCategory === 'blend' ? '候选：调和油' :
                     result.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
@@ -10747,6 +10868,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         summaryText.className = 'sj-visual-summary-text';
         const conclusion = isBlend ? '最像调和油（本题可忽略）' :
             result.ocrEvidence?.exact && result.ocrEvidence.category === result.topCategory ? `文字确认：${topLabel}` :
+            result.cornPyramidEvidence?.direct ? '金字塔确认：玉米油' :
+            result.ambiguousPair === 'corn-rapeseed' ? '玉米油 / 菜籽油待确认' :
             result.uniqueEvidence?.direct ? `独特特征确认：${topLabel}` :
             result.confidence === 'likely' ? `较可能：${topLabel}` : `包装候选：${topLabel}`;
         const evidenceNote = result.uniqueEvidence?.label ? ` 视觉依据：${result.uniqueEvidence.label}。` : '';
@@ -11002,6 +11125,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 label.className = 'sj-local-oil-box-label';
                 const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[visualResult.topCategory] || visualResult.topCategory;
                 label.textContent = visualResult.ocrEvidence?.exact && visualResult.ocrEvidence.category === visualResult.topCategory ? `文字确认：${topLabel}` :
+                    visualResult.cornPyramidEvidence?.direct ? '金字塔确认：玉米油' :
+                    visualResult.ambiguousPair === 'corn-rapeseed' ? '玉米/菜籽待确认' :
                     visualResult.uniqueEvidence?.direct ? `特征确认：${topLabel}` :
                     visualResult.topCategory === 'blend' ? '候选：调和油' :
                     visualResult.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
@@ -11237,7 +11362,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.9)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.10)</span>`;
         ws.appendChild(title);
         requestAnimationFrame(() => {
             flmLocalOilRenderImageOverlay(activeDialog, qNum);
