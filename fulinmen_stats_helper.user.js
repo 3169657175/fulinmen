@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.2
+// @version      1.9.3
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8358,8 +8358,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     let flmVisualWarmupScheduled = false;
     const flmVisualResults = new Map();
     const flmVisualResultHistory = new Map();
-    const flmVisualAutoScanStates = new Map();
-    const flmVisualAutoScanTimers = new Map();
     let flmVisualOverlayTrackerFrame = 0;
     let flmVisualOverlayTrackerState = null;
     let flmVisualOverlayRefreshFrame = 0;
@@ -8403,11 +8401,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         .sj-local-oil-box.maybe .sj-local-oil-box-label { background:#b45309; }
         .sj-visual-search-btn { border-color:#38bdf8; color:#e0f2fe; background:#0c3144; }
         .sj-visual-search-btn:hover { background:#07506d; }
-        .sj-visual-auto-btn { border-color:#a78bfa; color:#ede9fe; background:#30205e; }
-        .sj-visual-auto-btn:hover { background:#4c2b83; }
-        .sj-visual-control-group { display:flex; align-items:center; gap:5px; margin-left:auto; }
-        .sj-local-oil-box.auto { border-style:solid; }
-        .sj-local-oil-box.brand-only { border-style:dashed; }
         .sj-visual-pick-active { outline:none !important; }
         #sj-visual-draw-capture { position:fixed; z-index:2147483645; pointer-events:none; background:transparent; }
         html.sj-visual-right-drawing, html.sj-visual-right-drawing * { cursor:crosshair !important; }
@@ -9321,218 +9314,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             if (!previous || candidate.confidence > previous.confidence) bestByCategory.set(candidate.category, candidate);
         });
         return Array.from(bestByCategory.values());
-    }
-
-    async function flmPaddleRecognizeRaw(canvas, strategy = 'cross-line') {
-        const service = await flmPaddleGetService();
-        const result = await service.recognize(canvas, { noCache: true, flatten: true, strategy });
-        return (Array.isArray(result?.results) ? result.results : []).filter((entry) =>
-            entry?.box && String(entry?.text || '').trim()
-        ).map((entry) => ({
-            text: String(entry.text || '').trim(),
-            confidence: Math.max(0, Math.min(1, Number(entry.confidence) || 0)),
-            box: {
-                x: Number(entry.box.x) || 0,
-                y: Number(entry.box.y) || 0,
-                width: Math.max(1, Number(entry.box.width) || 1),
-                height: Math.max(1, Number(entry.box.height) || 1)
-            }
-        }));
-    }
-
-    function flmVisualBrandTextEvidence(rawText, ocrConfidence = 0) {
-        const text = String(rawText || '').replace(/[\s·•,，。._-]+/g, '');
-        if (/福临门/.test(text)) return { score: 1, text: rawText, exact: true };
-        if (/福[临邻]门|福临|临门/.test(text)) return { score: 0.82, text: rawText, exact: false };
-        if (text.includes('福') && text.length <= 6 && ocrConfidence >= 0.35) {
-            return { score: Math.min(0.72, 0.48 + ocrConfidence * 0.24), text: rawText, exact: false };
-        }
-        return null;
-    }
-
-    function flmVisualRectIoU(a, b) {
-        const width = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-        const height = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-        const intersection = width * height;
-        return intersection / Math.max(1, a.width * a.height + b.width * b.height - intersection);
-    }
-
-    function flmVisualRegionColorStats(canvas, box) {
-        if (!canvas || !box) return { yellowRatio: 0, colorfulRatio: 0, brightNeutralRatio: 0 };
-        // 不只取文字笔画本身，而是向四周扩展到标签底色；彩色瓶贴和白/灰货架价签由此能明显分开。
-        const x = Math.max(0, Math.floor(box.x - box.width * 0.45));
-        const y = Math.max(0, Math.floor(box.y - box.height * 1.35));
-        const width = Math.max(1, Math.min(canvas.width - x, Math.ceil(box.width * 1.9)));
-        const height = Math.max(1, Math.min(canvas.height - y, Math.ceil(box.height * 3.7)));
-        try {
-            const data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(x, y, width, height).data;
-            let yellow = 0;
-            let colorful = 0;
-            let brightNeutral = 0;
-            let sampled = 0;
-            const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 900)));
-            for (let py = 0; py < height; py += step) {
-                for (let px = 0; px < width; px += step) {
-                    const offset = (py * width + px) * 4;
-                    const r = data[offset];
-                    const g = data[offset + 1];
-                    const b = data[offset + 2];
-                    const max = Math.max(r, g, b);
-                    const min = Math.min(r, g, b);
-                    if (r >= 175 && g >= 125 && b <= 95 && r + g >= b * 3.5) yellow++;
-                    if (max >= 95 && max - min >= 48) colorful++;
-                    if (min >= 170 && max - min <= 24) brightNeutral++;
-                    sampled++;
-                }
-            }
-            return {
-                yellowRatio: yellow / Math.max(1, sampled),
-                colorfulRatio: colorful / Math.max(1, sampled),
-                brightNeutralRatio: brightNeutral / Math.max(1, sampled)
-            };
-        } catch (error) {
-            return { yellowRatio: 0, colorfulRatio: 0, brightNeutralRatio: 0 };
-        }
-    }
-
-    function flmVisualGenericLabelEvidence(entry, canvasWidth, canvasHeight, canvas) {
-        const box = entry.box;
-        const centerY = (box.y + box.height / 2) / canvasHeight;
-        const widthRatio = box.width / canvasWidth;
-        const heightRatio = box.height / canvasHeight;
-        if (entry.confidence < 0.16 || centerY < 0.2 || centerY > 0.93) return null;
-        if (widthRatio < 0.012 || widthRatio > 0.28 || heightRatio < 0.007 || heightRatio > 0.09) return null;
-        const compactText = String(entry.text || '').replace(/\s+/g, '');
-        const priceLikeText = /(?:元|价|特价|零售|\d+[.,，。]?\d*)/.test(compactText);
-        const numericDominant = /\d/.test(compactText) && compactText.replace(/[\d.,，。元￥¥折斤升Ll毫mlML]/g, '').length <= 1;
-        if (numericDominant) return null;
-        const wideText = box.width / Math.max(1, box.height) >= 1.45;
-        const colorStats = flmVisualRegionColorStats(canvas, box);
-        const yellowRatio = colorStats.yellowRatio;
-        if ((priceLikeText || wideText) && (yellowRatio >= 0.22 || colorStats.brightNeutralRatio >= 0.46)) return null;
-        // 墙纸、白色货架条和灰色价签即使 OCR 置信度很高，也不能优先于彩色瓶贴。
-        if (colorStats.colorfulRatio < 0.045 && colorStats.brightNeutralRatio >= 0.52) return null;
-        return {
-            score: 0.18 + entry.confidence * 0.16 + Math.min(0.07, compactText.length * 0.011) + Math.min(0.2, colorStats.colorfulRatio * 0.38),
-            text: entry.text,
-            yellowRatio,
-            colorfulRatio: colorStats.colorfulRatio,
-            brightNeutralRatio: colorStats.brightNeutralRatio
-        };
-    }
-
-    function flmVisualMergeAutoCandidates(entries, canvasWidth, canvasHeight, canvas = null) {
-        const seeds = [];
-        entries.forEach((entry) => {
-            const brand = flmVisualBrandTextEvidence(entry.text, entry.confidence);
-            const oil = flmPaddleMatchOilText(entry.text);
-            const generic = flmVisualGenericLabelEvidence(entry, canvasWidth, canvasHeight, canvas);
-            if (!brand && !(oil?.exact && entry.confidence >= 0.32) && !generic) return;
-            const bbox = flmPaddleTextBoxToBottle(entry.box, canvasWidth, canvasHeight);
-            seeds.push({
-                bbox,
-                sourceBox: entry.box,
-                brandEvidence: brand,
-                oilEvidence: oil ? {
-                    category: oil.category,
-                    confidence: Math.min(0.98, oil.confidence + Math.max(0, entry.confidence - 0.35) * 0.08),
-                    exact: oil.exact,
-                    evidenceText: entry.text
-                } : null,
-                labelEvidence: generic,
-                textSupport: 1,
-                score: (brand?.score || 0) * 1.2 + (oil?.confidence || 0) * 0.75 + (generic?.score || 0) + entry.confidence * 0.08
-            });
-        });
-        seeds.sort((a, b) => b.score - a.score);
-        const merged = [];
-        seeds.forEach((seed) => {
-            const centerX = seed.bbox.x + seed.bbox.width / 2;
-            const existing = merged.find((item) => {
-                const otherCenterX = item.bbox.x + item.bbox.width / 2;
-                const sourceCenterY = seed.sourceBox.y + seed.sourceBox.height / 2;
-                const otherSourceCenterY = item.sourceBox.y + item.sourceBox.height / 2;
-                return flmVisualRectIoU(item.bbox, seed.bbox) >= 0.42 ||
-                    (Math.abs(centerX - otherCenterX) <= Math.min(item.bbox.width, seed.bbox.width) * 0.3 &&
-                        Math.abs(sourceCenterY - otherSourceCenterY) <= Math.min(item.bbox.height, seed.bbox.height) * 0.3);
-            });
-            if (!existing) {
-                merged.push({ ...seed });
-                return;
-            }
-            if ((seed.brandEvidence?.score || 0) > (existing.brandEvidence?.score || 0)) existing.brandEvidence = seed.brandEvidence;
-            if ((seed.oilEvidence?.confidence || 0) > (existing.oilEvidence?.confidence || 0)) existing.oilEvidence = seed.oilEvidence;
-            if ((seed.labelEvidence?.score || 0) > (existing.labelEvidence?.score || 0)) existing.labelEvidence = seed.labelEvidence;
-            existing.textSupport = (existing.textSupport || 1) + 1;
-            existing.score = Math.max(existing.score, seed.score) + 0.08;
-        });
-        return merged
-            .filter((item) => item.brandEvidence || (item.oilEvidence?.exact && item.score >= 0.68) || item.textSupport >= 2 || item.labelEvidence?.score >= 0.34)
-            .sort((a, b) => {
-                const priority = (item) => (item.brandEvidence?.score || 0) * 2 +
-                    (item.oilEvidence?.exact ? 0.8 : 0) + Math.min(0.45, (item.labelEvidence?.colorfulRatio || 0) * 0.9) +
-                    Math.min(0.24, Math.max(0, (item.textSupport || 1) - 1) * 0.08) + item.score;
-                return priority(b) - priority(a);
-            })
-            .slice(0, 7)
-            .map((item) => ({
-                ...item,
-                selection: {
-                    x: item.bbox.x / canvasWidth,
-                    y: item.bbox.y / canvasHeight,
-                    width: item.bbox.width / canvasWidth,
-                    height: item.bbox.height / canvasHeight
-                }
-            }));
-    }
-
-    async function flmVisualFindAutoBottleCandidates(image, onProgress = null, deadline = Infinity) {
-        const width = image.naturalWidth || image.width;
-        const height = image.naturalHeight || image.height;
-        const scale = Math.min(1, 1600 / Math.max(width, height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(width * scale));
-        canvas.height = Math.max(1, Math.round(height * scale));
-        const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-        context.fillStyle = '#fff';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        if (onProgress) onProgress('正在整图查找福临门标志…');
-        const entries = await flmPaddleRecognizeRaw(canvas, 'cross-line');
-        let candidates = flmVisualMergeAutoCandidates(entries, canvas.width, canvas.height, canvas);
-        const brandCount = () => candidates.filter((item) => item.brandEvidence).length;
-        if ((brandCount() === 0 || candidates.length < 3) && performance.now() < deadline - 1200) {
-            const specs = [
-                { left: 0, top: 0.18, right: 1, bottom: 0.57 },
-                { left: 0, top: 0.47, right: 1, bottom: 0.88 }
-            ];
-            for (let index = 0; index < specs.length; index++) {
-                if (performance.now() >= deadline - 1200) break;
-                if (onProgress) onProgress(`正在放大查找瓶身 ${index + 1}/${specs.length}…`);
-                const tile = flmPaddleCreateShelfTile(canvas, specs[index]);
-                const tileEntries = await flmPaddleRecognizeRaw(tile.canvas, 'per-line');
-                tileEntries.forEach((entry) => {
-                    entry.box = {
-                        x: tile.sourceX + entry.box.x / tile.scale,
-                        y: tile.sourceY + entry.box.y / tile.scale,
-                        width: entry.box.width / tile.scale,
-                        height: entry.box.height / tile.scale
-                    };
-                    entries.push(entry);
-                });
-                await flmLocalOilYieldToBrowser();
-                candidates = flmVisualMergeAutoCandidates(entries, canvas.width, canvas.height, canvas);
-                if (candidates.filter((item) => item.brandEvidence).length >= 2 && candidates.length >= 4) break;
-            }
-        }
-        console.info('[福临门全自动识别] 候选发现完成', {
-            ocrEntries: entries.length,
-            candidates: candidates.length,
-            brandCandidates: candidates.filter((item) => item.brandEvidence).length,
-            oilTextCandidates: candidates.filter((item) => item.oilEvidence?.exact).length,
-            colorfulCandidates: candidates.filter((item) => (item.labelEvidence?.colorfulRatio || 0) >= 0.12).length
-        });
-        return { candidates, image, width, height, canvasWidth: canvas.width, canvasHeight: canvas.height };
     }
 
     function flmPaddleCreateShelfTile(canvas, spec) {
@@ -11087,141 +10868,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         }
     }
 
-    function flmVisualAutoScanKey(qNum, source) {
-        return `${qNum}|${flmLocalOilNormalizeImageUrl(source)}`;
-    }
-
-    async function flmVisualRunAutoScan(qNum, source, options = {}) {
-        const startedAt = performance.now();
-        const deadline = startedAt + 10500;
-        const key = flmVisualAutoScanKey(qNum, source);
-        const existing = flmVisualAutoScanStates.get(key);
-        if (!options.force && ['running', 'done', 'error'].includes(existing?.status)) return existing;
-        if (options.force) {
-            const normalizedSource = flmLocalOilNormalizeImageUrl(source);
-            const history = (flmVisualResultHistory.get(qNum) || []).filter((item) =>
-                !(item.origin === 'auto' && flmLocalOilNormalizeImageUrl(item.source) === normalizedSource)
-            );
-            flmVisualResultHistory.set(qNum, history);
-        }
-        const state = { status: 'running', message: '正在整图查找福临门油品…', found: 0, completed: 0 };
-        flmVisualAutoScanStates.set(key, state);
-        flmVisualResults.set(qNum, { qNum, source, status: 'running', message: state.message, origin: 'auto' });
-        auditHelperUpdateWorkspace();
-        try {
-            const blob = await flmLocalOilRequestBlob(source);
-            const image = await flmLocalOilLoadImage(blob);
-            const updateProgress = (message) => {
-                state.message = message;
-                const current = flmVisualResults.get(qNum);
-                if (current?.status === 'running' && current?.source === source) current.message = message;
-            };
-            const discovery = await flmVisualFindAutoBottleCandidates(image, updateProgress, deadline);
-            state.found = discovery.candidates.length;
-            if (discovery.candidates.length === 0) {
-                state.status = 'done';
-                state.message = '整图暂未找到可靠的福临门瓶身，可右键手工圈画纠错';
-                flmVisualResults.set(qNum, { qNum, source, status: 'auto-empty', message: state.message, origin: 'auto' });
-                return state;
-            }
-            updateProgress(`找到 ${discovery.candidates.length} 个瓶身候选，正在逐个分类…`);
-            const [references, embedder] = await Promise.all([
-                flmVisualEnsureReferences(updateProgress),
-                flmVisualGetEmbedder()
-            ]);
-            const results = [];
-            for (let index = 0; index < discovery.candidates.length; index++) {
-                if (performance.now() >= deadline - 750 && results.length > 0) {
-                    state.message = `已达到单图时间预算，保留 ${results.length} 个可靠结果`;
-                    break;
-                }
-                const candidate = discovery.candidates[index];
-                updateProgress(`正在识别瓶身 ${index + 1}/${discovery.candidates.length}…`);
-                const result = await flmVisualRunSelection(qNum, source, candidate.selection, {
-                    silent: true,
-                    origin: 'auto',
-                    fastMode: true,
-                    allowRefine: true,
-                    deadline,
-                    deferRemember: true,
-                    skipTransientPopover: true,
-                    skipBottleOcr: true,
-                    brandEvidence: candidate.brandEvidence || null,
-                    ocrEvidence: candidate.oilEvidence || null,
-                    labelClusterSupport: candidate.textSupport || 0,
-                    labelColorfulRatio: candidate.labelEvidence?.colorfulRatio || 0,
-                    context: { image, references, embedder }
-                });
-                if (result) {
-                    const hasBrand = (candidate.brandEvidence?.score || 0) >= 0.48;
-                    const oilAligned = candidate.oilEvidence?.exact && candidate.oilEvidence.category === result.topCategory;
-                    const uniqueAligned = result.uniqueEvidence?.direct || result.cornPyramidEvidence?.direct;
-                    const colorfulLabel = (candidate.labelEvidence?.colorfulRatio || 0) >= 0.12;
-                    const strongVisual = result.confidence === 'likely' && result.topScore >= 0.47 && result.margin >= 0.02 &&
-                        ((candidate.textSupport || 0) >= 2 || colorfulLabel);
-                    if (hasBrand || oilAligned || uniqueAligned || strongVisual) {
-                        flmVisualRememberResult(result);
-                        results.push(result);
-                    } else {
-                        console.debug('[福临门全自动识别] 候选未保留', {
-                            text: candidate.labelEvidence?.text || candidate.brandEvidence?.text || candidate.oilEvidence?.evidenceText || '',
-                            textSupport: candidate.textSupport || 0,
-                            colorfulRatio: Math.round((candidate.labelEvidence?.colorfulRatio || 0) * 100) / 100,
-                            topCategory: result.topCategory,
-                            topScore: Math.round(result.topScore * 100),
-                            margin: Math.round(result.margin * 1000) / 10
-                        });
-                    }
-                }
-                state.completed = index + 1;
-                await flmLocalOilYieldToBrowser();
-            }
-            const remembered = flmVisualGetRememberedResults(qNum, source).filter((item) => item.origin === 'auto');
-            const best = remembered.slice().sort((a, b) =>
-                (b.confidence === 'likely' ? 1 : 0) - (a.confidence === 'likely' ? 1 : 0) ||
-                (b.topScore || 0) - (a.topScore || 0)
-            )[0] || results[0] || null;
-            state.status = 'done';
-            const elapsedSeconds = Math.round((performance.now() - startedAt) / 100) / 10;
-            state.message = best ? `自动识别完成：保留 ${remembered.length} 种油品，用时 ${elapsedSeconds}s` : '瓶身候选分类失败，可右键手工圈画纠错';
-            if (best) flmVisualResults.set(qNum, best);
-            else flmVisualResults.set(qNum, { qNum, source, status: 'auto-empty', message: state.message, origin: 'auto' });
-            return state;
-        } catch (error) {
-            console.warn('[福临门全自动识别] 整图扫描失败：', error);
-            state.status = 'error';
-            state.message = error?.message || String(error);
-            flmVisualResults.set(qNum, { qNum, source, status: 'error', message: `自动识别失败：${state.message}`, origin: 'auto' });
-            return state;
-        } finally {
-            auditHelperUpdateWorkspace();
-            flmVisualScheduleOverlayRefresh();
-        }
-    }
-
-    function flmVisualScheduleAutoScan(qNum, dialog, force = false) {
-        if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) return;
-        const image = flmLocalOilFindMainViewerImage(dialog);
-        if (!image || !image.complete || !image.naturalWidth) return;
-        const source = flmVisualPickSource(image, qNum);
-        if (!source) return;
-        const key = flmVisualAutoScanKey(qNum, source);
-        if (!force && ['running', 'done', 'error'].includes(flmVisualAutoScanStates.get(key)?.status)) return;
-        const oldTimer = flmVisualAutoScanTimers.get(key);
-        if (oldTimer) clearTimeout(oldTimer);
-        const timer = setTimeout(() => {
-            flmVisualAutoScanTimers.delete(key);
-            const liveDialog = findTargetZoomDialog();
-            const liveQNum = getActiveDialogQuestionNumber(liveDialog);
-            const liveImage = flmLocalOilFindMainViewerImage(liveDialog);
-            const liveSource = liveImage ? flmVisualPickSource(liveImage, liveQNum) : '';
-            if (liveQNum === qNum && flmLocalOilNormalizeImageUrl(liveSource) === flmLocalOilNormalizeImageUrl(source)) {
-                flmVisualRunAutoScan(qNum, source, { force });
-            }
-        }, force ? 80 : 650);
-        flmVisualAutoScanTimers.set(key, timer);
-    }
-
     function flmVisualGetCategoryEvidence(qNum) {
         const byCategory = new Map();
         const remember = (category, result, ambiguous = false) => {
@@ -11285,11 +10931,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         }
         if (result.status === 'error') {
             panel.textContent = `⚠ 包装检索失败：${result.message || '未知原因'}。可重新圈画检索。`;
-            ws.appendChild(panel);
-            return;
-        }
-        if (result.status === 'auto-empty') {
-            panel.textContent = `ℹ ${result.message || '整图暂未发现可靠瓶身'}。仍可用右键手工圈画纠错。`;
             ws.appendChild(panel);
             return;
         }
@@ -11368,7 +11009,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             }
             flmVisualEnsureAlwaysOnPick(qNum, dialog);
             flmLocalOilRenderImageOverlay(dialog, qNum);
-            flmVisualScheduleAutoScan(qNum, dialog);
         });
     }
 
@@ -11552,7 +11192,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             });
             rememberedResults.forEach((visualResult) => {
                 const box = document.createElement('div');
-                box.className = `sj-local-oil-box ${visualResult.confidence === 'likely' ? '' : 'maybe'} ${visualResult.origin === 'auto' ? 'auto' : ''} ${visualResult.brandEvidence && visualResult.confidence !== 'likely' ? 'brand-only' : ''}`;
+                box.className = `sj-local-oil-box ${visualResult.confidence === 'likely' ? '' : 'maybe'}`;
                 Object.assign(box.style, {
                     left: `${visualResult.crop.x / visualResult.canvasWidth * 100}%`,
                     top: `${visualResult.crop.y / visualResult.canvasHeight * 100}%`,
@@ -11567,8 +11207,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     visualResult.ambiguousPair === 'corn-rapeseed' ? '玉米/菜籽待确认' :
                     visualResult.uniqueEvidence?.direct ? `特征确认：${topLabel}` :
                     visualResult.topCategory === 'blend' ? '候选：调和油' :
-                    visualResult.confidence === 'likely' ? `${visualResult.origin === 'auto' ? '自动' : '较可能'}：${topLabel}` :
-                        visualResult.brandEvidence ? `福临门候选：${topLabel}` : `候选：${topLabel}`;
+                    visualResult.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
                 box.appendChild(label);
                 overlay.appendChild(box);
             });
@@ -11686,26 +11325,14 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     function flmLocalOilRenderControls(ws, title, qNum) {
         const sources = flmLocalOilGetOwnEvidenceSources(qNum);
         const result = flmVisualGetCurrentResult(qNum);
-        const group = document.createElement('div');
-        group.className = 'sj-visual-control-group';
-        const autoButton = document.createElement('button');
-        autoButton.type = 'button';
-        autoButton.className = 'sj-local-oil-btn sj-visual-auto-btn';
-        autoButton.disabled = sources.length === 0;
-        autoButton.textContent = result?.status === 'running' && result?.origin === 'auto' ? '⚡ 自动识别中…' : '⚡ 重新识别';
-        autoButton.title = '重新扫描当前整张照片；每种油只保留一个最佳自动框，不会自动修改 Q13 勾选。';
-        autoButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            const dialog = findTargetZoomDialog();
-            flmVisualScheduleAutoScan(qNum, dialog, true);
-        });
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'sj-local-oil-btn sj-visual-search-btn';
         button.disabled = sources.length === 0;
         const picking = flmVisualPickMode?.qNum === qNum;
-        button.textContent = picking ? '右键可纠错' : '🔎 手工纠错';
+        button.textContent = picking ? '请右键圈画…' : result?.status === 'running' ? '准备检索中…' :
+            result?.status === 'ready' ? `🔎 再圈一瓶 ${result.elapsedSeconds ? `${result.elapsedSeconds}s` : ''}` :
+                result?.status === 'error' ? '⚠ 重试圈画' : '🔎 圈画检索';
         button.title = result?.status === 'error' ? `上次失败：${result.message || '未知原因'}；点击重试。` :
             `${qNum} 只读取当前放大的本题左侧证据图。点击按钮后，按住右键圈住完整瓶身；左键仍可拖图，结果不自动勾选。`;
         button.addEventListener('click', (event) => {
@@ -11719,8 +11346,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             flmVisualStartPick(qNum);
             auditHelperUpdateWorkspace();
         });
-        group.append(autoButton, button);
-        title.appendChild(group);
+        title.appendChild(button);
     }
 
     function auditHelperUpdateWorkspace() {
@@ -11814,10 +11440,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 智能识别工作台 (v1.9.2)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.9.3)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
-        flmVisualScheduleAutoScan(qNum, activeDialog);
         requestAnimationFrame(() => {
             flmLocalOilRenderImageOverlay(activeDialog, qNum);
         });
@@ -11942,13 +11567,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                         isChecked && isHigh ? `高概率 ${score}` :
                         !isChecked && isHigh ? `可能漏选 ${score}` :
                         !isChecked ? `疑似漏选 ${score}` : `候选 ${score}`;
-                    status.title = `来自整图自动识别和手工纠错结果的包装相似分 ${score}（不是准确率），不会自动修改选项。`;
-                    rowActions.appendChild(status);
-                } else if (isChecked) {
-                    const status = document.createElement('span');
-                    status.className = 'sj-local-oil-inline absent';
-                    status.textContent = '照片未确认';
-                    status.title = '当前照片自动识别暂未找到这一品类；不代表选项错误，请人工核对。';
+                    status.title = `来自右键框选识别结果的包装相似分 ${score}（不是准确率），不会自动修改选项。`;
                     rowActions.appendChild(status);
                 }
             }
