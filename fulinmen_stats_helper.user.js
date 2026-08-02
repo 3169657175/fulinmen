@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.8.7
+// @version      1.8.8
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8357,9 +8357,12 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     let flmVisualPickMode = null;
     let flmVisualWarmupScheduled = false;
     const flmVisualResults = new Map();
+    const flmVisualResultHistory = new Map();
+    let flmVisualOverlayTrackerFrame = 0;
+    let flmVisualOverlayTrackerState = null;
     const FLM_VISUAL_CACHE_DB = 'flm_visual_reference_cache';
     const FLM_VISUAL_CACHE_STORE = 'reference_vectors';
-    const FLM_VISUAL_CACHE_KEY = 'mobilenet-v3-small-f32-packages-v1';
+    const FLM_VISUAL_CACHE_KEY = 'mobilenet-v3-small-f32-packages-v2-detail-vote';
     const flmVisualResourceObjectUrls = new Map();
 
     GM_addStyle(`
@@ -8402,9 +8405,10 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         #sj-visual-draw-box { position:fixed; z-index:2147483646; pointer-events:none; box-sizing:border-box; border:3px solid #ff3b30; background:rgba(255,59,48,.07); box-shadow:0 0 0 1px rgba(255,255,255,.9),0 0 16px rgba(255,59,48,.5); }
         #sj-visual-draw-box.pending { border-color:#f59e0b; background:rgba(245,158,11,.06); box-shadow:0 0 0 1px rgba(255,255,255,.9),0 0 16px rgba(245,158,11,.48); }
         .sj-visual-box-status { position:absolute; left:-3px; top:-27px; max-width:260px; overflow:hidden; text-overflow:ellipsis; padding:3px 8px; border-radius:6px 6px 6px 0; color:#fff; background:#b45309; font-size:12px; line-height:18px; font-weight:900; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.55); }
-        .sj-visual-candidate-popover { position:fixed; z-index:2147483647; display:flex; gap:6px; max-width:270px; padding:7px; border-radius:10px; background:rgba(7,20,31,.94); border:1px solid rgba(56,189,248,.78); box-shadow:0 8px 28px rgba(0,0,0,.52); pointer-events:none; animation:sjVisualPopover 1.15s ease forwards; }
+        .sj-visual-candidate-popover { position:fixed; z-index:2147483647; display:flex; gap:6px; max-width:350px; padding:7px; border-radius:10px; background:rgba(7,20,31,.94); border:1px solid rgba(56,189,248,.78); box-shadow:0 8px 28px rgba(0,0,0,.52); pointer-events:none; animation:sjVisualPopover 1.15s ease forwards; }
         .sj-visual-candidate-mini { width:76px; min-width:0; color:#e0f2fe; font-size:10px; font-weight:800; text-align:center; }
         .sj-visual-candidate-mini img { display:block; width:70px; height:76px; margin-bottom:3px; object-fit:contain; border-radius:5px; background:#fff; }
+        .sj-visual-candidate-mini.query img { border:2px solid #22c55e; box-sizing:border-box; }
         @keyframes sjVisualPopover { 0%,72% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-7px); } }
         .sj-visual-results { margin:7px 0 4px; padding:8px; border:1px solid rgba(56,189,248,.4); border-radius:9px; background:rgba(8,30,43,.82); color:#e0f2fe; }
         .sj-visual-results.running { border-style:dashed; color:#bae6fd; }
@@ -9748,6 +9752,55 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return dot / Math.max(1e-8, Math.sqrt(aa * bb));
     }
 
+    function flmVisualRobustSimilarity(queryVectors, referenceVector) {
+        const scores = queryVectors.map((vector) => flmVisualCosine(vector, referenceVector)).sort((a, b) => b - a);
+        const base = scores.length > 0 ? flmVisualCosine(queryVectors[0], referenceVector) : 0;
+        const best = scores[0] || base;
+        const second = scores[1] || best;
+        return base * 0.5 + best * 0.32 + second * 0.18;
+    }
+
+    function flmVisualTransformCanvas(source, { rotation = 0, contrast = 1, saturation = 1 } = {}) {
+        const canvas = document.createElement('canvas');
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        if (rotation) {
+            ctx.rotate(rotation * Math.PI / 180);
+            ctx.scale(0.94, 0.94);
+        }
+        ctx.filter = `contrast(${contrast}) saturate(${saturation})`;
+        ctx.drawImage(source, -canvas.width / 2, -canvas.height / 2);
+        ctx.restore();
+        return canvas;
+    }
+
+    function flmVisualCropCanvasForOcr(image, crop, maxDimension = 900) {
+        // OCR 只读取框内中央瓶身，略去边缘，避免把左右相邻商品的“葵花/玉米”等文字带进来。
+        const insetX = crop.width * 0.045;
+        const insetY = crop.height * 0.055;
+        const source = {
+            x: crop.x + insetX,
+            y: crop.y + insetY,
+            width: Math.max(1, crop.width - insetX * 2),
+            height: Math.max(1, crop.height - insetY * 2)
+        };
+        const scale = Math.min(2, maxDimension / Math.max(source.width, source.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(source.width * scale));
+        canvas.height = Math.max(1, Math.round(source.height * scale));
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.filter = 'contrast(1.14) saturate(1.06)';
+        ctx.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, canvas.width, canvas.height);
+        return canvas;
+    }
+
     function flmVisualWhiteCanvas(image, source = null, contain = true) {
         const canvas = document.createElement('canvas');
         canvas.width = 224;
@@ -9884,8 +9937,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 if (!saved || saved.category !== source.category || saved.name !== source.name) return null;
                 const fullVector = saved.fullVector instanceof Float32Array ? saved.fullVector : Float32Array.from(saved.fullVector || []);
                 const labelVector = saved.labelVector instanceof Float32Array ? saved.labelVector : Float32Array.from(saved.labelVector || []);
-                if (fullVector.length === 0 || labelVector.length === 0) return null;
-                references.push({ ...source, fullVector, labelVector });
+                const detailVector = saved.detailVector instanceof Float32Array ? saved.detailVector : Float32Array.from(saved.detailVector || []);
+                if (fullVector.length === 0 || labelVector.length === 0 || detailVector.length === 0) return null;
+                references.push({ ...source, fullVector, labelVector, detailVector });
             }
             return references;
         } catch (error) {
@@ -9909,7 +9963,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     category: item.category,
                     name: item.name,
                     fullVector: Float32Array.from(item.fullVector || []),
-                    labelVector: Float32Array.from(item.labelVector || [])
+                    labelVector: Float32Array.from(item.labelVector || []),
+                    detailVector: Float32Array.from(item.detailVector || [])
                 }))
             };
             await new Promise((resolve, reject) => {
@@ -9950,10 +10005,17 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     width: width * 0.84,
                     height: height * 0.5
                 }, false);
+                const detailCanvas = flmVisualWhiteCanvas(image, {
+                    x: width * 0.12,
+                    y: height * 0.38,
+                    width: width * 0.76,
+                    height: height * 0.42
+                }, false);
                 references.push({
                     ...item,
                     fullVector: flmVisualVectorOf(embedder.embed(fullCanvas)),
-                    labelVector: flmVisualVectorOf(embedder.embed(labelCanvas))
+                    labelVector: flmVisualVectorOf(embedder.embed(labelCanvas)),
+                    detailVector: flmVisualVectorOf(embedder.embed(detailCanvas))
                 });
                 if ((i + 1) % 4 === 0) {
                     // 建库时经常让出主线程，保证大图仍可拖动、切换；降低侧栏重绘频率。
@@ -10036,7 +10098,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const oldCursor = image.style.cursor;
         const oldTouchAction = image.style.touchAction;
         const oldUserSelect = document.documentElement.style.userSelect;
-        const renderedAtStart = flmLocalOilGetRenderedImageRect(image);
+        const renderedAtStart = flmLocalOilGetInteractiveImageRect(image);
         const captureLayer = document.createElement('div');
         captureLayer.id = 'sj-visual-draw-capture';
         Object.assign(captureLayer.style, {
@@ -10077,12 +10139,16 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const pointerdown = (event) => {
             // 左键、滚轮及侧键完全交还给网站；只有右键按下才接管圈画。
             if (event.button !== 2 || flmVisualPickMode !== mode) return;
-            const rendered = flmLocalOilGetRenderedImageRect(image);
+            const rendered = flmLocalOilGetInteractiveImageRect(image);
             if (event.clientX < rendered.left || event.clientX > rendered.left + rendered.width ||
                 event.clientY < rendered.top || event.clientY > rendered.top + rendered.height) return;
             stopViewerEvent(event);
             if (mode.drawing) return;
             if (flmVisualResults.get(qNum)?.status === 'running') return;
+            const liveSource = flmVisualPickSource(image, qNum);
+            if (!liveSource) return;
+            // 网站切图时会复用同一个 img 节点，只替换 src；每次落笔都重新绑定当前图片，禁止沿用上一张地址。
+            mode.source = liveSource;
             const point = clampPoint(event, rendered);
             mode.drawing = true;
             mode.startX = point.x;
@@ -10096,7 +10162,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const pointermove = (event) => {
             if (!mode.drawing || flmVisualPickMode !== mode) return;
             stopViewerEvent(event);
-            updateSelectionBox(clampPoint(event, flmLocalOilGetRenderedImageRect(image)));
+            updateSelectionBox(clampPoint(event, flmLocalOilGetInteractiveImageRect(image)));
         };
         const finishDrawing = (event, cancelled = false) => {
             if (!mode.drawing || flmVisualPickMode !== mode) return;
@@ -10111,7 +10177,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 mode.currentRect = null;
                 return;
             }
-            updateSelectionBox(clampPoint(event, flmLocalOilGetRenderedImageRect(image)));
+            updateSelectionBox(clampPoint(event, flmLocalOilGetInteractiveImageRect(image)));
             const selected = mode.currentRect;
             if (!selected || selected.width < 18 || selected.height < 24) {
                 mode.selectionBox?.remove();
@@ -10127,6 +10193,15 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 width: selected.width / Math.max(1, rendered.width),
                 height: selected.height / Math.max(1, rendered.height)
             };
+            const liveSource = flmVisualPickSource(image, qNum);
+            if (!liveSource) {
+                mode.selectionBox?.remove();
+                mode.selectionBox = null;
+                mode.currentRect = null;
+                autoReviewToast('当前大图地址尚未切换完成，请重新圈画一次。', true);
+                return;
+            }
+            mode.source = liveSource;
             const pendingBox = mode.selectionBox;
             pendingBox.classList.add('pending');
             const status = document.createElement('div');
@@ -10136,7 +10211,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             mode.pendingBoxes.add(pendingBox);
             mode.selectionBox = null;
             mode.currentRect = null;
-            flmVisualRunSelection(qNum, source, selection, { pendingBox, status, screenRect: selected });
+            flmVisualRunSelection(qNum, mode.source, selection, { pendingBox, status, screenRect: selected });
         };
         const pointerup = (event) => {
             if (event.button !== 2) return;
@@ -10158,7 +10233,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         };
         const contextmenu = (event) => {
             if (flmVisualPickMode !== mode) return;
-            const rendered = flmLocalOilGetRenderedImageRect(image);
+            const rendered = flmLocalOilGetInteractiveImageRect(image);
             if (mode.drawing || (event.clientX >= rendered.left && event.clientX <= rendered.left + rendered.width &&
                 event.clientY >= rendered.top && event.clientY <= rendered.top + rendered.height)) {
                 stopViewerEvent(event);
@@ -10218,6 +10293,17 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         if (candidates.length === 0 || !screenRect) return;
         const popover = document.createElement('div');
         popover.className = 'sj-visual-candidate-popover';
+        if (result.cropDataUrl) {
+            const queryItem = document.createElement('div');
+            queryItem.className = 'sj-visual-candidate-mini query';
+            const queryImage = document.createElement('img');
+            queryImage.src = result.cropDataUrl;
+            queryImage.alt = '实际识别区域';
+            const queryLabel = document.createElement('div');
+            queryLabel.textContent = '实际裁剪';
+            queryItem.append(queryImage, queryLabel);
+            popover.appendChild(queryItem);
+        }
         candidates.forEach((candidate) => {
             const item = document.createElement('div');
             item.className = 'sj-visual-candidate-mini';
@@ -10230,12 +10316,54 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             popover.appendChild(item);
         });
         document.body.appendChild(popover);
-        const width = Math.min(270, candidates.length * 82 + 14);
+        const itemCount = candidates.length + (result.cropDataUrl ? 1 : 0);
+        const width = Math.min(350, itemCount * 82 + 14);
         const placeRight = screenRect.left + screenRect.width + 12 + width <= window.innerWidth - 8;
         const left = placeRight ? screenRect.left + screenRect.width + 10 : Math.max(8, screenRect.left - width - 10);
         const top = Math.max(8, Math.min(window.innerHeight - 112, screenRect.top));
         Object.assign(popover.style, { left: `${left}px`, top: `${top}px` });
         setTimeout(() => popover.remove(), 1200);
+    }
+
+    function flmVisualCropIoU(a, b) {
+        if (!a?.crop || !b?.crop || !a.canvasWidth || !a.canvasHeight || !b.canvasWidth || !b.canvasHeight) return 0;
+        const ar = {
+            left: a.crop.x / a.canvasWidth,
+            top: a.crop.y / a.canvasHeight,
+            right: (a.crop.x + a.crop.width) / a.canvasWidth,
+            bottom: (a.crop.y + a.crop.height) / a.canvasHeight
+        };
+        const br = {
+            left: b.crop.x / b.canvasWidth,
+            top: b.crop.y / b.canvasHeight,
+            right: (b.crop.x + b.crop.width) / b.canvasWidth,
+            bottom: (b.crop.y + b.crop.height) / b.canvasHeight
+        };
+        const width = Math.max(0, Math.min(ar.right, br.right) - Math.max(ar.left, br.left));
+        const height = Math.max(0, Math.min(ar.bottom, br.bottom) - Math.max(ar.top, br.top));
+        const intersection = width * height;
+        const areaA = Math.max(0, ar.right - ar.left) * Math.max(0, ar.bottom - ar.top);
+        const areaB = Math.max(0, br.right - br.left) * Math.max(0, br.bottom - br.top);
+        return intersection / Math.max(1e-8, areaA + areaB - intersection);
+    }
+
+    function flmVisualRememberResult(result) {
+        const history = flmVisualResultHistory.get(result.qNum) || [];
+        const normalizedSource = flmLocalOilNormalizeImageUrl(result.source);
+        const duplicateIndex = history.findIndex((item) =>
+            flmLocalOilNormalizeImageUrl(item.source) === normalizedSource && flmVisualCropIoU(item, result) >= 0.72
+        );
+        if (duplicateIndex >= 0) history.splice(duplicateIndex, 1, result);
+        else history.push(result);
+        while (history.length > 30) history.shift();
+        flmVisualResultHistory.set(result.qNum, history);
+    }
+
+    function flmVisualGetRememberedResults(qNum, source) {
+        const normalizedSource = flmLocalOilNormalizeImageUrl(source);
+        return (flmVisualResultHistory.get(qNum) || []).filter((item) =>
+            item.status === 'ready' && flmLocalOilNormalizeImageUrl(item.source) === normalizedSource
+        );
     }
 
     async function flmVisualRunSelection(qNum, source, selection, ui = {}) {
@@ -10271,36 +10399,82 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 width: crop.width * 0.84,
                 height: crop.height * 0.5
             }, false);
+            const detailCanvas = flmVisualWhiteCanvas(image, {
+                x: crop.x + crop.width * 0.12,
+                y: crop.y + crop.height * 0.38,
+                width: crop.width * 0.76,
+                height: crop.height * 0.42
+            }, false);
             const fullVector = flmVisualVectorOf(embedder.embed(fullCanvas));
-            const labelVector = flmVisualVectorOf(embedder.embed(labelCanvas));
+            const labelVectors = [
+                flmVisualVectorOf(embedder.embed(labelCanvas)),
+                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { contrast: 1.2, saturation: 1.12 }))),
+                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: -9, contrast: 1.1, saturation: 1.06 }))),
+                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: 9, contrast: 1.1, saturation: 1.06 })))
+            ];
+            const detailVectors = [
+                flmVisualVectorOf(embedder.embed(detailCanvas)),
+                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(detailCanvas, { contrast: 1.24, saturation: 1.1 })))
+            ];
             const ranked = references.map((reference) => ({
                 category: reference.category,
                 name: reference.name,
                 image: reference.image,
-                score: flmVisualCosine(fullVector, reference.fullVector) * 0.35 +
-                    flmVisualCosine(labelVector, reference.labelVector) * 0.65
+                score: flmVisualCosine(fullVector, reference.fullVector) * 0.2 +
+                    flmVisualRobustSimilarity(labelVectors, reference.labelVector) * 0.47 +
+                    flmVisualRobustSimilarity(detailVectors, reference.detailVector) * 0.33
             })).sort((a, b) => b.score - a.score);
             if (ranked.length === 0) throw new Error('没有得到包装候选');
 
-            const categoryBest = new Map();
+            const categoryGroups = new Map();
             ranked.forEach((item) => {
-                if (!categoryBest.has(item.category)) categoryBest.set(item.category, item);
+                if (!categoryGroups.has(item.category)) categoryGroups.set(item.category, []);
+                categoryGroups.get(item.category).push(item);
             });
-            const categoryRanking = Array.from(categoryBest.values()).sort((a, b) => b.score - a.score);
-            const first = categoryRanking[0];
-            const second = categoryRanking[1];
-            const margin = first.score - (second?.score || 0);
-            const confidence = first.category !== 'blend' && first.score >= 0.46 && margin >= 0.035 ? 'likely' : 'candidate';
-
-            const cards = [];
-            const categoryCounts = new Map();
-            for (const item of ranked) {
-                const count = categoryCounts.get(item.category) || 0;
-                if (count >= 2) continue;
-                cards.push(item);
-                categoryCounts.set(item.category, count + 1);
-                if (cards.length >= 5) break;
+            const voteWeights = [0.5, 0.3, 0.2];
+            const categoryRanking = Array.from(categoryGroups.entries()).map(([category, items]) => {
+                const topItems = items.slice(0, 3);
+                let score = 0;
+                let weightTotal = 0;
+                topItems.forEach((item, index) => {
+                    score += item.score * voteWeights[index];
+                    weightTotal += voteWeights[index];
+                });
+                const best = topItems[0];
+                return {
+                    ...best,
+                    category,
+                    score: score / Math.max(1e-8, weightTotal),
+                    bestScore: best.score,
+                    support: topItems.length
+                };
+            }).sort((a, b) => b.score - a.score);
+            let first = categoryRanking[0];
+            let second = categoryRanking[1];
+            let margin = first.score - (second?.score || 0);
+            let ocrEvidence = null;
+            if (margin < 0.065 || first.score < 0.6) {
+                try {
+                    setProgress('外观比较接近，正在读取瓶身品类文字…');
+                    const ocrDetections = await flmPaddleAnalyzeCanvas(flmVisualCropCanvasForOcr(image, crop));
+                    ocrEvidence = ocrDetections.slice().sort((a, b) => b.confidence - a.confidence)[0] || null;
+                    if (ocrEvidence) {
+                        const exactBoost = ocrEvidence.exact ? 0.34 : 0.16;
+                        categoryRanking.forEach((item) => {
+                            if (item.category === ocrEvidence.category) item.score += exactBoost * ocrEvidence.confidence;
+                        });
+                        categoryRanking.sort((a, b) => b.score - a.score);
+                        first = categoryRanking[0];
+                        second = categoryRanking[1];
+                        margin = first.score - (second?.score || 0);
+                    }
+                } catch (ocrError) {
+                    console.warn('[福临门包装检索] 单瓶文字辅助识别失败，继续使用外观结果：', ocrError);
+                }
             }
+            const confidence = first.category !== 'blend' &&
+                ((ocrEvidence?.category === first.category && ocrEvidence.exact) || (first.score >= 0.48 && margin >= 0.03)) ? 'likely' : 'candidate';
+            const cards = categoryRanking.slice(0, 3);
             const result = {
                 qNum,
                 source,
@@ -10314,13 +10488,21 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 topCategory: first.category,
                 topScore: first.score,
                 margin,
+                ocrEvidence: ocrEvidence ? {
+                    category: ocrEvidence.category,
+                    exact: ocrEvidence.exact,
+                    confidence: ocrEvidence.confidence,
+                    text: ocrEvidence.evidenceText || ''
+                } : null,
                 confidence,
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10
             };
+            flmVisualRememberResult(result);
             flmVisualResults.set(qNum, result);
             const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[result.topCategory] || result.topCategory;
             if (ui.status?.isConnected) {
-                ui.status.textContent = result.topCategory === 'blend' ? '候选：调和油' :
+                ui.status.textContent = result.ocrEvidence?.exact && result.ocrEvidence.category === result.topCategory ? `文字确认：${topLabel}` :
+                    result.topCategory === 'blend' ? '候选：调和油' :
                     result.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
             }
             flmVisualShowTransientCandidates(result, ui.screenRect);
@@ -10422,7 +10604,34 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     }
 
     function flmLocalOilRemoveImageOverlay() {
+        if (flmVisualOverlayTrackerFrame) cancelAnimationFrame(flmVisualOverlayTrackerFrame);
+        flmVisualOverlayTrackerFrame = 0;
+        flmVisualOverlayTrackerState = null;
         document.getElementById('sj-local-oil-image-overlay')?.remove();
+    }
+
+    function flmVisualStartOverlayTracker(dialog, image, overlay) {
+        if (!dialog || !image || !overlay) return;
+        if (flmVisualOverlayTrackerFrame) cancelAnimationFrame(flmVisualOverlayTrackerFrame);
+        const state = { dialog, image, overlay, last: '' };
+        flmVisualOverlayTrackerState = state;
+        const update = () => {
+            if (flmVisualOverlayTrackerState !== state || !dialog.isConnected || !image.isConnected || !overlay.isConnected) {
+                if (flmVisualOverlayTrackerState === state) flmVisualOverlayTrackerState = null;
+                flmVisualOverlayTrackerFrame = 0;
+                return;
+            }
+            const rect = flmLocalOilGetRenderedImageRect(image);
+            const signature = `${rect.left.toFixed(1)}:${rect.top.toFixed(1)}:${rect.width.toFixed(1)}:${rect.height.toFixed(1)}`;
+            if (signature !== state.last) {
+                state.last = signature;
+                overlay.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+                overlay.style.width = `${rect.width}px`;
+                overlay.style.height = `${rect.height}px`;
+            }
+            flmVisualOverlayTrackerFrame = requestAnimationFrame(update);
+        };
+        update();
     }
 
     function flmLocalOilGetImageUrls(img) {
@@ -10526,52 +10735,62 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 height
             };
         }
+        return contentRect;
+    }
+
+    function flmLocalOilGetInteractiveImageRect(img) {
+        const contentRect = flmLocalOilGetRenderedImageRect(img);
         return flmVisualIntersectRect(contentRect, flmVisualGetVisibleRect(img)) || contentRect;
     }
 
     function flmLocalOilRenderImageOverlay(dialog, qNum) {
         flmLocalOilRemoveImageOverlay();
         if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) return;
-        const visualResult = flmVisualGetCurrentResult(qNum);
-        if (visualResult && visualResult.status === 'ready' && visualResult.crop && visualResult.canvasWidth > 0 && visualResult.canvasHeight > 0) {
-            const mainImg = flmLocalOilFindMainViewerImage(dialog);
-            if (!mainImg) return;
-            const currentUrls = new Set(flmLocalOilGetImageUrls(mainImg));
-            if (!currentUrls.has(flmLocalOilNormalizeImageUrl(visualResult.source))) return;
+        const mainImg = flmLocalOilFindMainViewerImage(dialog);
+        if (!mainImg) return;
+        const currentUrls = new Set(flmLocalOilGetImageUrls(mainImg));
+        const rememberedResults = (flmVisualResultHistory.get(qNum) || []).filter((item) =>
+            item.status === 'ready' && item.crop && item.canvasWidth > 0 && item.canvasHeight > 0 &&
+            currentUrls.has(flmLocalOilNormalizeImageUrl(item.source))
+        );
+        if (rememberedResults.length > 0) {
             const imageRect = flmLocalOilGetRenderedImageRect(mainImg);
             const overlay = document.createElement('div');
             overlay.id = 'sj-local-oil-image-overlay';
             Object.assign(overlay.style, {
-                left: `${imageRect.left}px`, top: `${imageRect.top}px`,
-                width: `${imageRect.width}px`, height: `${imageRect.height}px`
+                left: '0px', top: '0px',
+                transform: `translate3d(${imageRect.left}px, ${imageRect.top}px, 0)`,
+                width: `${imageRect.width}px`, height: `${imageRect.height}px`,
+                willChange: 'transform,width,height'
             });
-            const box = document.createElement('div');
-            box.className = `sj-local-oil-box ${visualResult.confidence === 'likely' ? '' : 'maybe'}`;
-            Object.assign(box.style, {
-                left: `${visualResult.crop.x / visualResult.canvasWidth * 100}%`,
-                top: `${visualResult.crop.y / visualResult.canvasHeight * 100}%`,
-                width: `${visualResult.crop.width / visualResult.canvasWidth * 100}%`,
-                height: `${visualResult.crop.height / visualResult.canvasHeight * 100}%`
+            rememberedResults.forEach((visualResult) => {
+                const box = document.createElement('div');
+                box.className = `sj-local-oil-box ${visualResult.confidence === 'likely' ? '' : 'maybe'}`;
+                Object.assign(box.style, {
+                    left: `${visualResult.crop.x / visualResult.canvasWidth * 100}%`,
+                    top: `${visualResult.crop.y / visualResult.canvasHeight * 100}%`,
+                    width: `${visualResult.crop.width / visualResult.canvasWidth * 100}%`,
+                    height: `${visualResult.crop.height / visualResult.canvasHeight * 100}%`
+                });
+                const label = document.createElement('div');
+                label.className = 'sj-local-oil-box-label';
+                const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[visualResult.topCategory] || visualResult.topCategory;
+                label.textContent = visualResult.ocrEvidence?.exact && visualResult.ocrEvidence.category === visualResult.topCategory ? `文字确认：${topLabel}` :
+                    visualResult.topCategory === 'blend' ? '候选：调和油' :
+                    visualResult.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
+                box.appendChild(label);
+                overlay.appendChild(box);
             });
-            const label = document.createElement('div');
-            label.className = 'sj-local-oil-box-label';
-            const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[visualResult.topCategory] || visualResult.topCategory;
-            label.textContent = visualResult.topCategory === 'blend' ? '候选：调和油' :
-                visualResult.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
-            box.appendChild(label);
-            overlay.appendChild(box);
             document.body.appendChild(overlay);
+            flmVisualStartOverlayTracker(dialog, mainImg, overlay);
             return;
         }
         const result = flmLocalOilGetCurrentResult(qNum);
         if (!result || result.status !== 'ready' || !Array.isArray(result.categories)) return;
-        const mainImg = flmLocalOilFindMainViewerImage(dialog);
-        if (!mainImg) return;
         if (!mainImg.complete) {
             mainImg.addEventListener('load', () => flmLocalOilRenderImageOverlay(dialog, qNum), { once: true });
             return;
         }
-        const currentUrls = new Set(flmLocalOilGetImageUrls(mainImg));
         const detections = result.categories.filter((item) =>
             (item.level === 'high' || item.level === 'maybe') && Array.isArray(item.detection?.quad) && item.detection.quad.length === 4 &&
             item.detection.canvasWidth > 0 && item.detection.canvasHeight > 0 && currentUrls.has(flmLocalOilNormalizeImageUrl(item.detection.source))
@@ -10582,8 +10801,10 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const overlay = document.createElement('div');
         overlay.id = 'sj-local-oil-image-overlay';
         Object.assign(overlay.style, {
-            left: `${imageRect.left}px`, top: `${imageRect.top}px`,
-            width: `${imageRect.width}px`, height: `${imageRect.height}px`
+            left: '0px', top: '0px',
+            transform: `translate3d(${imageRect.left}px, ${imageRect.top}px, 0)`,
+            width: `${imageRect.width}px`, height: `${imageRect.height}px`,
+            willChange: 'transform,width,height'
         });
         const namespace = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(namespace, 'svg');
@@ -10659,6 +10880,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         });
         overlay.appendChild(svg);
         document.body.appendChild(overlay);
+        flmVisualStartOverlayTracker(dialog, mainImg, overlay);
     }
 
     function flmLocalOilFindCategoryForOption(optionText) {
@@ -10788,7 +11010,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.7)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.8)</span>`;
         ws.appendChild(title);
         requestAnimationFrame(() => {
             flmLocalOilRenderImageOverlay(activeDialog, qNum);
@@ -11036,7 +11258,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) return;
             const image = flmLocalOilFindMainViewerImage(dialog);
             if (!image) return;
-            const rendered = flmLocalOilGetRenderedImageRect(image);
+            const rendered = flmLocalOilGetInteractiveImageRect(image);
             if (event.clientX < rendered.left || event.clientX > rendered.left + rendered.width ||
                 event.clientY < rendered.top || event.clientY > rendered.top + rendered.height) return;
             event.preventDefault();
