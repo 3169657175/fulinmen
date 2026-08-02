@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.0
+// @version      1.9.1
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -9357,15 +9357,64 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return intersection / Math.max(1, a.width * a.height + b.width * b.height - intersection);
     }
 
-    function flmVisualMergeAutoCandidates(entries, canvasWidth, canvasHeight) {
+    function flmVisualYellowRatio(canvas, box) {
+        if (!canvas || !box) return 0;
+        const x = Math.max(0, Math.floor(box.x - box.width * 0.18));
+        const y = Math.max(0, Math.floor(box.y - box.height * 0.45));
+        const width = Math.max(1, Math.min(canvas.width - x, Math.ceil(box.width * 1.36)));
+        const height = Math.max(1, Math.min(canvas.height - y, Math.ceil(box.height * 1.9)));
+        try {
+            const data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(x, y, width, height).data;
+            let yellow = 0;
+            let sampled = 0;
+            const step = Math.max(1, Math.floor(Math.sqrt((width * height) / 900)));
+            for (let py = 0; py < height; py += step) {
+                for (let px = 0; px < width; px += step) {
+                    const offset = (py * width + px) * 4;
+                    const r = data[offset];
+                    const g = data[offset + 1];
+                    const b = data[offset + 2];
+                    if (r >= 175 && g >= 125 && b <= 95 && r + g >= b * 3.5) yellow++;
+                    sampled++;
+                }
+            }
+            return yellow / Math.max(1, sampled);
+        } catch (error) {
+            return 0;
+        }
+    }
+
+    function flmVisualGenericLabelEvidence(entry, canvasWidth, canvasHeight, canvas) {
+        const box = entry.box;
+        const centerY = (box.y + box.height / 2) / canvasHeight;
+        const widthRatio = box.width / canvasWidth;
+        const heightRatio = box.height / canvasHeight;
+        if (entry.confidence < 0.16 || centerY < 0.2 || centerY > 0.93) return null;
+        if (widthRatio < 0.012 || widthRatio > 0.28 || heightRatio < 0.007 || heightRatio > 0.09) return null;
+        const compactText = String(entry.text || '').replace(/\s+/g, '');
+        const priceLikeText = /(?:元|价|特价|零售|\d+[.,，。]?\d*)/.test(compactText);
+        const wideText = box.width / Math.max(1, box.height) >= 1.45;
+        // 只有疑似价格文字或宽横条才读取像素，避免对整图几十个普通文字框反复 getImageData。
+        const yellowRatio = (priceLikeText || wideText) ? flmVisualYellowRatio(canvas, box) : 0;
+        if (yellowRatio >= 0.3 && (priceLikeText || wideText)) return null;
+        return {
+            score: 0.2 + entry.confidence * 0.18 + Math.min(0.08, compactText.length * 0.012),
+            text: entry.text,
+            yellowRatio
+        };
+    }
+
+    function flmVisualMergeAutoCandidates(entries, canvasWidth, canvasHeight, canvas = null) {
         const seeds = [];
         entries.forEach((entry) => {
             const brand = flmVisualBrandTextEvidence(entry.text, entry.confidence);
             const oil = flmPaddleMatchOilText(entry.text);
-            if (!brand && !(oil?.exact && entry.confidence >= 0.32)) return;
+            const generic = flmVisualGenericLabelEvidence(entry, canvasWidth, canvasHeight, canvas);
+            if (!brand && !(oil?.exact && entry.confidence >= 0.32) && !generic) return;
             const bbox = flmPaddleTextBoxToBottle(entry.box, canvasWidth, canvasHeight);
             seeds.push({
                 bbox,
+                sourceBox: entry.box,
                 brandEvidence: brand,
                 oilEvidence: oil ? {
                     category: oil.category,
@@ -9373,7 +9422,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     exact: oil.exact,
                     evidenceText: entry.text
                 } : null,
-                score: (brand?.score || 0) * 1.2 + (oil?.confidence || 0) * 0.75 + entry.confidence * 0.12
+                labelEvidence: generic,
+                textSupport: 1,
+                score: (brand?.score || 0) * 1.2 + (oil?.confidence || 0) * 0.75 + (generic?.score || 0) + entry.confidence * 0.08
             });
         });
         seeds.sort((a, b) => b.score - a.score);
@@ -9382,9 +9433,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const centerX = seed.bbox.x + seed.bbox.width / 2;
             const existing = merged.find((item) => {
                 const otherCenterX = item.bbox.x + item.bbox.width / 2;
+                const sourceCenterY = seed.sourceBox.y + seed.sourceBox.height / 2;
+                const otherSourceCenterY = item.sourceBox.y + item.sourceBox.height / 2;
                 return flmVisualRectIoU(item.bbox, seed.bbox) >= 0.42 ||
                     (Math.abs(centerX - otherCenterX) <= Math.min(item.bbox.width, seed.bbox.width) * 0.3 &&
-                        Math.abs((item.bbox.y + item.bbox.height / 2) - (seed.bbox.y + seed.bbox.height / 2)) <= Math.min(item.bbox.height, seed.bbox.height) * 0.42);
+                        Math.abs(sourceCenterY - otherSourceCenterY) <= Math.min(item.bbox.height, seed.bbox.height) * 0.3);
             });
             if (!existing) {
                 merged.push({ ...seed });
@@ -9392,12 +9445,13 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             }
             if ((seed.brandEvidence?.score || 0) > (existing.brandEvidence?.score || 0)) existing.brandEvidence = seed.brandEvidence;
             if ((seed.oilEvidence?.confidence || 0) > (existing.oilEvidence?.confidence || 0)) existing.oilEvidence = seed.oilEvidence;
+            existing.textSupport = (existing.textSupport || 1) + 1;
             existing.score = Math.max(existing.score, seed.score) + 0.08;
         });
         return merged
-            .filter((item) => item.brandEvidence || (item.oilEvidence?.exact && item.score >= 0.8))
+            .filter((item) => item.brandEvidence || (item.oilEvidence?.exact && item.score >= 0.68) || item.textSupport >= 2 || item.labelEvidence?.score >= 0.34)
             .sort((a, b) => b.score - a.score)
-            .slice(0, 10)
+            .slice(0, 7)
             .map((item) => ({
                 ...item,
                 selection: {
@@ -9409,7 +9463,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             }));
     }
 
-    async function flmVisualFindAutoBottleCandidates(image, onProgress = null) {
+    async function flmVisualFindAutoBottleCandidates(image, onProgress = null, deadline = Infinity) {
         const width = image.naturalWidth || image.width;
         const height = image.naturalHeight || image.height;
         const scale = Math.min(1, 1600 / Math.max(width, height));
@@ -9422,15 +9476,15 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
         if (onProgress) onProgress('正在整图查找福临门标志…');
         const entries = await flmPaddleRecognizeRaw(canvas, 'cross-line');
-        let candidates = flmVisualMergeAutoCandidates(entries, canvas.width, canvas.height);
-        if (candidates.length < 4) {
+        let candidates = flmVisualMergeAutoCandidates(entries, canvas.width, canvas.height, canvas);
+        const brandCount = () => candidates.filter((item) => item.brandEvidence).length;
+        if ((brandCount() === 0 || candidates.length < 3) && performance.now() < deadline - 1200) {
             const specs = [
-                { left: 0, top: 0.08, right: 0.60, bottom: 0.48 },
-                { left: 0.40, top: 0.08, right: 1, bottom: 0.48 },
-                { left: 0, top: 0.36, right: 0.60, bottom: 0.78 },
-                { left: 0.40, top: 0.36, right: 1, bottom: 0.78 }
+                { left: 0, top: 0.18, right: 1, bottom: 0.57 },
+                { left: 0, top: 0.47, right: 1, bottom: 0.88 }
             ];
             for (let index = 0; index < specs.length; index++) {
+                if (performance.now() >= deadline - 1200) break;
                 if (onProgress) onProgress(`正在放大查找瓶身 ${index + 1}/${specs.length}…`);
                 const tile = flmPaddleCreateShelfTile(canvas, specs[index]);
                 const tileEntries = await flmPaddleRecognizeRaw(tile.canvas, 'per-line');
@@ -9444,8 +9498,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     entries.push(entry);
                 });
                 await flmLocalOilYieldToBrowser();
+                candidates = flmVisualMergeAutoCandidates(entries, canvas.width, canvas.height, canvas);
+                if (candidates.filter((item) => item.brandEvidence).length >= 2 && candidates.length >= 4) break;
             }
-            candidates = flmVisualMergeAutoCandidates(entries, canvas.width, canvas.height);
         }
         return { candidates, image, width, height, canvasWidth: canvas.width, canvasHeight: canvas.height };
     }
@@ -10830,59 +10885,75 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 height: crop.height * 0.42
             }, false);
             const fullVector = flmVisualVectorOf(embedder.embed(fullCanvas));
-            const labelVectors = [
+            let labelVectors = [
                 flmVisualVectorOf(embedder.embed(labelCanvas)),
-                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { contrast: 1.2, saturation: 1.12 }))),
-                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: -9, contrast: 1.1, saturation: 1.06 }))),
-                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: 9, contrast: 1.1, saturation: 1.06 })))
+                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { contrast: 1.2, saturation: 1.12 })))
             ];
-            const detailVectors = [
-                flmVisualVectorOf(embedder.embed(detailCanvas)),
-                flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(detailCanvas, { contrast: 1.24, saturation: 1.1 })))
-            ];
+            let detailVectors = [flmVisualVectorOf(embedder.embed(detailCanvas))];
+            if (!ui.fastMode) {
+                labelVectors.push(
+                    flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: -9, contrast: 1.1, saturation: 1.06 }))),
+                    flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: 9, contrast: 1.1, saturation: 1.06 })))
+                );
+                detailVectors.push(flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(detailCanvas, { contrast: 1.24, saturation: 1.1 }))));
+            }
             const visualDescriptor = flmVisualDescribeCanvas(labelCanvas);
-            const ranked = references.map((reference) => {
-                const embeddingScore = flmVisualCosine(fullVector, reference.fullVector) * 0.18 +
-                    flmVisualRobustSimilarity(labelVectors, reference.labelVector) * 0.42 +
-                    flmVisualRobustSimilarity(detailVectors, reference.detailVector) * 0.28;
-                const descriptorScore = flmVisualDescriptorSimilarity(visualDescriptor, reference.visualDescriptor);
-                return {
-                    category: reference.category,
-                    name: reference.name,
-                    image: reference.image,
-                    embeddingScore,
-                    descriptorScore,
-                    score: embeddingScore + descriptorScore * 0.12
-                };
-            }).sort((a, b) => b.score - a.score);
-            if (ranked.length === 0) throw new Error('没有得到包装候选');
-
-            const categoryGroups = new Map();
-            ranked.forEach((item) => {
-                if (!categoryGroups.has(item.category)) categoryGroups.set(item.category, []);
-                categoryGroups.get(item.category).push(item);
-            });
-            const voteWeights = [0.5, 0.3, 0.2];
-            const categoryRanking = Array.from(categoryGroups.entries()).map(([category, items]) => {
-                const topItems = items.slice(0, 3);
-                let score = 0;
-                let descriptorScore = 0;
-                let weightTotal = 0;
-                topItems.forEach((item, index) => {
-                    score += item.score * voteWeights[index];
-                    descriptorScore += item.descriptorScore * voteWeights[index];
-                    weightTotal += voteWeights[index];
+            const buildCategoryRanking = () => {
+                const ranked = references.map((reference) => {
+                    const embeddingScore = flmVisualCosine(fullVector, reference.fullVector) * 0.18 +
+                        flmVisualRobustSimilarity(labelVectors, reference.labelVector) * 0.42 +
+                        flmVisualRobustSimilarity(detailVectors, reference.detailVector) * 0.28;
+                    const descriptorScore = flmVisualDescriptorSimilarity(visualDescriptor, reference.visualDescriptor);
+                    return {
+                        category: reference.category,
+                        name: reference.name,
+                        image: reference.image,
+                        embeddingScore,
+                        descriptorScore,
+                        score: embeddingScore + descriptorScore * 0.12
+                    };
+                }).sort((a, b) => b.score - a.score);
+                if (ranked.length === 0) throw new Error('没有得到包装候选');
+                const categoryGroups = new Map();
+                ranked.forEach((item) => {
+                    if (!categoryGroups.has(item.category)) categoryGroups.set(item.category, []);
+                    categoryGroups.get(item.category).push(item);
                 });
-                const best = topItems[0];
-                return {
-                    ...best,
-                    category,
-                    score: score / Math.max(1e-8, weightTotal),
-                    descriptorScore: descriptorScore / Math.max(1e-8, weightTotal),
-                    bestScore: best.score,
-                    support: topItems.length
-                };
-            }).sort((a, b) => b.score - a.score);
+                const voteWeights = [0.5, 0.3, 0.2];
+                return Array.from(categoryGroups.entries()).map(([category, items]) => {
+                    const topItems = items.slice(0, 3);
+                    let score = 0;
+                    let descriptorScore = 0;
+                    let weightTotal = 0;
+                    topItems.forEach((item, index) => {
+                        score += item.score * voteWeights[index];
+                        descriptorScore += item.descriptorScore * voteWeights[index];
+                        weightTotal += voteWeights[index];
+                    });
+                    const best = topItems[0];
+                    return {
+                        ...best,
+                        category,
+                        score: score / Math.max(1e-8, weightTotal),
+                        descriptorScore: descriptorScore / Math.max(1e-8, weightTotal),
+                        bestScore: best.score,
+                        support: topItems.length
+                    };
+                }).sort((a, b) => b.score - a.score);
+            };
+            let categoryRanking = buildCategoryRanking();
+            const fastMargin = (categoryRanking[0]?.score || 0) - (categoryRanking[1]?.score || 0);
+            const mayRefine = ui.fastMode && ui.allowRefine && !ui.ocrEvidence?.exact && fastMargin < 0.055 &&
+                performance.now() < (ui.deadline || Infinity) - 700;
+            if (mayRefine) {
+                setProgress('候选比较接近，正在做一次精细复核…');
+                labelVectors.push(
+                    flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: -9, contrast: 1.1, saturation: 1.06 }))),
+                    flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(labelCanvas, { rotation: 9, contrast: 1.1, saturation: 1.06 })))
+                );
+                detailVectors.push(flmVisualVectorOf(embedder.embed(flmVisualTransformCanvas(detailCanvas, { contrast: 1.24, saturation: 1.1 }))));
+                categoryRanking = buildCategoryRanking();
+            }
             const cornPyramidScore = flmVisualDetectCornPyramid(image, crop);
             const cornPyramidEvidence = flmVisualApplyCornPyramidEvidence(categoryRanking, cornPyramidScore);
             const genericUniqueEvidence = flmVisualApplyUniqueFeatureEvidence(categoryRanking, visualDescriptor);
@@ -10953,9 +11024,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 cornPyramidEvidence: cornPyramidEvidence?.category === first.category ? cornPyramidEvidence : null,
                 ambiguousPair: cornRapeseedAmbiguous ? 'corn-rapeseed' : '',
                 confidence,
+                fastMode: Boolean(ui.fastMode),
+                labelClusterSupport: Number(ui.labelClusterSupport) || 0,
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10
             };
-            flmVisualRememberResult(result);
+            if (!ui.deferRemember) flmVisualRememberResult(result);
             if (!ui.silent) flmVisualResults.set(qNum, result);
             const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[result.topCategory] || result.topCategory;
             if (ui.status?.isConnected) {
@@ -10988,6 +11061,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     }
 
     async function flmVisualRunAutoScan(qNum, source, options = {}) {
+        const startedAt = performance.now();
+        const deadline = startedAt + 10500;
         const key = flmVisualAutoScanKey(qNum, source);
         const existing = flmVisualAutoScanStates.get(key);
         if (!options.force && ['running', 'done', 'error'].includes(existing?.status)) return existing;
@@ -11010,7 +11085,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 const current = flmVisualResults.get(qNum);
                 if (current?.status === 'running' && current?.source === source) current.message = message;
             };
-            const discovery = await flmVisualFindAutoBottleCandidates(image, updateProgress);
+            const discovery = await flmVisualFindAutoBottleCandidates(image, updateProgress, deadline);
             state.found = discovery.candidates.length;
             if (discovery.candidates.length === 0) {
                 state.status = 'done';
@@ -11025,18 +11100,37 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             ]);
             const results = [];
             for (let index = 0; index < discovery.candidates.length; index++) {
+                if (performance.now() >= deadline - 750 && results.length > 0) {
+                    state.message = `已达到单图时间预算，保留 ${results.length} 个可靠结果`;
+                    break;
+                }
                 const candidate = discovery.candidates[index];
                 updateProgress(`正在识别瓶身 ${index + 1}/${discovery.candidates.length}…`);
                 const result = await flmVisualRunSelection(qNum, source, candidate.selection, {
                     silent: true,
                     origin: 'auto',
+                    fastMode: true,
+                    allowRefine: true,
+                    deadline,
+                    deferRemember: true,
                     skipTransientPopover: true,
                     skipBottleOcr: true,
                     brandEvidence: candidate.brandEvidence || null,
                     ocrEvidence: candidate.oilEvidence || null,
+                    labelClusterSupport: candidate.textSupport || 0,
                     context: { image, references, embedder }
                 });
-                if (result) results.push(result);
+                if (result) {
+                    const hasBrand = (candidate.brandEvidence?.score || 0) >= 0.48;
+                    const oilAligned = candidate.oilEvidence?.exact && candidate.oilEvidence.category === result.topCategory;
+                    const uniqueAligned = result.uniqueEvidence?.direct || result.cornPyramidEvidence?.direct;
+                    const strongVisual = (candidate.textSupport || 0) >= 2 && result.confidence === 'likely' &&
+                        result.topScore >= 0.5 && result.margin >= 0.025;
+                    if (hasBrand || oilAligned || uniqueAligned || strongVisual) {
+                        flmVisualRememberResult(result);
+                        results.push(result);
+                    }
+                }
                 state.completed = index + 1;
                 await flmLocalOilYieldToBrowser();
             }
@@ -11046,7 +11140,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 (b.topScore || 0) - (a.topScore || 0)
             )[0] || results[0] || null;
             state.status = 'done';
-            state.message = best ? `自动识别完成：保留 ${remembered.length} 种油品` : '瓶身候选分类失败，可右键手工圈画纠错';
+            const elapsedSeconds = Math.round((performance.now() - startedAt) / 100) / 10;
+            state.message = best ? `自动识别完成：保留 ${remembered.length} 种油品，用时 ${elapsedSeconds}s` : '瓶身候选分类失败，可右键手工圈画纠错';
             if (best) flmVisualResults.set(qNum, best);
             else flmVisualResults.set(qNum, { qNum, source, status: 'auto-empty', message: state.message, origin: 'auto' });
             return state;
@@ -11677,7 +11772,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 智能识别工作台 (v1.9.0)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 智能识别工作台 (v1.9.1)</span>`;
         ws.appendChild(title);
         flmLocalOilRenderControls(ws, title, qNum);
         flmVisualScheduleAutoScan(qNum, activeDialog);
