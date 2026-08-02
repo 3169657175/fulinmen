@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.8.6
+// @version      1.8.7
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8357,6 +8357,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     let flmVisualPickMode = null;
     let flmVisualWarmupScheduled = false;
     const flmVisualResults = new Map();
+    const FLM_VISUAL_CACHE_DB = 'flm_visual_reference_cache';
+    const FLM_VISUAL_CACHE_STORE = 'reference_vectors';
+    const FLM_VISUAL_CACHE_KEY = 'mobilenet-v3-small-f32-packages-v1';
     const flmVisualResourceObjectUrls = new Map();
 
     GM_addStyle(`
@@ -9832,12 +9835,108 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return flmVisualEmbedderPromise;
     }
 
+    function flmVisualOpenReferenceCacheDb() {
+        return new Promise((resolve, reject) => {
+            if (typeof indexedDB === 'undefined') {
+                reject(new Error('当前浏览器不支持 IndexedDB'));
+                return;
+            }
+            const request = indexedDB.open(FLM_VISUAL_CACHE_DB, 1);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains(FLM_VISUAL_CACHE_STORE)) {
+                    db.createObjectStore(FLM_VISUAL_CACHE_STORE, { keyPath: 'key' });
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('打开包装特征缓存失败'));
+            request.onblocked = () => reject(new Error('包装特征缓存数据库被其他页面占用'));
+        });
+    }
+
+    function flmVisualReferenceLibrarySignature(sourceLibrary) {
+        const identity = sourceLibrary.map((item) => {
+            const image = String(item?.image || '');
+            return `${item?.category || ''}:${item?.name || ''}:${image.length}:${image.slice(-32)}`;
+        }).join('|');
+        return flmLocalOilHash(identity);
+    }
+
+    async function flmVisualReadReferenceCache(sourceLibrary) {
+        let db = null;
+        try {
+            db = await flmVisualOpenReferenceCacheDb();
+            const cached = await new Promise((resolve, reject) => {
+                const transaction = db.transaction(FLM_VISUAL_CACHE_STORE, 'readonly');
+                const request = transaction.objectStore(FLM_VISUAL_CACHE_STORE).get(FLM_VISUAL_CACHE_KEY);
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error || new Error('读取包装特征缓存失败'));
+            });
+            if (!cached || cached.libraryLength !== sourceLibrary.length ||
+                cached.librarySignature !== flmVisualReferenceLibrarySignature(sourceLibrary) ||
+                !Array.isArray(cached.items) || cached.items.length !== sourceLibrary.length) {
+                return null;
+            }
+            const references = [];
+            for (let i = 0; i < sourceLibrary.length; i++) {
+                const source = sourceLibrary[i];
+                const saved = cached.items[i];
+                if (!saved || saved.category !== source.category || saved.name !== source.name) return null;
+                const fullVector = saved.fullVector instanceof Float32Array ? saved.fullVector : Float32Array.from(saved.fullVector || []);
+                const labelVector = saved.labelVector instanceof Float32Array ? saved.labelVector : Float32Array.from(saved.labelVector || []);
+                if (fullVector.length === 0 || labelVector.length === 0) return null;
+                references.push({ ...source, fullVector, labelVector });
+            }
+            return references;
+        } catch (error) {
+            console.warn('[福临门包装检索] 读取本地特征缓存失败，本次重新建立：', error);
+            return null;
+        } finally {
+            db?.close();
+        }
+    }
+
+    async function flmVisualWriteReferenceCache(references) {
+        let db = null;
+        try {
+            db = await flmVisualOpenReferenceCacheDb();
+            const record = {
+                key: FLM_VISUAL_CACHE_KEY,
+                libraryLength: references.length,
+                librarySignature: flmVisualReferenceLibrarySignature(references),
+                savedAt: Date.now(),
+                items: references.map((item) => ({
+                    category: item.category,
+                    name: item.name,
+                    fullVector: Float32Array.from(item.fullVector || []),
+                    labelVector: Float32Array.from(item.labelVector || [])
+                }))
+            };
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction(FLM_VISUAL_CACHE_STORE, 'readwrite');
+                transaction.objectStore(FLM_VISUAL_CACHE_STORE).put(record);
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error || new Error('保存包装特征缓存失败'));
+                transaction.onabort = () => reject(transaction.error || new Error('保存包装特征缓存被中止'));
+            });
+            return true;
+        } catch (error) {
+            console.warn('[福临门包装检索] 包装特征已生成，但持久缓存保存失败：', error);
+            return false;
+        } finally {
+            db?.close();
+        }
+    }
+
     function flmVisualEnsureReferences(onProgress) {
         if (flmVisualReferencePromise) return flmVisualReferencePromise;
         flmVisualReferencePromise = (async () => {
-            const embedder = await flmVisualGetEmbedder();
             const sourceLibrary = Array.isArray(FLM_VISUAL_REFERENCE_LIBRARY) ? FLM_VISUAL_REFERENCE_LIBRARY : [];
             if (sourceLibrary.length < 20) throw new Error('内置包装参考库不完整');
+            const cachedReferences = await flmVisualReadReferenceCache(sourceLibrary);
+            if (cachedReferences) return cachedReferences;
+
+            const embedder = await flmVisualGetEmbedder();
             const references = [];
             for (let i = 0; i < sourceLibrary.length; i++) {
                 const item = sourceLibrary[i];
@@ -9864,6 +9963,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                     await flmLocalOilYieldToBrowser();
                 }
             }
+            if (onProgress) onProgress('首次包装特征已生成，正在保存到浏览器…');
+            await flmVisualWriteReferenceCache(references);
             return references;
         })().catch((error) => {
             flmVisualReferencePromise = null;
@@ -10687,7 +10788,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.6)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.7)</span>`;
         ws.appendChild(title);
         requestAnimationFrame(() => {
             flmLocalOilRenderImageOverlay(activeDialog, qNum);
