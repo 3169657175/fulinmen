@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.8.5
+// @version      1.8.6
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8393,12 +8393,16 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         .sj-local-oil-box.maybe .sj-local-oil-box-label { background:#b45309; }
         .sj-visual-search-btn { border-color:#38bdf8; color:#e0f2fe; background:#0c3144; }
         .sj-visual-search-btn:hover { background:#07506d; }
-        .sj-visual-pick-active { outline:3px solid rgba(56,189,248,.9) !important; outline-offset:-3px; }
-        #sj-visual-draw-capture { position:fixed; z-index:2147483645; pointer-events:none; background:rgba(56,189,248,.008); box-shadow:inset 0 0 0 3px rgba(56,189,248,.72); }
-        #sj-visual-draw-capture::before { content:'按住鼠标右键圈住完整瓶身 · 左键仍可拖图 · Esc取消'; position:absolute; left:50%; top:10px; transform:translateX(-50%); padding:5px 10px; border-radius:999px; color:#e0f2fe; background:rgba(3,37,52,.88); border:1px solid rgba(56,189,248,.72); font-size:12px; font-weight:900; white-space:nowrap; pointer-events:none; }
+        .sj-visual-pick-active { outline:none !important; }
+        #sj-visual-draw-capture { position:fixed; z-index:2147483645; pointer-events:none; background:transparent; }
         html.sj-visual-right-drawing, html.sj-visual-right-drawing * { cursor:crosshair !important; }
         #sj-visual-draw-box { position:fixed; z-index:2147483646; pointer-events:none; box-sizing:border-box; border:3px solid #ff3b30; background:rgba(255,59,48,.07); box-shadow:0 0 0 1px rgba(255,255,255,.9),0 0 16px rgba(255,59,48,.5); }
-        #sj-visual-draw-box::after { content:'松开右键开始识别'; position:absolute; left:-3px; top:-27px; padding:3px 7px; border-radius:6px 6px 6px 0; color:#fff; background:#dc2626; font-size:12px; line-height:18px; font-weight:900; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.55); }
+        #sj-visual-draw-box.pending { border-color:#f59e0b; background:rgba(245,158,11,.06); box-shadow:0 0 0 1px rgba(255,255,255,.9),0 0 16px rgba(245,158,11,.48); }
+        .sj-visual-box-status { position:absolute; left:-3px; top:-27px; max-width:260px; overflow:hidden; text-overflow:ellipsis; padding:3px 8px; border-radius:6px 6px 6px 0; color:#fff; background:#b45309; font-size:12px; line-height:18px; font-weight:900; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.55); }
+        .sj-visual-candidate-popover { position:fixed; z-index:2147483647; display:flex; gap:6px; max-width:270px; padding:7px; border-radius:10px; background:rgba(7,20,31,.94); border:1px solid rgba(56,189,248,.78); box-shadow:0 8px 28px rgba(0,0,0,.52); pointer-events:none; animation:sjVisualPopover 1.15s ease forwards; }
+        .sj-visual-candidate-mini { width:76px; min-width:0; color:#e0f2fe; font-size:10px; font-weight:800; text-align:center; }
+        .sj-visual-candidate-mini img { display:block; width:70px; height:76px; margin-bottom:3px; object-fit:contain; border-radius:5px; background:#fff; }
+        @keyframes sjVisualPopover { 0%,72% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-7px); } }
         .sj-visual-results { margin:7px 0 4px; padding:8px; border:1px solid rgba(56,189,248,.4); border-radius:9px; background:rgba(8,30,43,.82); color:#e0f2fe; }
         .sj-visual-results.running { border-style:dashed; color:#bae6fd; }
         .sj-visual-summary { display:flex; align-items:center; gap:8px; margin-bottom:7px; min-width:0; }
@@ -9880,7 +9884,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
 
     function flmVisualCancelPick() {
         if (!flmVisualPickMode) return;
-        const { image, handlers, oldCursor, oldTouchAction, oldUserSelect, selectionBox, captureLayer } = flmVisualPickMode;
+        const { image, handlers, oldCursor, oldTouchAction, oldUserSelect, selectionBox, captureLayer, pendingBoxes } = flmVisualPickMode;
         if (handlers) {
             window.removeEventListener('pointerdown', handlers.pointerdown, true);
             window.removeEventListener('pointermove', handlers.pointermove, true);
@@ -9898,6 +9902,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         if (captureLayer) captureLayer.style.pointerEvents = 'none';
         captureLayer?.remove();
         selectionBox?.remove();
+        pendingBoxes?.forEach((box) => box.remove());
         document.documentElement.classList.remove('sj-visual-right-drawing');
         image?.classList.remove('sj-visual-pick-active');
         if (image) {
@@ -9914,18 +9919,18 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return evidenceSources.find((source) => imageUrls.includes(source)) || imageUrls[0] || '';
     }
 
-    function flmVisualStartPick(qNum) {
+    function flmVisualStartPick(qNum, silent = false) {
         flmVisualCancelPick();
         const dialog = findTargetZoomDialog();
         const image = flmLocalOilFindMainViewerImage(dialog);
         if (!dialog || !image) {
-            autoReviewToast('没有找到当前放大的现场照片，请先打开 Q7/Q10 的左侧证据图。', true);
-            return;
+            if (!silent) autoReviewToast('没有找到当前放大的现场照片，请先打开 Q7/Q10 的左侧证据图。', true);
+            return false;
         }
         const source = flmVisualPickSource(image, qNum);
         if (!source) {
-            autoReviewToast('当前图片不属于本题左侧照片证据，已停止检索。', true);
-            return;
+            if (!silent) autoReviewToast('当前图片不属于本题左侧照片证据，已停止检索。', true);
+            return false;
         }
         const oldCursor = image.style.cursor;
         const oldTouchAction = image.style.touchAction;
@@ -9941,7 +9946,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const mode = {
             qNum, image, source, oldCursor, oldTouchAction, oldUserSelect,
             drawing: false, startX: 0, startY: 0, currentRect: null,
-            selectionBox: null, captureLayer, handlers: null
+            selectionBox: null, captureLayer, handlers: null, pendingBoxes: new Set()
         };
 
         const stopViewerEvent = (event) => {
@@ -9976,6 +9981,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 event.clientY < rendered.top || event.clientY > rendered.top + rendered.height) return;
             stopViewerEvent(event);
             if (mode.drawing) return;
+            if (flmVisualResults.get(qNum)?.status === 'running') return;
             const point = clampPoint(event, rendered);
             mode.drawing = true;
             mode.startX = point.x;
@@ -10020,8 +10026,16 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 width: selected.width / Math.max(1, rendered.width),
                 height: selected.height / Math.max(1, rendered.height)
             };
-            flmVisualCancelPick();
-            flmVisualRunSelection(qNum, source, selection);
+            const pendingBox = mode.selectionBox;
+            pendingBox.classList.add('pending');
+            const status = document.createElement('div');
+            status.className = 'sj-visual-box-status';
+            status.textContent = '正在识别…';
+            pendingBox.appendChild(status);
+            mode.pendingBoxes.add(pendingBox);
+            mode.selectionBox = null;
+            mode.currentRect = null;
+            flmVisualRunSelection(qNum, source, selection, { pendingBox, status, screenRect: selected });
         };
         const pointerup = (event) => {
             if (event.button !== 2) return;
@@ -10052,9 +10066,15 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         const keydown = (event) => {
             if (event.key !== 'Escape' || flmVisualPickMode !== mode) return;
             event.preventDefault();
-            flmVisualCancelPick();
-            auditHelperUpdateWorkspace();
-            autoReviewToast('已取消包装圈画。');
+            if (mode.drawing) {
+                mode.drawing = false;
+                captureLayer.style.pointerEvents = 'none';
+                document.documentElement.classList.remove('sj-visual-right-drawing');
+                document.documentElement.style.userSelect = oldUserSelect || '';
+            }
+            mode.selectionBox?.remove();
+            mode.selectionBox = null;
+            mode.currentRect = null;
         };
         mode.handlers = {
             pointerdown, pointermove, pointerup, pointercancel,
@@ -10075,14 +10095,53 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         window.addEventListener('auxclick', auxclick, { capture: true, passive: false });
         window.addEventListener('contextmenu', contextmenu, { capture: true, passive: false });
         window.addEventListener('keydown', keydown, true);
-        autoReviewToast('左键仍可正常拖图。请按住鼠标右键圈住完整瓶身，松开右键后立即识别。');
+        return true;
     }
 
-    async function flmVisualRunSelection(qNum, source, selection) {
+    function flmVisualEnsureAlwaysOnPick(qNum, dialog) {
+        if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) {
+            flmVisualCancelPick();
+            return;
+        }
+        const image = flmLocalOilFindMainViewerImage(dialog);
+        if (!image) return;
+        const source = flmVisualPickSource(image, qNum);
+        if (!source) return;
+        if (flmVisualPickMode?.qNum === qNum && flmVisualPickMode.image === image && flmVisualPickMode.source === source) return;
+        flmVisualStartPick(qNum, true);
+    }
+
+    function flmVisualShowTransientCandidates(result, screenRect) {
+        document.querySelectorAll('.sj-visual-candidate-popover').forEach((item) => item.remove());
+        const candidates = Array.isArray(result?.candidates) ? result.candidates.slice(0, 3) : [];
+        if (candidates.length === 0 || !screenRect) return;
+        const popover = document.createElement('div');
+        popover.className = 'sj-visual-candidate-popover';
+        candidates.forEach((candidate) => {
+            const item = document.createElement('div');
+            item.className = 'sj-visual-candidate-mini';
+            const image = document.createElement('img');
+            image.src = candidate.image;
+            image.alt = FLM_LOCAL_OIL_SHORT_LABELS[candidate.category] || candidate.category;
+            const label = document.createElement('div');
+            label.textContent = candidate.category === 'blend' ? '调和油' : (FLM_LOCAL_OIL_SHORT_LABELS[candidate.category] || candidate.category);
+            item.append(image, label);
+            popover.appendChild(item);
+        });
+        document.body.appendChild(popover);
+        const width = Math.min(270, candidates.length * 82 + 14);
+        const placeRight = screenRect.left + screenRect.width + 12 + width <= window.innerWidth - 8;
+        const left = placeRight ? screenRect.left + screenRect.width + 10 : Math.max(8, screenRect.left - width - 10);
+        const top = Math.max(8, Math.min(window.innerHeight - 112, screenRect.top));
+        Object.assign(popover.style, { left: `${left}px`, top: `${top}px` });
+        setTimeout(() => popover.remove(), 1200);
+    }
+
+    async function flmVisualRunSelection(qNum, source, selection, ui = {}) {
         const startedAt = performance.now();
         const setProgress = (message) => {
             flmVisualResults.set(qNum, { qNum, source, status: 'running', message });
-            auditHelperUpdateWorkspace();
+            if (ui.status?.isConnected) ui.status.textContent = message || '正在识别…';
         };
         try {
             setProgress('正在读取你圈出的瓶身…');
@@ -10158,13 +10217,23 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
                 elapsedSeconds: Math.round((performance.now() - startedAt) / 100) / 10
             };
             flmVisualResults.set(qNum, result);
-            autoReviewToast(`${qNum} 包装检索完成：${result.elapsedSeconds} 秒。结果是相似候选，不会自动勾选。`);
+            const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[result.topCategory] || result.topCategory;
+            if (ui.status?.isConnected) {
+                ui.status.textContent = result.topCategory === 'blend' ? '候选：调和油' :
+                    result.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
+            }
+            flmVisualShowTransientCandidates(result, ui.screenRect);
         } catch (error) {
             console.warn('[福临门包装检索] 检索失败：', error);
             flmVisualResults.set(qNum, { qNum, source, status: 'error', message: error?.message || String(error) });
+            if (ui.status?.isConnected) ui.status.textContent = '识别失败，可重新圈画';
             autoReviewToast('包装检索失败：' + (error?.message || error), true);
         } finally {
             auditHelperUpdateWorkspace();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                ui.pendingBox?.remove();
+                flmVisualPickMode?.pendingBoxes?.delete(ui.pendingBox);
+            }));
         }
     }
 
@@ -10386,8 +10455,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             const label = document.createElement('div');
             label.className = 'sj-local-oil-box-label';
             const topLabel = FLM_LOCAL_OIL_SHORT_LABELS[visualResult.topCategory] || visualResult.topCategory;
-            label.textContent = visualResult.topCategory === 'blend' ? '包装候选：调和油' :
-                visualResult.confidence === 'likely' ? `较可能：${topLabel}` : '包装候选';
+            label.textContent = visualResult.topCategory === 'blend' ? '候选：调和油' :
+                visualResult.confidence === 'likely' ? `较可能：${topLabel}` : `候选：${topLabel}`;
             box.appendChild(label);
             overlay.appendChild(box);
             document.body.appendChild(overlay);
@@ -10548,6 +10617,9 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             return;
         }
 
+        // 圈画能力只依赖当前 Q7/Q10 主图，不依赖左侧是否成功找到 Q13 选项栏。
+        requestAnimationFrame(() => flmVisualEnsureAlwaysOnPick(qNum, activeDialog));
+
         // 如果在输入框处于焦点状态，且没有切换大图和 Tab，则跳过重绘，避免失去焦点
         if (document.activeElement &&
             document.activeElement.classList.contains('sj-ws-fill-input') &&
@@ -10615,10 +10687,11 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         // 1. 标题
         const title = document.createElement('div');
         title.className = 'sj-ws-title';
-        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.5)</span>`;
+        title.innerHTML = `<span>🔍 ${qNum} 大图联动工作台 (v1.8.6)</span>`;
         ws.appendChild(title);
-        flmLocalOilRenderControls(ws, title, qNum);
-        requestAnimationFrame(() => flmLocalOilRenderImageOverlay(activeDialog, qNum));
+        requestAnimationFrame(() => {
+            flmLocalOilRenderImageOverlay(activeDialog, qNum);
+        });
 
         // 2. 动态选项卡 Tab 头部
         const tabsContainer = document.createElement('div');
@@ -10646,7 +10719,6 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             tabsContainer.appendChild(tab);
         });
         ws.appendChild(tabsContainer);
-        flmVisualRenderResults(ws, qNum);
 
         // 3. 选项列表容器
         const listContainer = document.createElement('div');
@@ -10845,6 +10917,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
 
         // 监听全局点击事件，以在打开/关闭大图时瞬间响应工作台更新（消除 2 秒轮询的延迟）
         document.addEventListener('click', (e) => {
+            document.querySelectorAll('.sj-visual-candidate-popover').forEach((item) => item.remove());
             if (sjBlockNextClick) {
                 e.stopPropagation();
                 e.preventDefault();
@@ -10853,6 +10926,21 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             }
             setTimeout(auditHelperUpdateWorkspace, 100);
             setTimeout(auditHelperUpdateWorkspace, 300);
+        }, true);
+
+        // Q7/Q10 主图上的右键固定用于圈画；独立于一次圈画的生命周期，避免 mouseup 后浏览器菜单漏出。
+        document.addEventListener('contextmenu', (event) => {
+            const dialog = findTargetZoomDialog();
+            const qNum = getActiveDialogQuestionNumber(dialog);
+            if (!dialog || (qNum !== 'Q7' && qNum !== 'Q10')) return;
+            const image = flmLocalOilFindMainViewerImage(dialog);
+            if (!image) return;
+            const rendered = flmLocalOilGetRenderedImageRect(image);
+            if (event.clientX < rendered.left || event.clientX > rendered.left + rendered.width ||
+                event.clientY < rendered.top || event.clientY > rendered.top + rendered.height) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
         }, true);
 
         // 监听DOM变化，使图片编辑快捷按钮秒开秒关以及复制Q5照片证据到Q6
