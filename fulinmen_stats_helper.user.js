@@ -1,7 +1,7 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.6
+// @version      1.9.8
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4291,95 +4291,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return true;
     }
 
-    function photoEditEnsureShortcutButton() {
-        return;
-
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.id = 'sj-photo-edit-shortcut-btn';
-            btn.textContent = '\u7f16\u8f91';
-            btn.title = '\u81ea\u52a8\u8fdb\u5165\u77e9\u5f62\u6807\u6ce8\uff0c\u753b\u5b8c\u6309 Enter \u4fdd\u5b58 [\u53ef\u5de6\u952e\u62d6\u52a8\u4f4d\u7f6e]';
-
-            // 读取持久化位置坐标
-            const savedX = localStorage.getItem('sj_photo_edit_btn_x');
-            const savedY = localStorage.getItem('sj_photo_edit_btn_y');
-            if (savedX && savedY) {
-                btn.style.left = savedX + 'px';
-                btn.style.top = savedY + 'px';
-            }
-
-            // 拖拽逻辑实现
-            let isDragging = false;
-            let startX = 0;
-            let startY = 0;
-            let initialLeft = 0;
-            let initialTop = 0;
-
-            btn.addEventListener('mousedown', (e) => {
-                if (e.button !== 0) return; // 仅限鼠标左键拖拽
-                isDragging = false;
-                startX = e.clientX;
-                startY = e.clientY;
-
-                const rect = btn.getBoundingClientRect();
-                initialLeft = rect.left;
-                initialTop = rect.top;
-
-                btn.classList.add('sj-dragging');
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-                e.preventDefault(); // 阻止默认的文本拖选
-            });
-
-            const onMouseMove = (e) => {
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-
-                if (!isDragging && Math.sqrt(dx * dx + dy * dy) > 5) {
-                    isDragging = true;
-                }
-
-                if (isDragging) {
-                    let newLeft = initialLeft + dx;
-                    let newTop = initialTop + dy;
-
-                    const rect = btn.getBoundingClientRect();
-                    const btnWidth = rect.width;
-                    const btnHeight = rect.height;
-                    const maxLeft = window.innerWidth - btnWidth;
-                    const maxTop = window.innerHeight - btnHeight;
-
-                    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-                    newTop = Math.max(0, Math.min(newTop, maxTop));
-
-                    btn.style.left = newLeft + 'px';
-                    btn.style.top = newTop + 'px';
-                }
-            };
-
-            const onMouseUp = () => {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-                btn.classList.remove('sj-dragging');
-
-                if (isDragging) {
-                    const rect = btn.getBoundingClientRect();
-                    localStorage.setItem('sj_photo_edit_btn_x', Math.round(rect.left));
-                    localStorage.setItem('sj_photo_edit_btn_y', Math.round(rect.top));
-                }
-            };
-
-            btn.addEventListener('click', (e) => {
-                if (isDragging) {
-                    isDragging = false;
-                    return;
-                }
-                photoEditStartRectMode();
-            });
-
-            document.body.appendChild(btn);
-        }
-    }
+    function photoEditEnsureShortcutButton() {}
 
     // 带坐标点击星级以实现满星选择
     function autoReviewClickStarAt(iconEl, ratio = 1) {
@@ -4496,138 +4408,13 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     let flmImagePriorityOrderId = '';
     let flmHighPriorityImageCount = 0;
 
-    function flmOptimizeImageUrlForPreview(url, width = 1000) {
-        if (!url || typeof url !== 'string' || url.startsWith('data:') || url.startsWith('blob:')) return url;
-        if (!url.includes('slicejobs.com') && !url.includes('aliyuncs.com')) return url;
-        // 网站自身已经生成的小缩略图无需再次处理。
-        if (/\b(?:w|h)_(?:75|90)\b/.test(url)) return url;
-        try {
-            const parsed = new URL(url, location.href);
-            const oldProcess = parsed.searchParams.get('x-oss-process') || '';
-            let nextProcess = oldProcess;
-            if (oldProcess.includes('image/resize')) {
-                nextProcess = oldProcess
-                    .replace(/w_\d+/g, `w_${width}`)
-                    .replace(/h_\d+/g, '')
-                    .replace(/l_\d+/g, `w_${width}`)
-                    .replace(/,+/g, ',')
-                    .replace(/,$/, '')
-                    .replace(/m_pad/g, 'm_lfit');
-                if (!nextProcess.includes('/format,webp')) nextProcess += '/format,webp';
-                if (!nextProcess.includes('/quality,q_80')) nextProcess += '/quality,q_80';
-            } else {
-                nextProcess = `image/resize,w_${width}/format,webp/quality,q_80`;
-            }
-            parsed.searchParams.set('x-oss-process', nextProcess);
-            return parsed.toString();
-        } catch (error) {
-            return url;
-        }
-    }
+    function flmOptimizeImageUrlForPreview(url) { return url; }
 
-    function flmTuneImageElement(img) {
-        if (!img || img.nodeType !== Node.ELEMENT_NODE || img.tagName !== 'IMG') return;
-        try {
-            const currentOrderId = flmGetCurrentOrderId() || '';
-            if (flmImagePriorityOrderId !== currentOrderId) {
-                flmImagePriorityOrderId = currentOrderId;
-                flmHighPriorityImageCount = 0;
-            }
-            img.decoding = 'async';
-            const rect = img.getBoundingClientRect();
-            const nearViewport = rect.top < window.innerHeight * 1.5 && rect.bottom > -200;
-            if (nearViewport) {
-                img.loading = 'eager';
-                // 只把最先出现的三张图片设为高优先级，避免几十张图同时抢占详情接口带宽。
-                if ('fetchPriority' in img && !img.dataset.flmPriorityAssigned) {
-                    img.fetchPriority = flmHighPriorityImageCount < 3 ? 'high' : 'auto';
-                    flmHighPriorityImageCount += 1;
-                    img.dataset.flmPriorityAssigned = '1';
-                }
-            } else {
-                img.loading = 'lazy';
-                if ('fetchPriority' in img) img.fetchPriority = 'low';
-            }
-            const currentSrc = img.getAttribute('src');
-            const optimizedSrc = flmOptimizeImageUrlForPreview(currentSrc, 1000);
-            if (optimizedSrc && optimizedSrc !== currentSrc) img.setAttribute('src', optimizedSrc);
-        } catch (error) {}
-    }
+    function flmTuneImageElement() {}
 
-    function flmInjectResourceHints() {
-        if (!document.head) {
-            document.addEventListener('DOMContentLoaded', flmInjectResourceHints, { once: true });
-            return;
-        }
-        ['https://sjimgpub.slicejobs.com', 'https://sjaudiopub.slicejobs.com'].forEach((href) => {
-            if (document.querySelector(`link[rel="preconnect"][href="${href}"]`)) return;
-            const link = document.createElement('link');
-            link.rel = 'preconnect';
-            link.href = href;
-            link.crossOrigin = 'anonymous';
-            document.head.appendChild(link);
-        });
-    }
+    function flmInjectResourceHints() {}
 
-    function flmInitImageOptimizer() {
-        if (flmImageOptimizerInitialized) return;
-        flmImageOptimizerInitialized = true;
-
-        const srcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-        if (srcDescriptor && srcDescriptor.get && srcDescriptor.set && !srcDescriptor.set.__flmOptimized) {
-            const originalSetter = srcDescriptor.set;
-            const optimizedSetter = function(value) {
-                return originalSetter.call(this, flmOptimizeImageUrlForPreview(value, 1000));
-            };
-            optimizedSetter.__flmOptimized = true;
-            Object.defineProperty(HTMLImageElement.prototype, 'src', {
-                configurable: srcDescriptor.configurable,
-                enumerable: srcDescriptor.enumerable,
-                get: srcDescriptor.get,
-                set: optimizedSetter
-            });
-        }
-
-        const originalSetAttribute = Element.prototype.setAttribute;
-        if (!originalSetAttribute.__flmOptimized) {
-            const optimizedSetAttribute = function(name, value) {
-                const nextValue = name === 'src' && this.tagName === 'IMG'
-                    ? flmOptimizeImageUrlForPreview(value, 1000)
-                    : value;
-                return originalSetAttribute.call(this, name, nextValue);
-            };
-            optimizedSetAttribute.__flmOptimized = true;
-            Element.prototype.setAttribute = optimizedSetAttribute;
-        }
-
-        const startDomObserver = () => {
-            flmInjectResourceHints();
-            document.querySelectorAll('img').forEach(flmTuneImageElement);
-            if (!document.documentElement) return;
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.type === 'attributes') {
-                        flmTuneImageElement(mutation.target);
-                        return;
-                    }
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType !== Node.ELEMENT_NODE) return;
-                        if (node.tagName === 'IMG') flmTuneImageElement(node);
-                        node.querySelectorAll && node.querySelectorAll('img').forEach(flmTuneImageElement);
-                    });
-                });
-            });
-            observer.observe(document.documentElement, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['src']
-            });
-        };
-
-        if (document.documentElement) startDomObserver();
-        else document.addEventListener('DOMContentLoaded', startDomObserver, { once: true });
-    }
+    function flmInitImageOptimizer() {}
 
     // ==========================================
     // 福临门单槽预取：仿照脉动插件，直接调用网站"开始审单"背后的原生请求。
@@ -4880,39 +4667,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         }
     }
 
-    function flmRecoverPendingNavigation() {
-        let pending = null;
-        try {
-            const raw = sessionStorage.getItem(FLM_PENDING_NAV_KEY);
-            pending = raw ? JSON.parse(raw) : null;
-        } catch (error) {
-            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
-            return false;
-        }
-        if (!pending) return false;
-
-        const currentOrderId = flmGetCurrentOrderId() || '';
-        const targetOrderId = String(pending.targetOrderId || '');
-        const fromOrderId = String(pending.fromOrderId || '');
-        const age = Date.now() - Number(pending.createdAt || 0);
-        if (!/^\d+$/.test(targetOrderId) || age < 0 || age > FLM_PENDING_NAV_TTL_MS) {
-            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
-            return false;
-        }
-        if (currentOrderId === targetOrderId) {
-            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
-            return false;
-        }
-        if (currentOrderId !== fromOrderId || Number(pending.attempts || 0) >= 2) {
-            sessionStorage.removeItem(FLM_PENDING_NAV_KEY);
-            return false;
-        }
-
-        pending.attempts = Number(pending.attempts || 0) + 1;
-        sessionStorage.setItem(FLM_PENDING_NAV_KEY, JSON.stringify(pending));
-        setTimeout(() => location.replace('/order/review/' + targetOrderId), 60);
-        return true;
-    }
+    function flmRecoverPendingNavigation() { return false; }
 
     function flmFinalizePrefetchSlot(currentOrderId) {
         const slot = flmReadPrefetchSlot();
@@ -5045,17 +4800,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return true;
     }
 
-    function flmArmAuditPrefetchJump() {
-        const currentOrderId = flmGetCurrentOrderId();
-        const slot = flmReadPrefetchSlot();
-        if (!currentOrderId || !slot || slot.state !== 'ready' ||
-            slot.sourceOrderId !== currentOrderId || slot.nextOrderId === currentOrderId) {
-            flmAuditJumpArm = null;
-            return false;
-        }
-        flmAuditJumpArm = { currentOrderId, armedAt: Date.now() };
-        return true;
-    }
+    function flmArmAuditPrefetchJump() { return false; }
 
     function flmHandleAuditSubmitResponse(meta) {
         const arm = flmAuditJumpArm;
@@ -5078,187 +4823,13 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         return true;
     }
 
-    function flmInitFastAuditInterceptor() {
-        if (flmAuditInterceptorInitialized) return;
-        flmAuditInterceptorInitialized = true;
+    function flmInitFastAuditInterceptor() {}
 
-        const originalOpen = XMLHttpRequest.prototype.open;
-        const originalSend = XMLHttpRequest.prototype.send;
-        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-            this._flmAuditUrl = url;
-            this._flmAuditMethod = method;
-            return originalOpen.call(this, method, url, ...rest);
-        };
-        XMLHttpRequest.prototype.send = function(...args) {
-            this.addEventListener('load', function() {
-                if (!flmIsAuditSubmitRequest(this._flmAuditUrl, this._flmAuditMethod)) return;
-                const responseText = typeof this.responseText === 'string' ? this.responseText : '';
-                flmHandleAuditSubmitResponse({
-                    url: this._flmAuditUrl,
-                    status: this.status,
-                    responseText
-                });
-            }, { once: true });
-            return originalSend.call(this, ...args);
-        };
+    function flmPrefetchNextOrder() { return Promise.resolve(false); }
 
-        const originalFetch = window.fetch;
-        if (originalFetch) {
-            window.fetch = function(input, initOptions, ...args) {
-                const url = typeof input === 'string' ? input : input && input.url || '';
-                const method = initOptions && initOptions.method || input && input.method || 'GET';
-                return originalFetch.call(this, input, initOptions, ...args).then((response) => {
-                    if (flmIsAuditSubmitRequest(url, method)) {
-                        try {
-                            response.clone().text().then((responseText) => {
-                                flmHandleAuditSubmitResponse({ url, status: response.status, responseText });
-                            }).catch(() => {});
-                        } catch (error) {}
-                    }
-                    return response;
-                });
-            };
-        }
-    }
+    function flmStartPrefetchForCurrentOrder() {}
 
-    function flmPrefetchNextOrder(currentOrderId) {
-        currentOrderId = String(currentOrderId || '');
-        if (window.self !== window.top || !/^\d+$/.test(currentOrderId)) return Promise.resolve(false);
-        if (flmFinalizePrefetchSlot(currentOrderId)) return Promise.resolve(false);
-        if (flmPrefetchInFlight) return Promise.resolve(false);
-
-        const attemptKey = FLM_PREFETCH_ATTEMPT_PREFIX + currentOrderId;
-        const previousAttempt = Number(sessionStorage.getItem(attemptKey) || 0);
-        if (previousAttempt && Date.now() - previousAttempt < FLM_PREFETCH_ATTEMPT_TTL_MS) {
-            return Promise.resolve(false);
-        }
-
-        const lockToken = flmAcquirePrefetchLock();
-        if (!lockToken) return Promise.resolve(false);
-        if (flmReadPrefetchSlot()) {
-            flmReleasePrefetchLock(lockToken);
-            return Promise.resolve(false);
-        }
-
-        const req = flmGetRequestClient();
-        if (!req) {
-            flmReleasePrefetchLock(lockToken);
-            return Promise.resolve(false);
-        }
-
-        flmPrefetchInFlight = true;
-        sessionStorage.setItem(attemptKey, String(Date.now()));
-        let allocationStarted = false;
-        console.log(`[福临门预取] 正在从 ${FLM_PREFETCH_PAGE_URL} 中取待审核最多的行领取下一单。`);
-
-        const listParams = {
-            batch_name: '',
-            current_page: 1,
-            per_page: 20,
-            projectid: FLM_PREFETCH_PROJECT_ID,
-            customerid: FLM_PREFETCH_CUSTOMER_ID
-        };
-
-        return Promise.resolve()
-            .then(() => req.page('getBatchOrderReviewTable', listParams))
-            .then((listResponse) => {
-                const rows = flmExtractBatchRows(listResponse);
-                // 取待审核数最多的行（字段名可能是 wait_count / waitCount / audit_count / pending_count 等）
-                const flmGetPendingCount = (row) => Number(
-                    row && (row.wait_count ?? row.waitCount ?? row.audit_count ?? row.auditing_count ??
-                        row.pending_count ?? row.pendingCount ?? row.todo_count ?? row.toAuditCount ??
-                        row.un_audit_count ?? row.unauditCount ?? 0)
-                );
-                const validRows = rows.filter((row) => {
-                    const batchId = Number(row && (row.batchid || row.batchId));
-                    const projectId = Number(row && (row.projectid || row.projectId) || FLM_PREFETCH_PROJECT_ID);
-                    return batchId > 0 && projectId === FLM_PREFETCH_PROJECT_ID && flmGetPendingCount(row) > 0;
-                });
-                const firstRow = validRows.length > 0
-                    ? validRows.reduce((best, row) => flmGetPendingCount(row) > flmGetPendingCount(best) ? row : best)
-                    : null;
-                if (!firstRow) {
-                    sessionStorage.removeItem(attemptKey);
-                    console.warn('[福临门预取] 批次列表没有找到待审核数大于0的行，无法预取。', listResponse);
-                    return false;
-                }
-
-                const batchId = Number(firstRow.batchid || firstRow.batchId);
-                const projectId = Number(firstRow.projectid || firstRow.projectId || FLM_PREFETCH_PROJECT_ID);
-                allocationStarted = true;
-                return Promise.resolve()
-                    .then(() => req.common('createAuditTask', {
-                        projectid: projectId,
-                        batchid: batchId
-                    }))
-                    .then((response) => {
-                    const nextOrderId = flmExtractPrefetchedOrderId(response);
-                    if (!nextOrderId || nextOrderId === currentOrderId) {
-                        console.warn('[福临门预取] 开始审单请求未返回有效的新订单号:', response);
-                        return false;
-                    }
-                    if (flmReadPrefetchSlot()) return false;
-                    flmWritePrefetchSlot({
-                        state: 'ready',
-                        sourceOrderId: currentOrderId,
-                        nextOrderId,
-                        projectId: String(projectId),
-                        batchId: String(batchId),
-                        createdAt: Date.now()
-                    });
-                    console.log(`[福临门预取] 单槽已保存第一行批次订单 ${nextOrderId}。`);
-                    return true;
-                });
-            })
-            .catch((error) => {
-                // 列表请求失败可以在下次 init 重试；领取请求一旦发出则不自动重试，避免重复占单。
-                if (!allocationStarted) sessionStorage.removeItem(attemptKey);
-                console.error('[福临门预取] 预取失败，本订单将回退网站原生下一单流程:', error);
-                return false;
-            })
-            .finally(() => {
-                flmPrefetchInFlight = false;
-                flmReleasePrefetchLock(lockToken);
-            });
-    }
-
-    function flmStartPrefetchForCurrentOrder() {
-        // 只允许顶层审单页管理共享单槽。
-        if (window.self !== window.top) return;
-        const currentOrderId = flmGetCurrentOrderId();
-        if (!currentOrderId) return;
-        const slot = flmFinalizePrefetchSlot(currentOrderId);
-        if (slot) return;
-        // 本次浏览器会话已经为该订单尝试过预取（无论成功与否），不重复触发，避免每 2 秒一次列表请求造成页面转圈。
-        if (sessionStorage.getItem(FLM_PREFETCH_ATTEMPT_PREFIX + currentOrderId)) return;
-        flmPrefetchNextOrder(currentOrderId).then(() => {
-            // 页面脚本或批次列表如果尚未加载好，就继续补试；领取请求已发出时不会重复占单。
-            if (flmGetCurrentOrderId() === currentOrderId && !flmReadPrefetchSlot() &&
-                !sessionStorage.getItem(FLM_PREFETCH_ATTEMPT_PREFIX + currentOrderId)) {
-                flmSchedulePrefetchRetry(currentOrderId);
-            }
-        });
-    }
-
-    function flmConsumeReadySlot(fromOrderId, reason) {
-        if (flmPrefetchJumping) return false;
-        const slot = flmReadPrefetchSlot();
-        fromOrderId = String(fromOrderId || '');
-        if (!slot || slot.state !== 'ready' || slot.sourceOrderId !== fromOrderId ||
-            slot.nextOrderId === fromOrderId) return false;
-
-        flmPrefetchJumping = true;
-        flmWritePrefetchSlot({ ...slot, state: 'consuming', consumedAt: Date.now() });
-        autoReviewToast(`${reason}，正在进入已预取订单 ${slot.nextOrderId}...`);
-        try {
-            return flmNavigateToOrder(slot.nextOrderId);
-        } catch (error) {
-            flmWritePrefetchSlot({ ...slot, state: 'ready' });
-            flmPrefetchJumping = false;
-            console.error('[福临门预取] 跳转失败，已恢复缓存槽：', error);
-            return false;
-        }
-    }
+    function flmConsumeReadySlot() { return false; }
 
     function flmIsVisible(element) {
         if (!element || !element.isConnected) return false;
@@ -5372,16 +4943,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         }
     }
 
-    function flmEnsureSkipButton() {
-        if (!document.body || document.getElementById('sj-skip-order-btn')) return;
-        const button = document.createElement('button');
-        button.id = 'sj-skip-order-btn';
-        button.type = 'button';
-        button.textContent = '⏭ 跳过此单';
-        button.title = '取消占有当前订单，并进入已预取的下一单';
-        button.addEventListener('click', () => flmSkipCurrentOrder(button));
-        document.body.appendChild(button);
-    }
+    function flmEnsureSkipButton() { const el = document.getElementById("sj-skip-order-btn"); if (el) el.remove(); }
 
     // 右上角提示
     function autoReviewToast(msg, isError) {
@@ -9631,6 +9193,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     }
 
     async function flmLocalOilRun(qNum, force = false) {
+        return; // 禁用整页自动 OCR 识别
         const sources = flmLocalOilGetOwnEvidenceSources(qNum);
         if (sources.length === 0) {
             autoReviewToast(`${qNum} 没有找到属于本题“照片证据”的图片，未读取审核参考。`, true);
@@ -11237,6 +10800,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             flmVisualStartOverlayTracker(dialog, mainImg, overlay);
             return;
         }
+        return; // 阻断自动识别结果在大图上的框线渲染
         const result = flmLocalOilGetCurrentResult(qNum);
         if (!result || result.status !== 'ready' || !Array.isArray(result.categories)) return;
         if (!mainImg.complete) {
@@ -11727,63 +11291,18 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
 
         // 监听DOM变化，使图片编辑快捷按钮秒开秒关以及复制Q5照片证据到Q6
         const observer = new MutationObserver((mutations) => {
-            if (typeof photoEditEnsureShortcutButton === 'function') {
-                photoEditEnsureShortcutButton();
-            }
             if (typeof cloneQ5EvidenceToQ6 === 'function') {
                 cloneQ5EvidenceToQ6();
             }
             if (typeof ensureQ6QuickFailButton === 'function') {
                 ensureQ6QuickFailButton();
             }
-            const dialog = findTargetZoomDialog();
-            if (dialog && mutations.some((mutation) => {
-                const target = mutation.target instanceof Element ? mutation.target : mutation.target?.parentElement;
-                if (!target || target.closest?.('#sj-zoom-workspace, .sj-visual-candidate-popover, #sj-local-oil-image-overlay')) return false;
-                if (mutation.type === 'attributes') {
-                    return target instanceof HTMLImageElement && dialog.contains(target) &&
-                        ['src', 'srcset', 'data-src', 'data-original'].includes(mutation.attributeName);
-                }
-                const changedNodes = [...mutation.addedNodes, ...mutation.removedNodes];
-                return changedNodes.some((node) => {
-                    const element = node instanceof Element ? node : node.parentElement;
-                    if (!element || element.closest?.('#sj-zoom-workspace, .sj-visual-candidate-popover, #sj-local-oil-image-overlay')) return false;
-                    if (element instanceof HTMLImageElement) return dialog.contains(element) || dialog.contains(mutation.target);
-                    return Boolean(element.querySelector?.('img')) && (dialog.contains(element) || dialog.contains(mutation.target));
-                });
-            })) {
-                flmVisualScheduleOverlayRefresh();
-            }
         });
         observer.observe(document.body, {
             childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['style', 'class', 'src', 'srcset', 'data-src', 'data-original']
+            subtree: true
         });
     };
 
-    // document-start 阶段先安装图片拦截，避免网站已经发出原图请求后才开始优化。
-    flmInitImageOptimizer();
-    if (FLM_IS_WARM_FRAME) return;
-
-    // Speculation Rules 会在后台创建一个顶层预渲染文档。预渲染期间只能预热页面和图片，
-    // 不能启动插件主体，否则会提前执行“预取下一单”，造成无意中多领取一个订单。
-    const startActiveDocumentHelper = () => {
-        // 如果网站审核回调曾把导航覆盖回原订单，优先恢复刚才的预存订单跳转。
-        if (flmRecoverPendingNavigation()) return;
-        flmInitFastAuditInterceptor();
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', startHelper, { once: true });
-        } else {
-            startHelper();
-        }
-    };
-
-    if (document.prerendering) {
-        document.addEventListener('prerenderingchange', startActiveDocumentHelper, { once: true });
-        return;
-    }
-
-    startActiveDocumentHelper();
+        startHelper();
 })();
