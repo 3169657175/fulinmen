@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.3
+// @version      1.9.4
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -4630,8 +4630,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     }
 
     // ==========================================
-    // 福临门单槽预取：仿照脉动插件，直接调用网站“开始审单”背后的原生请求。
-    // 固定从 projectId=7703 的批次列表第一行领取，任何时刻最多暂存一张下一单。
+    // 福临门单槽预取：仿照脉动插件，直接调用网站"开始审单"背后的原生请求。
+    // 从 projectId=7703 的批次列表中取"待审核数最多"的行领取，任何时刻最多暂存一张下一单。
     // ==========================================
     const FLM_PREFETCH_PAGE_URL = '/customer/batch-order-review/table?customerid=51&projectId=7703';
     const FLM_PREFETCH_CUSTOMER_ID = 51;
@@ -5149,7 +5149,7 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         flmPrefetchInFlight = true;
         sessionStorage.setItem(attemptKey, String(Date.now()));
         let allocationStarted = false;
-        console.log(`[福临门预取] 正在从 ${FLM_PREFETCH_PAGE_URL} 的第一行领取下一单。`);
+        console.log(`[福临门预取] 正在从 ${FLM_PREFETCH_PAGE_URL} 中取待审核最多的行领取下一单。`);
 
         const listParams = {
             batch_name: '',
@@ -5163,14 +5163,23 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
             .then(() => req.page('getBatchOrderReviewTable', listParams))
             .then((listResponse) => {
                 const rows = flmExtractBatchRows(listResponse);
-                const firstRow = rows.find((row) => {
+                // 取待审核数最多的行（字段名可能是 wait_count / waitCount / audit_count / pending_count 等）
+                const flmGetPendingCount = (row) => Number(
+                    row && (row.wait_count ?? row.waitCount ?? row.audit_count ?? row.auditing_count ??
+                        row.pending_count ?? row.pendingCount ?? row.todo_count ?? row.toAuditCount ??
+                        row.un_audit_count ?? row.unauditCount ?? 0)
+                );
+                const validRows = rows.filter((row) => {
                     const batchId = Number(row && (row.batchid || row.batchId));
                     const projectId = Number(row && (row.projectid || row.projectId) || FLM_PREFETCH_PROJECT_ID);
-                    return batchId > 0 && projectId === FLM_PREFETCH_PROJECT_ID;
+                    return batchId > 0 && projectId === FLM_PREFETCH_PROJECT_ID && flmGetPendingCount(row) > 0;
                 });
+                const firstRow = validRows.length > 0
+                    ? validRows.reduce((best, row) => flmGetPendingCount(row) > flmGetPendingCount(best) ? row : best)
+                    : null;
                 if (!firstRow) {
                     sessionStorage.removeItem(attemptKey);
-                    console.warn('[福临门预取] 批次列表没有找到可用的第一行“开始审单”。', listResponse);
+                    console.warn('[福临门预取] 批次列表没有找到待审核数大于0的行，无法预取。', listResponse);
                     return false;
                 }
 
