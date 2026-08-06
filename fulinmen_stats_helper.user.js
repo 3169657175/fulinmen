@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.4
+// @version      1.9.5
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -5229,6 +5229,8 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
         if (!currentOrderId) return;
         const slot = flmFinalizePrefetchSlot(currentOrderId);
         if (slot) return;
+        // 本次浏览器会话已经为该订单尝试过预取（无论成功与否），不重复触发，避免每 2 秒一次列表请求造成页面转圈。
+        if (sessionStorage.getItem(FLM_PREFETCH_ATTEMPT_PREFIX + currentOrderId)) return;
         flmPrefetchNextOrder(currentOrderId).then(() => {
             // 页面脚本或批次列表如果尚未加载好，就继续补试；领取请求已发出时不会重复占单。
             if (flmGetCurrentOrderId() === currentOrderId && !flmReadPrefetchSlot() &&
