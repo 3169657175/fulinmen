@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱零工审单数据助手福临门
 // @namespace    http://tampermonkey.net/
-// @version      1.9.5
+// @version      1.9.6
 // @description  统计每日及每小时审核订单量，支持日期切换。内置一键通过审核助手（Alt+A）及题目折叠功能（福临门专版）。
 // @author       Antigravity
 // @match        *://admin2.slicejobs.com/*
@@ -8107,22 +8107,33 @@ var jsfeat=jsfeat||{REVISION:"ALPHA"};(function(r){var o=1.192092896e-7;var l=1e
     // 检测网页当前是否打开了带有 Q7 或 Q10 图片的放大对话框
     function findTargetZoomDialog() {
         const dialogs = document.querySelectorAll('.el-dialog__wrapper, .el-dialog, .task-review-evidence-dialog');
+        let bestDialog = null;
+        let bestZIndex = -1;
         for (const d of dialogs) {
             const rect = d.getBoundingClientRect();
             // 通过 rect.width / rect.height 判定 dialog 及其所有祖先是否真实渲染（排除 display: none）
-            if (rect.width > 0 && rect.height > 0) {
+            if (rect.width > window.innerWidth * 0.15 && rect.height > window.innerHeight * 0.15) {
                 const style = window.getComputedStyle(d);
                 if (style && style.display !== 'none' && style.visibility !== 'hidden') {
+                    // 必须脱离普通文档流，才是真正的放大对话框模态层
+                    const position = style.position;
+                    if (position !== 'fixed' && position !== 'absolute') continue;
+                    // 对话框必须在当前视口内可见
+                    if (rect.left > window.innerWidth || rect.right < 0 || rect.top > window.innerHeight || rect.bottom < 0) continue;
                     if (d.querySelector('img')) {
                         const qNum = getActiveDialogQuestionNumber(d);
                         if (qNum === 'Q7' || qNum === 'Q10') {
-                            return d; // 返回符合条件的当前活动对话框
+                            const zIndex = parseInt(style.zIndex, 10) || 0;
+                            if (zIndex > bestZIndex) {
+                                bestZIndex = zIndex;
+                                bestDialog = d;
+                            }
                         }
                     }
                 }
             }
         }
-        return null;
+        return bestDialog;
     }
 
     // 智能审核工作台主渲染与同步控制
